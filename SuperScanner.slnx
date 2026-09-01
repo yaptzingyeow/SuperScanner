@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/SuperScanner.Api/SuperScanner.Api.csproj" />
+    <Project Path="src/SuperScanner.Application/SuperScanner.Application.csproj" />
+    <Project Path="src/SuperScanner.Domain/SuperScanner.Domain.csproj" />
+    <Project Path="src/SuperScanner.Infrastructure/SuperScanner.Infrastructure.csproj" />
+    <Project Path="src/SuperScanner.Worker/SuperScanner.Worker.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/SuperScanner.Api.IntegrationTests/SuperScanner.Api.IntegrationTests.csproj" />
+    <Project Path="tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj" />
+    <Project Path="tests/SuperScanner.Domain.Tests/SuperScanner.Domain.Tests.csproj" />
+    <Project Path="tests/SuperScanner.Infrastructure.IntegrationTests/SuperScanner.Infrastructure.IntegrationTests.csproj" />
+  </Folder>
+</Solution>
