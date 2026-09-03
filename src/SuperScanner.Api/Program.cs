@@ -1,8 +1,27 @@
+using Microsoft.AspNetCore.Authentication;
+using SuperScanner.Api.Auth;
+using SuperScanner.Application.Abstractions;
+using SuperScanner.Infrastructure.Auth;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+builder.Services.Configure<FirebaseAuthOptions>(
+    builder.Configuration.GetSection(FirebaseAuthOptions.SectionName));
+builder.Services.AddHttpClient<IFirebaseAppCheckTokenVerifier, FirebaseAppCheckTokenVerifier>(client =>
+    client.Timeout = TimeSpan.FromSeconds(10));
+builder.Services.AddSingleton<IFirebaseIdTokenVerifier, FirebaseAdminIdTokenVerifier>();
+builder.Services.AddSingleton<IRequestIdentityVerifier, FirebaseRequestIdentityVerifier>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUser, CurrentUser>();
+builder.Services
+    .AddAuthentication(FirebaseAuthenticationHandler.SchemeName)
+    .AddScheme<AuthenticationSchemeOptions, FirebaseAuthenticationHandler>(
+        FirebaseAuthenticationHandler.SchemeName,
+        _ => { });
+builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
@@ -13,6 +32,13 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseAuthentication();
+app.UseMiddleware<AppCheckMiddleware>();
+app.UseAuthorization();
+
+app.MapGet("/api/me", (ICurrentUser currentUser) =>
+        Results.Ok(new { firebaseUid = currentUser.FirebaseUid }))
+    .RequireAuthorization();
 
 var summaries = new[]
 {
