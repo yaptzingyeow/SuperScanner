@@ -4,8 +4,11 @@ using SuperScanner.Api.Auth;
 using SuperScanner.Api.Endpoints;
 using SuperScanner.Application.Abstractions;
 using SuperScanner.Application.Documents;
+using SuperScanner.Application.Uploads;
 using SuperScanner.Infrastructure.Auth;
 using SuperScanner.Infrastructure.Persistence;
+using SuperScanner.Infrastructure.Processing;
+using SuperScanner.Infrastructure.ObjectStorage;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,6 +35,13 @@ builder.Services.AddScoped<IDocumentRepository, EfDocumentRepository>();
 builder.Services.AddSingleton<IClock, SuperScanner.Infrastructure.Time.SystemClock>();
 builder.Services.AddScoped<CreateDocument>();
 builder.Services.AddScoped<ListDocuments>();
+builder.Services.AddScoped<IUploadIntentRepository, EfUploadIntentRepository>();
+builder.Services.AddSingleton(new UploadPolicy(50, 25 * 1024 * 1024));
+builder.Services.AddScoped<CreateUploadIntent>();
+builder.Services.AddScoped<IProcessingJobQueue, PostgresJobQueue>();
+builder.Services.AddScoped<CompleteUpload>();
+builder.Services.Configure<R2Options>(builder.Configuration.GetSection(R2Options.SectionName));
+builder.Services.AddSingleton<IObjectStore, R2ObjectStore>();
 
 var app = builder.Build();
 
@@ -50,6 +60,7 @@ app.MapGet("/api/me", (ICurrentUser currentUser) =>
         Results.Ok(new { firebaseUid = currentUser.FirebaseUid }))
     .RequireAuthorization();
 DocumentsEndpoints.Map(app);
+UploadsEndpoints.Map(app);
 
 var summaries = new[]
 {
