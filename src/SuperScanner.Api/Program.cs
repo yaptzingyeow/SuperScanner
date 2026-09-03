@@ -1,7 +1,11 @@
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.EntityFrameworkCore;
 using SuperScanner.Api.Auth;
+using SuperScanner.Api.Endpoints;
 using SuperScanner.Application.Abstractions;
+using SuperScanner.Application.Documents;
 using SuperScanner.Infrastructure.Auth;
+using SuperScanner.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,6 +26,12 @@ builder.Services
         FirebaseAuthenticationHandler.SchemeName,
         _ => { });
 builder.Services.AddAuthorization();
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("PostgreSql") ?? string.Empty));
+builder.Services.AddScoped<IDocumentRepository, EfDocumentRepository>();
+builder.Services.AddSingleton<IClock, SuperScanner.Infrastructure.Time.SystemClock>();
+builder.Services.AddScoped<CreateDocument>();
+builder.Services.AddScoped<ListDocuments>();
 
 var app = builder.Build();
 
@@ -39,6 +49,7 @@ app.UseAuthorization();
 app.MapGet("/api/me", (ICurrentUser currentUser) =>
         Results.Ok(new { firebaseUid = currentUser.FirebaseUid }))
     .RequireAuthorization();
+DocumentsEndpoints.Map(app);
 
 var summaries = new[]
 {
