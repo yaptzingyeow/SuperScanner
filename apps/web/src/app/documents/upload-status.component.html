@@ -1,0 +1,29 @@
+<section class="status-page" aria-labelledby="status-heading" aria-live="polite">
+  <div class="status-card">
+    @if (status().state === 'Loading') {
+      <span class="status-icon status-icon--working" aria-hidden="true"></span>
+      <h1 id="status-heading">Checking your scan</h1>
+      <p>Loading the latest secure status…</p>
+    } @else if (status().state === 'AwaitingUpload' || status().state === 'PendingValidation') {
+      <span class="status-icon status-icon--working" aria-hidden="true"></span>
+      <h1 id="status-heading">Validating securely</h1>
+      <p>
+        We’re checking the file type, integrity, and safety. You can leave this page and return
+        later.
+      </p>
+    } @else if (status().state === 'Accepted') {
+      <span class="status-icon status-icon--success" aria-hidden="true">✓</span>
+      <h1 id="status-heading">Scan accepted</h1>
+      <p>Your original file passed validation and is ready for processing.</p>
+    } @else if (status().state === 'Rejected') {
+      <span class="status-icon status-icon--error" aria-hidden="true">!</span>
+      <h1 id="status-heading">This scan could not be accepted</h1>
+      <p>For your safety, the file was removed. Check the format and try a different file.</p>
+    } @else {
+      <span class="status-icon status-icon--error" aria-hidden="true">!</span>
+      <h1 id="status-heading">Status unavailable</h1>
+      <p>We could not load this scan’s status. Please try again later.</p>
+    }
+    <a routerLink="/">Back to documents</a>
+  </div>
+</section>

@@ -4,6 +4,7 @@ import { provideRouter } from '@angular/router';
 import { routes } from './app.routes';
 import { securityInterceptor } from './core/api/security.interceptor';
 import { provideFirebaseSecurity } from './core/auth/firebase.providers';
+import { HttpSignedUploadClient, SIGNED_UPLOAD_CLIENT } from './documents/upload.service';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -11,5 +12,6 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes),
     provideHttpClient(withInterceptors([securityInterceptor])),
     provideFirebaseSecurity(),
+    { provide: SIGNED_UPLOAD_CLIENT, useExisting: HttpSignedUploadClient },
   ],
 };

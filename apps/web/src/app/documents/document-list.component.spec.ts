@@ -1,20 +1,32 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { Router } from '@angular/router';
 import { API_BASE_URL } from '../core/api/security.interceptor';
 import { DocumentListComponent } from './document-list.component';
 
 describe('DocumentListComponent', () => {
   let fixture: ComponentFixture<DocumentListComponent>;
   let httpTesting: HttpTestingController;
+  let navigations: unknown[][];
 
   beforeEach(async () => {
+    navigations = [];
     await TestBed.configureTestingModule({
       imports: [DocumentListComponent],
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
         { provide: API_BASE_URL, useValue: '/api' },
+        {
+          provide: Router,
+          useValue: {
+            navigate: (commands: unknown[]) => {
+              navigations.push(commands);
+              return Promise.resolve(true);
+            },
+          },
+        },
       ],
     }).compileComponents();
 
@@ -74,6 +86,15 @@ describe('DocumentListComponent', () => {
 
     expect(button.textContent).toContain('New Scan');
     expect(button.type).toBe('button');
+    httpTesting.expectOne('/api/documents').flush([]);
+  });
+
+  it('opens the secure scan flow from the primary action', () => {
+    const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+
+    button.click();
+
+    expect(navigations).toEqual([['/scan']]);
     httpTesting.expectOne('/api/documents').flush([]);
   });
 });

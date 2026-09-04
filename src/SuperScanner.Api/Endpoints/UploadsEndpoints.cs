@@ -15,6 +15,9 @@ public static class UploadsEndpoints
                 "/api/documents/{documentId:guid}/uploads/{uploadId:guid}/complete",
                 CompleteAsync)
             .RequireAuthorization();
+        endpoints
+            .MapGet("/api/documents/{documentId:guid}/uploads/{uploadId:guid}", GetStatusAsync)
+            .RequireAuthorization();
     }
 
     private static async Task<IResult> CreateAsync(
@@ -61,11 +64,12 @@ public static class UploadsEndpoints
     {
         try
         {
-            return Results.Ok(await completeUpload.HandleAsync(
+            var result = await completeUpload.HandleAsync(
                 currentUser.FirebaseUid,
                 documentId,
                 uploadId,
-                cancellationToken));
+                cancellationToken);
+            return Results.Ok(new { result.UploadId, State = result.State.ToString() });
         }
         catch (KeyNotFoundException)
         {
@@ -78,6 +82,27 @@ public static class UploadsEndpoints
         catch (InvalidOperationException exception)
         {
             return Results.Conflict(new { error = exception.Message });
+        }
+    }
+
+    private static async Task<IResult> GetStatusAsync(
+        Guid documentId,
+        Guid uploadId,
+        ICurrentUser currentUser,
+        GetUploadStatus getUploadStatus,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Results.Ok(await getUploadStatus.HandleAsync(
+                currentUser.FirebaseUid,
+                documentId,
+                uploadId,
+                cancellationToken));
+        }
+        catch (KeyNotFoundException)
+        {
+            return Results.NotFound();
         }
     }
 }

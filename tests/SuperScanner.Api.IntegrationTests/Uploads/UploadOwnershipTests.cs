@@ -68,6 +68,47 @@ public sealed class UploadOwnershipTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
+    [Fact]
+    public async Task GetStatus_ReturnsOwnedUploadState()
+    {
+        using var userA = CreateAuthenticatedClient("user-a");
+        var createDocument = await userA.PostAsJsonAsync("/api/documents", new { title = "Private form" });
+        createDocument.EnsureSuccessStatusCode();
+        var document = await createDocument.Content.ReadFromJsonAsync<DocumentSummary>();
+        var createUpload = await userA.PostAsJsonAsync(
+            $"/api/documents/{document!.Id}/uploads",
+            ValidUploadRequest());
+        createUpload.EnsureSuccessStatusCode();
+        var upload = await createUpload.Content.ReadFromJsonAsync<UploadIntentDto>();
+
+        var status = await userA.GetFromJsonAsync<UploadStatusDto>(
+            $"/api/documents/{document.Id}/uploads/{upload!.UploadId}");
+
+        Assert.Equal(upload.UploadId, status!.UploadId);
+        Assert.Equal("AwaitingUpload", status.State);
+        Assert.Null(status.ErrorCode);
+    }
+
+    [Fact]
+    public async Task GetStatus_ReturnsNotFoundForAnotherUsersUpload()
+    {
+        using var userA = CreateAuthenticatedClient("user-a");
+        using var userB = CreateAuthenticatedClient("user-b");
+        var createDocument = await userA.PostAsJsonAsync("/api/documents", new { title = "Private form" });
+        createDocument.EnsureSuccessStatusCode();
+        var document = await createDocument.Content.ReadFromJsonAsync<DocumentSummary>();
+        var createUpload = await userA.PostAsJsonAsync(
+            $"/api/documents/{document!.Id}/uploads",
+            ValidUploadRequest());
+        createUpload.EnsureSuccessStatusCode();
+        var upload = await createUpload.Content.ReadFromJsonAsync<UploadIntentDto>();
+
+        var response = await userB.GetAsync(
+            $"/api/documents/{document.Id}/uploads/{upload!.UploadId}");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
     public async Task InitializeAsync()
     {
         await _postgres.StartAsync();
@@ -127,6 +168,7 @@ public sealed class UploadOwnershipTests : IAsyncLifetime
 
     private sealed record DocumentSummary(Guid Id);
     private sealed record UploadIntentDto(Guid UploadId);
+    private sealed record UploadStatusDto(Guid UploadId, string State, string? ErrorCode);
 
     private sealed class FakeRequestIdentityVerifier : IRequestIdentityVerifier
     {

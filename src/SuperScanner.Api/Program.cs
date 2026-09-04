@@ -41,6 +41,7 @@ builder.Services.AddSingleton(new UploadPolicy(50, 25 * 1024 * 1024));
 builder.Services.AddScoped<CreateUploadIntent>();
 builder.Services.AddScoped<IProcessingJobQueue, PostgresJobQueue>();
 builder.Services.AddScoped<CompleteUpload>();
+builder.Services.AddScoped<GetUploadStatus>();
 builder.Services.Configure<R2Options>(builder.Configuration.GetSection(R2Options.SectionName));
 builder.Services.AddSingleton<IObjectStore, R2ObjectStore>();
 builder.Services.Configure<AuditOptions>(builder.Configuration.GetSection(AuditOptions.SectionName));

@@ -1,0 +1,73 @@
+<section class="scan-page" aria-labelledby="scan-heading">
+  <a routerLink="/" class="back-link">← Back to documents</a>
+  <div class="scan-grid">
+    <header>
+      <p class="eyebrow">New scan</p>
+      <h1 id="scan-heading">Upload your document</h1>
+      <p>PDF, JPEG, PNG, or HEIC · Maximum 25 MB · Private by default</p>
+    </header>
+
+    <form (submit)="$event.preventDefault(); submit()">
+      <label for="document-title">Document title</label>
+      <input
+        id="document-title"
+        type="text"
+        maxlength="200"
+        autocomplete="off"
+        [value]="title()"
+        (input)="setTitle($any($event.target).value)"
+        [disabled]="active()"
+      />
+
+      <label class="file-picker" for="document-file">
+        <span class="file-picker__icon" aria-hidden="true">＋</span>
+        <strong>Choose file</strong>
+        <span>or drop it here</span>
+      </label>
+      <input
+        id="document-file"
+        class="visually-hidden"
+        type="file"
+        accept="application/pdf,image/jpeg,image/png,image/heic"
+        (change)="onFileSelected($event)"
+        [disabled]="active()"
+      />
+
+      @if (selectedFile(); as file) {
+        <div class="selected-file">
+          <span class="selected-file__type" aria-hidden="true">DOC</span>
+          <span
+            ><strong>{{ file.name }}</strong
+            ><small>{{ formatSize(file.size) }}</small></span
+          >
+        </div>
+      }
+
+      <div class="feedback" aria-live="polite" aria-atomic="true">
+        @if (errorMessage()) {
+          <p class="error">{{ errorMessage() }}</p>
+        } @else if (active()) {
+          <p>
+            {{
+              progress().stage === 'uploading' ? 'Uploading securely' : 'Preparing secure upload'
+            }}
+            · {{ progress().percent }}%
+          </p>
+          <div
+            class="progress"
+            role="progressbar"
+            [attr.aria-valuenow]="progress().percent"
+            aria-valuemin="0"
+            aria-valuemax="100"
+          >
+            <span [style.width.%]="progress().percent"></span>
+          </div>
+        }
+      </div>
+
+      <button type="submit" [disabled]="active()">
+        {{ active() ? 'Uploading…' : 'Upload securely' }}
+      </button>
+    </form>
+  </div>
+</section>
