@@ -3,7 +3,9 @@ namespace SuperScanner.Domain.Uploads;
 public enum UploadIntentState
 {
     AwaitingUpload,
-    PendingValidation
+    PendingValidation,
+    Accepted,
+    Rejected
 }
 
 public sealed class UploadIntent
@@ -23,6 +25,7 @@ public sealed class UploadIntent
     public DateTimeOffset ExpiresAt { get; private set; }
     public UploadIntentState State { get; private set; }
     public string IdempotencyKey { get; private set; } = string.Empty;
+    public string? ValidationErrorCode { get; private set; }
 
     public static UploadIntent Create(
         Guid id,
@@ -63,5 +66,28 @@ public sealed class UploadIntent
 
         State = UploadIntentState.PendingValidation;
         return true;
+    }
+
+    public void Accept()
+    {
+        if (State != UploadIntentState.PendingValidation)
+        {
+            throw new InvalidOperationException("Only a pending upload can be accepted.");
+        }
+
+        State = UploadIntentState.Accepted;
+        ValidationErrorCode = null;
+    }
+
+    public void Reject(string errorCode)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(errorCode);
+        if (State != UploadIntentState.PendingValidation)
+        {
+            throw new InvalidOperationException("Only a pending upload can be rejected.");
+        }
+
+        State = UploadIntentState.Rejected;
+        ValidationErrorCode = errorCode;
     }
 }

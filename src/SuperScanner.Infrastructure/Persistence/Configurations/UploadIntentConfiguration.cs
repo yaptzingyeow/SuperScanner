@@ -19,6 +19,7 @@ public sealed class UploadIntentConfiguration : IEntityTypeConfiguration<UploadI
         builder.Property(upload => upload.ExpiresAt).IsRequired();
         builder.Property(upload => upload.State).HasConversion<string>().HasMaxLength(32).IsRequired();
         builder.Property(upload => upload.IdempotencyKey).HasMaxLength(128).IsRequired();
+        builder.Property(upload => upload.ValidationErrorCode).HasMaxLength(64);
         builder.HasIndex(upload => upload.IdempotencyKey).IsUnique();
         builder.HasIndex(upload => new { upload.OwnerFirebaseUid, upload.DocumentId });
         builder

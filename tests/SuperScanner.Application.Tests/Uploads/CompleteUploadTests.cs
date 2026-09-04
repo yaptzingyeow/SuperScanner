@@ -188,6 +188,26 @@ public sealed class CompleteUploadTests
 
             return Task.CompletedTask;
         }
+
+        public Task<ProcessingJobLease?> TryLeaseAsync(
+            string workerId,
+            TimeSpan leaseDuration,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<bool> HeartbeatAsync(
+            Guid jobId,
+            string workerId,
+            TimeSpan leaseDuration,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task CompleteAsync(Guid jobId, string workerId, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task RescheduleAsync(
+            Guid jobId,
+            string workerId,
+            string errorCode,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
     private sealed record JobRequest(string Type, string Payload, string IdempotencyKey);

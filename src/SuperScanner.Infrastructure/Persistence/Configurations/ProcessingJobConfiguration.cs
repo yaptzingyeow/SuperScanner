@@ -15,6 +15,13 @@ public sealed class ProcessingJobConfiguration : IEntityTypeConfiguration<Proces
         builder.Property(job => job.IdempotencyKey).HasMaxLength(128).IsRequired();
         builder.Property(job => job.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
         builder.Property(job => job.CreatedAt).IsRequired();
+        builder.Property(job => job.AvailableAt).IsRequired();
+        builder.Property(job => job.UpdatedAt).IsRequired();
+        builder.Property(job => job.AttemptCount).IsRequired();
+        builder.Property(job => job.WorkerId).HasMaxLength(128);
+        builder.Property(job => job.LeaseExpiresAt);
+        builder.Property(job => job.ErrorCode).HasMaxLength(64);
         builder.HasIndex(job => job.IdempotencyKey).IsUnique();
+        builder.HasIndex(job => new { job.Status, job.AvailableAt, job.CreatedAt });
     }
 }

@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\SuperScanner.Application\SuperScanner.Application.csproj" />
     <ProjectReference Include="..\..\src\SuperScanner.Domain\SuperScanner.Domain.csproj" />
+    <ProjectReference Include="..\..\src\SuperScanner.Worker\SuperScanner.Worker.csproj" />
   </ItemGroup>
 
 </Project>
