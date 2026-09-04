@@ -2,6 +2,7 @@ using SuperScanner.Application.Abstractions;
 using SuperScanner.Application.Uploads;
 using SuperScanner.Domain.Documents;
 using SuperScanner.Domain.Uploads;
+using SuperScanner.Application.Tests.TestDoubles;
 
 namespace SuperScanner.Application.Tests.Uploads;
 
@@ -27,7 +28,8 @@ public sealed class CompleteUploadTests
         var repository = new InMemoryUploadIntentRepository(upload);
         var objectStore = new HeadObjectStore(new StoredObjectInfo(1200, "application/pdf", "etag"));
         var jobs = new RecordingProcessingJobQueue();
-        var handler = new CompleteUpload(repository, objectStore, jobs, new FixedClock(Now));
+        var audit = new RecordingAuditWriter();
+        var handler = new CompleteUpload(repository, objectStore, jobs, new FixedClock(Now), audit);
 
         var first = await handler.HandleAsync("user-a", document.Id, upload.Id, CancellationToken.None);
         var repeated = await handler.HandleAsync("user-a", document.Id, upload.Id, CancellationToken.None);
@@ -40,6 +42,11 @@ public sealed class CompleteUploadTests
         Assert.Equal($"upload:{upload.Id}:validate", job.IdempotencyKey);
         Assert.Equal(1, objectStore.HeadCalls);
         Assert.Null(page.OriginalObjectKey);
+        var auditRequest = Assert.Single(audit.Requests);
+        Assert.Equal("upload.completed", auditRequest.Action);
+        Assert.Equal(document.Id, auditRequest.TargetId);
+        Assert.Contains(upload.Id.ToString(), auditRequest.RegionJson, StringComparison.Ordinal);
+        Assert.DoesNotContain(new string('a', 64), auditRequest.RegionJson, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -60,7 +67,12 @@ public sealed class CompleteUploadTests
         var repository = new InMemoryUploadIntentRepository(upload);
         var objectStore = new HeadObjectStore(new StoredObjectInfo(1200, "application/pdf", "etag"));
         var jobs = new RecordingProcessingJobQueue();
-        var handler = new CompleteUpload(repository, objectStore, jobs, new FixedClock(Now));
+        var handler = new CompleteUpload(
+            repository,
+            objectStore,
+            jobs,
+            new FixedClock(Now),
+            new RecordingAuditWriter());
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => handler.HandleAsync(
             "user-a",
@@ -102,7 +114,8 @@ public sealed class CompleteUploadTests
             repository,
             new HeadObjectStore(storedObject),
             jobs,
-            new FixedClock(Now));
+            new FixedClock(Now),
+            new RecordingAuditWriter());
 
         await Assert.ThrowsAsync<InvalidDataException>(() => handler.HandleAsync(
             "user-a",

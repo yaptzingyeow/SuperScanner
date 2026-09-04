@@ -6,6 +6,7 @@ using SuperScanner.Application.Uploads;
 using SuperScanner.Domain.Documents;
 using SuperScanner.Domain.Uploads;
 using SuperScanner.Worker;
+using SuperScanner.Application.Tests.TestDoubles;
 
 namespace SuperScanner.Application.Tests.Processing;
 
@@ -85,7 +86,8 @@ public sealed class UploadValidationJobRunnerTests
             new Repository(upload, page),
             store,
             new FixedClock(Now),
-            new UploadValidationPolicy(1024)));
+            new UploadValidationPolicy(1024),
+            new RecordingAuditWriter()));
         var provider = services.BuildServiceProvider();
         var runner = new UploadValidationJobRunner(
             provider.GetRequiredService<IServiceScopeFactory>(),

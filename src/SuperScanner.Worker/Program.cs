@@ -6,6 +6,7 @@ using SuperScanner.Infrastructure.ObjectStorage;
 using SuperScanner.Infrastructure.Persistence;
 using SuperScanner.Infrastructure.Processing;
 using SuperScanner.Infrastructure.Security;
+using SuperScanner.Infrastructure.Auditing;
 
 var builder = Host.CreateApplicationBuilder(args);
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -19,6 +20,8 @@ builder.Services.Configure<R2Options>(builder.Configuration.GetSection(R2Options
 builder.Services.AddSingleton<IObjectStore, R2ObjectStore>();
 builder.Services.Configure<ClamAvOptions>(builder.Configuration.GetSection(ClamAvOptions.SectionName));
 builder.Services.AddSingleton<IMalwareScanner, ClamAvMalwareScanner>();
+builder.Services.Configure<AuditOptions>(builder.Configuration.GetSection(AuditOptions.SectionName));
+builder.Services.AddScoped<IAuditWriter, HmacAuditWriter>();
 builder.Services.AddSingleton<UploadValidationJobRunner>();
 builder.Services.AddHostedService<UploadValidationWorker>();
 

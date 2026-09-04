@@ -3,6 +3,7 @@ using SuperScanner.Application.Abstractions;
 using SuperScanner.Application.Uploads;
 using SuperScanner.Domain.Documents;
 using SuperScanner.Domain.Uploads;
+using SuperScanner.Application.Tests.TestDoubles;
 
 namespace SuperScanner.Application.Tests.Uploads;
 
@@ -48,6 +49,11 @@ public sealed class ValidateUploadTests
         Assert.Equal(UploadIntentState.Accepted, fixture.Upload.State);
         Assert.Equal(expectedKey, fixture.Page.OriginalObjectKey);
         Assert.Equal((fixture.Upload.QuarantineObjectKey, expectedKey), Assert.Single(fixture.Store.Promotions));
+        var auditRequest = Assert.Single(fixture.Audit.Requests);
+        Assert.Equal("upload.accepted", auditRequest.Action);
+        Assert.Equal(fixture.Document.Id, auditRequest.TargetId);
+        Assert.Contains(fixture.Upload.Id.ToString(), auditRequest.RegionJson, StringComparison.Ordinal);
+        Assert.DoesNotContain(fixture.Upload.DeclaredSha256Hex, auditRequest.RegionJson, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -66,6 +72,10 @@ public sealed class ValidateUploadTests
         Assert.Null(fixture.Page.OriginalObjectKey);
         Assert.Equal(fixture.Upload.QuarantineObjectKey, Assert.Single(fixture.Store.DeletedKeys));
         Assert.Empty(fixture.Store.Promotions);
+        var auditRequest = Assert.Single(fixture.Audit.Requests);
+        Assert.Equal("upload.rejected", auditRequest.Action);
+        Assert.Equal(fixture.Document.Id, auditRequest.TargetId);
+        Assert.Contains(fixture.Page.Id.ToString(), auditRequest.RegionJson, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -184,12 +194,14 @@ public sealed class ValidateUploadTests
 
         var repository = new InMemoryUploadValidationRepository(upload, page);
         var store = new RecordingObjectStore(bytes);
+        var audit = new RecordingAuditWriter();
         var handler = new ValidateUpload(
             repository,
             store,
             new FixedClock(Now),
-            new UploadValidationPolicy(maxSizeBytes));
-        return new ValidationFixture(document, page, upload, store, handler);
+            new UploadValidationPolicy(maxSizeBytes),
+            audit);
+        return new ValidationFixture(document, page, upload, store, audit, handler);
     }
 
     private static string Sha256(byte[] bytes) =>
@@ -200,6 +212,7 @@ public sealed class ValidateUploadTests
         Page Page,
         UploadIntent Upload,
         RecordingObjectStore Store,
+        RecordingAuditWriter Audit,
         ValidateUpload Handler);
 
     private sealed class FixedClock(DateTimeOffset utcNow) : IClock

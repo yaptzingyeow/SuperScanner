@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using SuperScanner.Application.Abstractions;
 using SuperScanner.Domain.Uploads;
+using System.Text.Json;
 
 namespace SuperScanner.Application.Uploads;
 
@@ -18,7 +19,8 @@ public sealed class ValidateUpload(
     IUploadValidationRepository repository,
     IObjectStore objectStore,
     IClock clock,
-    UploadValidationPolicy policy)
+    UploadValidationPolicy policy,
+    IAuditWriter audit)
 {
     public async Task<UploadValidationResult> ValidateAsync(
         Guid uploadId,
@@ -121,6 +123,9 @@ public sealed class ValidateUpload(
         await objectStore.PromoteAsync(upload.QuarantineObjectKey, originalKey, cancellationToken);
         target.Page.AcceptOriginal(originalKey);
         upload.Accept();
+        await audit.AppendAsync(
+            CreateAuditRequest(upload, "upload.accepted"),
+            cancellationToken);
         await repository.SaveChangesAsync(cancellationToken);
         return new UploadValidationResult(UploadValidationOutcome.Accepted, null);
     }
@@ -132,9 +137,21 @@ public sealed class ValidateUpload(
     {
         await objectStore.DeleteAsync(target.Upload.QuarantineObjectKey, cancellationToken);
         target.Upload.Reject(errorCode);
+        await audit.AppendAsync(
+            CreateAuditRequest(target.Upload, "upload.rejected"),
+            cancellationToken);
         await repository.SaveChangesAsync(cancellationToken);
         return new UploadValidationResult(UploadValidationOutcome.Rejected, errorCode);
     }
+
+    private AuditWriteRequest CreateAuditRequest(UploadIntent upload, string action) =>
+        new(
+            upload.OwnerFirebaseUid,
+            action,
+            "document",
+            upload.DocumentId,
+            JsonSerializer.Serialize(new { uploadId = upload.Id, pageId = upload.PageId }),
+            clock.UtcNow);
 
     private static FileStream OpenBoundedTemporaryFile() =>
         new(

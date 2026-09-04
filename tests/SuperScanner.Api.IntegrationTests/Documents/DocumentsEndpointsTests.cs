@@ -86,6 +86,10 @@ public sealed class DocumentsEndpointsTests : IAsyncLifetime
         _factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
             {
+                builder.UseSetting(
+                    "Audit:SigningKeyBase64",
+                    Convert.ToBase64String(Enumerable.Repeat((byte)7, 32).ToArray()));
+                builder.UseSetting("Audit:SigningKeyId", "api-test-key");
                 builder.ConfigureLogging(logging => logging.ClearProviders());
                 builder.ConfigureTestServices(services =>
                 {

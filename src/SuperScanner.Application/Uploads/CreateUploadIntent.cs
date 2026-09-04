@@ -1,5 +1,6 @@
 using SuperScanner.Application.Abstractions;
 using SuperScanner.Domain.Uploads;
+using System.Text.Json;
 
 namespace SuperScanner.Application.Uploads;
 
@@ -21,7 +22,8 @@ public sealed class CreateUploadIntent(
     IUploadIntentRepository repository,
     IObjectStore objectStore,
     IClock clock,
-    UploadPolicy policy)
+    UploadPolicy policy,
+    IAuditWriter audit)
 {
     private static readonly HashSet<string> SupportedMediaTypes = new(StringComparer.Ordinal)
     {
@@ -69,6 +71,15 @@ public sealed class CreateUploadIntent(
             cancellationToken);
 
         await repository.AddAsync(uploadIntent, page, cancellationToken);
+        await audit.AppendAsync(
+            new AuditWriteRequest(
+                ownerFirebaseUid,
+                "upload.intent_created",
+                "document",
+                documentId,
+                JsonSerializer.Serialize(new { uploadId, pageId }),
+                clock.UtcNow),
+            cancellationToken);
         await repository.SaveChangesAsync(cancellationToken);
         return new UploadIntentDto(uploadId, pageId, putUrl, expiresAt);
     }

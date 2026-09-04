@@ -10,7 +10,7 @@ public sealed record DocumentSummary(
     int PageCount,
     DateTimeOffset UpdatedAt);
 
-public sealed class CreateDocument(IDocumentRepository documents, IClock clock)
+public sealed class CreateDocument(IDocumentRepository documents, IClock clock, IAuditWriter audit)
 {
     public async Task<DocumentSummary> HandleAsync(
         string ownerFirebaseUid,
@@ -19,6 +19,15 @@ public sealed class CreateDocument(IDocumentRepository documents, IClock clock)
     {
         var document = Document.Create(Guid.NewGuid(), ownerFirebaseUid, title, clock.UtcNow);
         await documents.AddAsync(document, cancellationToken);
+        await audit.AppendAsync(
+            new AuditWriteRequest(
+                ownerFirebaseUid,
+                "document.created",
+                "document",
+                document.Id,
+                "{}",
+                clock.UtcNow),
+            cancellationToken);
 
         return new DocumentSummary(
             document.Id,

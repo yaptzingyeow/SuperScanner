@@ -2,6 +2,7 @@ using SuperScanner.Application.Abstractions;
 using SuperScanner.Application.Uploads;
 using SuperScanner.Domain.Documents;
 using SuperScanner.Domain.Uploads;
+using SuperScanner.Application.Tests.TestDoubles;
 
 namespace SuperScanner.Application.Tests.Uploads;
 
@@ -25,11 +26,13 @@ public sealed class CreateUploadIntentTests
     {
         var repository = new InMemoryUploadIntentRepository(_document);
         var store = new RecordingObjectStore();
+        var audit = new RecordingAuditWriter();
         var handler = new CreateUploadIntent(
             repository,
             store,
             new FixedClock(Now),
-            new UploadPolicy(50, 25 * 1024 * 1024));
+            new UploadPolicy(50, 25 * 1024 * 1024),
+            audit);
 
         var result = await handler.HandleAsync(
             "user-a",
@@ -45,6 +48,13 @@ public sealed class CreateUploadIntentTests
         Assert.DoesNotContain("tax-form", store.LastRequest.ObjectKey, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(Now.AddMinutes(5), result.ExpiresAt);
         Assert.Equal(result.PageId, Assert.Single(_document.Pages).Id);
+        var auditRequest = Assert.Single(audit.Requests);
+        Assert.Equal("upload.intent_created", auditRequest.Action);
+        Assert.Equal(_document.Id, auditRequest.TargetId);
+        Assert.Contains(result.UploadId.ToString(), auditRequest.RegionJson, StringComparison.Ordinal);
+        Assert.Contains(result.PageId.ToString(), auditRequest.RegionJson, StringComparison.Ordinal);
+        Assert.DoesNotContain("tax-form", auditRequest.RegionJson, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(new string('a', 64), auditRequest.RegionJson, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -59,7 +69,8 @@ public sealed class CreateUploadIntentTests
             repository,
             new RecordingObjectStore(),
             new FixedClock(Now),
-            new UploadPolicy(50, 25 * 1024 * 1024));
+            new UploadPolicy(50, 25 * 1024 * 1024),
+            new RecordingAuditWriter());
 
         await Assert.ThrowsAsync<ArgumentException>(() => handler.HandleAsync(
             "user-a",
@@ -79,7 +90,8 @@ public sealed class CreateUploadIntentTests
             repository,
             new RecordingObjectStore(),
             new FixedClock(Now),
-            new UploadPolicy(50, 25 * 1024 * 1024));
+            new UploadPolicy(50, 25 * 1024 * 1024),
+            new RecordingAuditWriter());
 
         await Assert.ThrowsAsync<KeyNotFoundException>(() => handler.HandleAsync(
             "user-b",
@@ -100,7 +112,8 @@ public sealed class CreateUploadIntentTests
             repository,
             new RecordingObjectStore(),
             new FixedClock(Now),
-            new UploadPolicy(1, 25 * 1024 * 1024));
+            new UploadPolicy(1, 25 * 1024 * 1024),
+            new RecordingAuditWriter());
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => handler.HandleAsync(
             "user-a",
@@ -120,7 +133,8 @@ public sealed class CreateUploadIntentTests
             repository,
             new ThrowingObjectStore(),
             new FixedClock(Now),
-            new UploadPolicy(50, 25 * 1024 * 1024));
+            new UploadPolicy(50, 25 * 1024 * 1024),
+            new RecordingAuditWriter());
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => handler.HandleAsync(
             "user-a",

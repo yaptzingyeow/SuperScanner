@@ -1,5 +1,6 @@
 using SuperScanner.Application.Abstractions;
 using SuperScanner.Domain.Uploads;
+using System.Text.Json;
 
 namespace SuperScanner.Application.Uploads;
 
@@ -9,7 +10,8 @@ public sealed class CompleteUpload(
     IUploadIntentRepository repository,
     IObjectStore objectStore,
     IProcessingJobQueue jobs,
-    IClock clock)
+    IClock clock,
+    IAuditWriter audit)
 {
     public async Task<CompleteUploadResult> HandleAsync(
         string ownerFirebaseUid,
@@ -52,6 +54,15 @@ public sealed class CompleteUpload(
             upload.IdempotencyKey,
             cancellationToken);
         await repository.SaveChangesAsync(cancellationToken);
+        await audit.AppendAsync(
+            new AuditWriteRequest(
+                ownerFirebaseUid,
+                "upload.completed",
+                "document",
+                documentId,
+                JsonSerializer.Serialize(new { uploadId = upload.Id, pageId = upload.PageId }),
+                clock.UtcNow),
+            cancellationToken);
 
         return new CompleteUploadResult(upload.Id, upload.State);
     }

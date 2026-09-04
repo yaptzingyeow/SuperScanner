@@ -9,6 +9,7 @@ using SuperScanner.Infrastructure.Auth;
 using SuperScanner.Infrastructure.Persistence;
 using SuperScanner.Infrastructure.Processing;
 using SuperScanner.Infrastructure.ObjectStorage;
+using SuperScanner.Infrastructure.Auditing;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -42,6 +43,9 @@ builder.Services.AddScoped<IProcessingJobQueue, PostgresJobQueue>();
 builder.Services.AddScoped<CompleteUpload>();
 builder.Services.Configure<R2Options>(builder.Configuration.GetSection(R2Options.SectionName));
 builder.Services.AddSingleton<IObjectStore, R2ObjectStore>();
+builder.Services.Configure<AuditOptions>(builder.Configuration.GetSection(AuditOptions.SectionName));
+builder.Services.AddScoped<IAuditWriter, HmacAuditWriter>();
+builder.Services.AddScoped<IAuditVerifier, HmacAuditVerifier>();
 
 var app = builder.Build();
 
