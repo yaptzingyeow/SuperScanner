@@ -1,0 +1,77 @@
+name: superscanner
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-superscanner}
+      POSTGRES_USER: ${POSTGRES_USER:-superscanner_local}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-superscanner_local_only}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [private]
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-superscanner_local}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-superscanner_local_only_password}
+    ports:
+      - "127.0.0.1:${MINIO_API_PORT:-9000}:9000"
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [private]
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-superscanner_local}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-superscanner_local_only_password}
+      MINIO_BUCKET: ${MINIO_BUCKET:-superscanner-private}
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - >-
+        mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}";
+        mc mb --ignore-existing "local/$${MINIO_BUCKET}";
+        exec tail -f /dev/null
+    networks: [private]
+
+  clamav:
+    image: clamav/clamav:stable
+    ports:
+      - "127.0.0.1:${CLAMAV_PORT:-3310}:3310"
+    volumes:
+      - clamav-data:/var/lib/clamav
+    healthcheck:
+      test: ["CMD-SHELL", "clamdscan --ping 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+    networks: [private]
+
+volumes:
+  postgres-data:
+  minio-data:
+  clamav-data:
+
+networks:
+  private:

@@ -8,7 +8,12 @@ using SuperScanner.Infrastructure.Processing;
 using SuperScanner.Infrastructure.Security;
 using SuperScanner.Infrastructure.Auditing;
 
-var builder = Host.CreateApplicationBuilder(args);
+var builder = WebApplication.CreateBuilder(args);
+if (builder.Environment.IsEnvironment("E2E"))
+{
+    builder.Logging.ClearProviders();
+    builder.Logging.AddSimpleConsole();
+}
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("PostgreSql") ?? string.Empty));
 builder.Services.AddSingleton<IClock, SuperScanner.Infrastructure.Time.SystemClock>();
@@ -24,6 +29,10 @@ builder.Services.Configure<AuditOptions>(builder.Configuration.GetSection(AuditO
 builder.Services.AddScoped<IAuditWriter, HmacAuditWriter>();
 builder.Services.AddSingleton<UploadValidationJobRunner>();
 builder.Services.AddHostedService<UploadValidationWorker>();
+builder.Services.AddHealthChecks();
 
-var host = builder.Build();
-host.Run();
+var app = builder.Build();
+app.MapHealthChecks("/health");
+app.Run();
+
+public partial class Program;

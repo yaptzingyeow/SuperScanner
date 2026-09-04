@@ -7,6 +7,31 @@ namespace SuperScanner.Infrastructure.IntegrationTests.ObjectStorage;
 public sealed class R2ObjectStoreTests
 {
     [Fact]
+    public async Task CreatePutUrl_UsesConfiguredS3EndpointForLocalMinio()
+    {
+        var store = new R2ObjectStore(Options.Create(new R2Options
+        {
+            ServiceUrl = "http://127.0.0.1:9000",
+            AccessKeyId = "local-access",
+            SecretAccessKey = "local-secret",
+            BucketName = "private-scans"
+        }));
+
+        var url = await store.CreatePutUrlAsync(
+            new PutObjectRequest(
+                "quarantine/a-document/an-upload",
+                "application/pdf",
+                1200,
+                DateTimeOffset.UtcNow.AddMinutes(5)),
+            CancellationToken.None);
+
+        Assert.Equal("127.0.0.1", url.Host);
+        Assert.Equal(9000, url.Port);
+        Assert.Equal("http", url.Scheme);
+        Assert.Equal("/private-scans/quarantine/a-document/an-upload", url.AbsolutePath);
+    }
+
+    [Fact]
     public async Task CreatePutUrl_BindsBucketKeyTypeSizeAndFiveMinuteExpiry()
     {
         var store = new R2ObjectStore(Options.Create(new R2Options

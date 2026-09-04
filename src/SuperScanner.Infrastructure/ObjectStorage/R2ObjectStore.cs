@@ -11,23 +11,35 @@ public sealed class R2ObjectStore : IObjectStore, IDisposable
 {
     private readonly IAmazonS3 _client;
     private readonly string _bucketName;
+    private readonly Protocol _presignedUrlProtocol;
 
     public R2ObjectStore(IOptions<R2Options> options)
     {
         ArgumentNullException.ThrowIfNull(options);
         var value = options.Value;
-        ArgumentException.ThrowIfNullOrWhiteSpace(value.AccountId);
+        if (string.IsNullOrWhiteSpace(value.ServiceUrl))
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(value.AccountId);
+        }
         ArgumentException.ThrowIfNullOrWhiteSpace(value.AccessKeyId);
         ArgumentException.ThrowIfNullOrWhiteSpace(value.SecretAccessKey);
         ArgumentException.ThrowIfNullOrWhiteSpace(value.BucketName);
 
         _bucketName = value.BucketName;
+        var isCustomEndpoint = !string.IsNullOrWhiteSpace(value.ServiceUrl);
+        var customEndpoint = isCustomEndpoint ? new Uri(value.ServiceUrl) : null;
+        _presignedUrlProtocol = customEndpoint?.Scheme == Uri.UriSchemeHttp
+            ? Protocol.HTTP
+            : Protocol.HTTPS;
         _client = new AmazonS3Client(
             new BasicAWSCredentials(value.AccessKeyId, value.SecretAccessKey),
             new AmazonS3Config
             {
-                ServiceURL = $"https://{value.AccountId}.r2.cloudflarestorage.com",
-                AuthenticationRegion = "auto",
+                ServiceURL = isCustomEndpoint
+                    ? value.ServiceUrl
+                    : $"https://{value.AccountId}.r2.cloudflarestorage.com",
+                AuthenticationRegion = isCustomEndpoint ? "us-east-1" : "auto",
+                UseHttp = customEndpoint?.Scheme == Uri.UriSchemeHttp,
                 ForcePathStyle = true
             });
     }
@@ -42,6 +54,7 @@ public sealed class R2ObjectStore : IObjectStore, IDisposable
             BucketName = _bucketName,
             Key = request.ObjectKey,
             Verb = HttpVerb.PUT,
+            Protocol = _presignedUrlProtocol,
             Expires = request.ExpiresAt.UtcDateTime,
             ContentType = request.MediaType
         };

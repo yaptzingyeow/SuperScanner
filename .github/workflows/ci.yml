@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet restore SuperScanner.slnx --locked-mode
+      - run: dotnet build SuperScanner.slnx --no-restore
+      - run: dotnet test SuperScanner.slnx --no-build
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.3
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+        working-directory: apps/web
+      - run: npm test -- --watch=false
+        working-directory: apps/web
+      - run: npm run build
+        working-directory: apps/web
+      - name: Reject E2E identity code in the production bundle
+        run: |
+          if grep -R -E "e2e-app-check|e2e-user-a|e2e-login" dist/web/browser; then
+            exit 1
+          fi
+        working-directory: apps/web
+
+  containers:
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose config --quiet
+      - run: docker build --file src/SuperScanner.Api/Dockerfile --tag superscanner-api:test .
+      - run: docker build --file src/SuperScanner.Worker/Dockerfile --tag superscanner-worker:test .
+      - run: docker build --file apps/web/Dockerfile --tag superscanner-web:test .
+
+  e2e:
+    needs: [backend, frontend, containers]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.3
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: dotnet restore SuperScanner.slnx --locked-mode
+      - run: dotnet build SuperScanner.slnx --no-restore
+      - run: npm ci
+        working-directory: apps/web
+      - run: npx playwright install --with-deps chromium
+        working-directory: apps/web
+      - run: docker compose up -d --wait
+      - run: npm run e2e
+        working-directory: apps/web
+      - if: always()
+        run: docker compose down --volumes

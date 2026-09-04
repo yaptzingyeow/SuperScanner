@@ -13,8 +13,8 @@
       </p>
     } @else if (status().state === 'Accepted') {
       <span class="status-icon status-icon--success" aria-hidden="true">✓</span>
-      <h1 id="status-heading">Scan accepted</h1>
-      <p>Your original file passed validation and is ready for processing.</p>
+      <h1 id="status-heading">Ready</h1>
+      <p>Scan accepted. Your original file passed validation and is ready for processing.</p>
     } @else if (status().state === 'Rejected') {
       <span class="status-icon status-icon--error" aria-hidden="true">!</span>
       <h1 id="status-heading">This scan could not be accepted</h1>

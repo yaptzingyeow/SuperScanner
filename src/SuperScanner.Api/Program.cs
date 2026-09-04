@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using SuperScanner.Api.Auth;
 using SuperScanner.Api.Endpoints;
@@ -13,15 +14,39 @@ using SuperScanner.Infrastructure.Auditing;
 
 var builder = WebApplication.CreateBuilder(args);
 
+if (builder.Environment.IsEnvironment("E2E"))
+{
+    builder.Logging.ClearProviders();
+    builder.Logging.AddSimpleConsole();
+    builder.Services.AddDataProtection().UseEphemeralDataProtectionProvider();
+}
+
+var e2eIdentityConfigured = builder.Configuration[E2eIdentityFixture.ConfigurationKey] is not null;
+if (!builder.Environment.IsEnvironment("E2E") && e2eIdentityConfigured)
+{
+    throw new InvalidOperationException(
+        "E2E identity configuration is forbidden outside the E2E environment.");
+}
+
+var e2eIdentityEnabled = builder.Environment.IsEnvironment("E2E") &&
+    builder.Configuration.GetValue<bool>(E2eIdentityFixture.ConfigurationKey);
+
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 builder.Services.Configure<FirebaseAuthOptions>(
     builder.Configuration.GetSection(FirebaseAuthOptions.SectionName));
-builder.Services.AddHttpClient<IFirebaseAppCheckTokenVerifier, FirebaseAppCheckTokenVerifier>(client =>
-    client.Timeout = TimeSpan.FromSeconds(10));
-builder.Services.AddSingleton<IFirebaseIdTokenVerifier, FirebaseAdminIdTokenVerifier>();
-builder.Services.AddSingleton<IRequestIdentityVerifier, FirebaseRequestIdentityVerifier>();
+if (e2eIdentityEnabled)
+{
+    builder.Services.AddSingleton<IRequestIdentityVerifier, E2eRequestIdentityVerifier>();
+}
+else
+{
+    builder.Services.AddHttpClient<IFirebaseAppCheckTokenVerifier, FirebaseAppCheckTokenVerifier>(client =>
+        client.Timeout = TimeSpan.FromSeconds(10));
+    builder.Services.AddSingleton<IFirebaseIdTokenVerifier, FirebaseAdminIdTokenVerifier>();
+    builder.Services.AddSingleton<IRequestIdentityVerifier, FirebaseRequestIdentityVerifier>();
+}
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 builder.Services
@@ -30,6 +55,7 @@ builder.Services
         FirebaseAuthenticationHandler.SchemeName,
         _ => { });
 builder.Services.AddAuthorization();
+builder.Services.AddHealthChecks();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("PostgreSql") ?? string.Empty));
 builder.Services.AddScoped<IDocumentRepository, EfDocumentRepository>();
@@ -50,13 +76,23 @@ builder.Services.AddScoped<IAuditVerifier, HmacAuditVerifier>();
 
 var app = builder.Build();
 
+if (builder.Environment.IsEnvironment("E2E"))
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    var database = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await database.Database.MigrateAsync();
+}
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsEnvironment("E2E"))
+{
+    app.UseHttpsRedirection();
+}
 app.UseAuthentication();
 app.UseMiddleware<AppCheckMiddleware>();
 app.UseAuthorization();
@@ -66,6 +102,11 @@ app.MapGet("/api/me", (ICurrentUser currentUser) =>
     .RequireAuthorization();
 DocumentsEndpoints.Map(app);
 UploadsEndpoints.Map(app);
+app.MapHealthChecks("/health");
+if (e2eIdentityEnabled)
+{
+    E2eIdentityFixture.Map(app);
+}
 
 var summaries = new[]
 {
