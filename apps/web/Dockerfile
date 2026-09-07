@@ -2,7 +2,7 @@
 FROM node:22.22.3-alpine AS build
 WORKDIR /source
 COPY apps/web/package.json apps/web/package-lock.json ./
-RUN --mount=type=cache,id=superscanner-web-npm,target=/root/.npm npm ci --no-audit --no-fund
+RUN npm ci --no-audit --no-fund
 COPY apps/web/ ./
 RUN npm run build
 
