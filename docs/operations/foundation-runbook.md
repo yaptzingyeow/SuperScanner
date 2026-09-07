@@ -37,7 +37,7 @@ Use at least 32 random bytes for the audit signing key, Base64 encoded. Store se
 ## Deploy and migrate
 
 1. Back up PostgreSQL and confirm the target environment and R2 bucket.
-2. Deploy the API image with no public traffic and run `dotnet ef database update --project src/SuperScanner.Infrastructure --startup-project src/SuperScanner.Api` as a one-off Railway command.
+2. Deploy a one-off migration job containing the .NET SDK and run `dotnet ef database update --project src/SuperScanner.Infrastructure --startup-project src/SuperScanner.Infrastructure`. Do not run migrations from the runtime-only API image.
 3. Start the API and verify `/health`, then start the private worker and verify `/health` from Railway's private network.
 4. Deploy web with `API_UPSTREAM` pointing to the API private hostname. Verify authentication, App Check, upload, validation, and owner isolation before promoting traffic.
 
