@@ -20,8 +20,9 @@ describe('authGuard', () => {
       ],
     });
 
+    const state = { url: '/documents/document-1/uploads/upload-1' } as RouterStateSnapshot;
     const decision = TestBed.runInInjectionContext(() =>
-      authGuard({} as ActivatedRouteSnapshot, {} as RouterStateSnapshot),
+      authGuard({} as ActivatedRouteSnapshot, state),
     );
 
     await expect(firstValueFrom(decision as Observable<boolean | UrlTree>)).resolves.toBe(true);
@@ -32,11 +33,16 @@ describe('authGuard', () => {
       providers: [provideRouter([]), { provide: AuthService, useValue: { user$: of(null) } }],
     });
 
+    const state = { url: '/documents/document-1/uploads/upload-1' } as RouterStateSnapshot;
     const decision = TestBed.runInInjectionContext(() =>
-      authGuard({} as ActivatedRouteSnapshot, {} as RouterStateSnapshot),
+      authGuard({} as ActivatedRouteSnapshot, state),
     );
     const result = await firstValueFrom(decision as Observable<boolean | UrlTree>);
 
-    expect(result).toEqual(TestBed.inject(Router).createUrlTree(['/sign-in']));
+    expect(result).toEqual(
+      TestBed.inject(Router).createUrlTree(['/login'], {
+        queryParams: { returnUrl: '/documents/document-1/uploads/upload-1' },
+      }),
+    );
   });
 });

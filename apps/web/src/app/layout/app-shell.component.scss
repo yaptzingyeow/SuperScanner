@@ -195,3 +195,7 @@ main {
     white-space: nowrap;
   }
 }
+.account-wrap { position: relative; }
+.account-menu { position: absolute; top: calc(100% + 10px); right: 0; z-index: 20; min-width: 220px; padding: 12px; border: 1px solid #dce5e1; border-radius: 12px; background: white; box-shadow: 0 16px 40px rgba(20, 52, 42, .16); }
+.account-menu span { display: block; overflow: hidden; margin-bottom: 9px; color: #617069; font-size: 12px; text-overflow: ellipsis; }
+.account-menu button { width: 100%; padding: 9px 11px; border: 0; border-radius: 8px; background: #eff7f3; color: #0a7454; font-weight: 700; text-align: left; cursor: pointer; }

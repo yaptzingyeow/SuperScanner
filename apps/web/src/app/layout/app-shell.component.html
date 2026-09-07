@@ -31,7 +31,17 @@
 
     <div class="topbar__actions">
       <span class="private-state"><span aria-hidden="true">●</span> Private</span>
-      <button type="button" class="account" aria-label="Open account menu">TY</button>
+      <div class="account-wrap">
+        <button type="button" class="account" aria-label="Open account menu" (click)="menuOpen.update(value => !value)">
+          {{ (auth.user$ | async)?.email?.slice(0, 2)?.toUpperCase() || 'ME' }}
+        </button>
+        @if (menuOpen()) {
+          <div class="account-menu">
+            <span>{{ (auth.user$ | async)?.email }}</span>
+            <button type="button" data-sign-out (click)="signOut()">Sign out</button>
+          </div>
+        }
+      </div>
     </div>
   </header>
 

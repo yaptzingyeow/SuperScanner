@@ -1,5 +1,6 @@
 import { EnvironmentProviders, Injectable, makeEnvironmentProviders } from '@angular/core';
-import { of } from 'rxjs';
+import { User } from 'firebase/auth';
+import { BehaviorSubject, Observable } from 'rxjs';
 import {
   API_BASE_URL,
   APP_CHECK_TOKEN_SOURCE,
@@ -7,7 +8,7 @@ import {
   IDENTITY_TOKEN_SOURCE,
   IdentityTokenSource,
 } from '../api/security.interceptor';
-import { AUTH_STATE_SOURCE } from './auth.service';
+import { AUTH_ACTIONS_SOURCE, AUTH_STATE_SOURCE, AuthActionsSource, AuthStateSource } from './auth.service';
 
 export interface E2eIdentityTokens {
   identityToken: string;
@@ -15,11 +16,33 @@ export interface E2eIdentityTokens {
 }
 
 @Injectable()
-export class E2eIdentityStore implements IdentityTokenSource, AppCheckTokenSource {
+export class E2eIdentityStore
+  implements IdentityTokenSource, AppCheckTokenSource, AuthStateSource, AuthActionsSource
+{
   private tokens?: E2eIdentityTokens;
+  private readonly user = new BehaviorSubject<User | null>(null);
 
   set(tokens: E2eIdentityTokens): void {
     this.tokens = tokens;
+    this.user.next({ uid: 'e2e-user', email: 'e2e@superscanner.test' } as User);
+  }
+
+  observe(): Observable<User | null> {
+    return this.user.asObservable();
+  }
+
+  createUser(): Promise<void> {
+    return Promise.reject(new Error('Email authentication is unavailable in E2E mode.'));
+  }
+
+  signIn(): Promise<void> {
+    return Promise.reject(new Error('Email authentication is unavailable in E2E mode.'));
+  }
+
+  signOut(): Promise<void> {
+    this.tokens = undefined;
+    this.user.next(null);
+    return Promise.resolve();
   }
 
   getIdToken(): Promise<string> {
@@ -41,7 +64,8 @@ export function provideE2eSecurity(apiBaseUrl: string): EnvironmentProviders {
     E2eIdentityStore,
     { provide: IDENTITY_TOKEN_SOURCE, useExisting: E2eIdentityStore },
     { provide: APP_CHECK_TOKEN_SOURCE, useExisting: E2eIdentityStore },
-    { provide: AUTH_STATE_SOURCE, useValue: { observe: () => of(null) } },
+    { provide: AUTH_STATE_SOURCE, useExisting: E2eIdentityStore },
+    { provide: AUTH_ACTIONS_SOURCE, useExisting: E2eIdentityStore },
     { provide: API_BASE_URL, useValue: apiBaseUrl },
   ]);
 }

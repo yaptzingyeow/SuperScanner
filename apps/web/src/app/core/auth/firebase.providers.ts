@@ -6,7 +6,7 @@ import {
   initializeAppCheck,
   ReCaptchaEnterpriseProvider,
 } from 'firebase/app-check';
-import { Auth, getAuth, onAuthStateChanged } from 'firebase/auth';
+import { Auth, createUserWithEmailAndPassword, getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
@@ -16,7 +16,7 @@ import {
   IDENTITY_TOKEN_SOURCE,
   IdentityTokenSource,
 } from '../api/security.interceptor';
-import { AUTH_STATE_SOURCE, AuthStateSource } from './auth.service';
+import { AUTH_ACTIONS_SOURCE, AUTH_STATE_SOURCE, AuthActionsSource, AuthStateSource } from './auth.service';
 
 export const FIREBASE_APP = new InjectionToken<FirebaseApp>('FIREBASE_APP');
 export const FIREBASE_AUTH = new InjectionToken<Auth>('FIREBASE_AUTH');
@@ -58,6 +58,14 @@ export function createAuthStateSource(auth: Auth): AuthStateSource {
   };
 }
 
+export function createAuthActionsSource(auth: Auth): AuthActionsSource {
+  return {
+    createUser: async (email, password) => { await createUserWithEmailAndPassword(auth, email, password); },
+    signIn: async (email, password) => { await signInWithEmailAndPassword(auth, email, password); },
+    signOut: async () => { await signOut(auth); },
+  };
+}
+
 export function provideFirebaseSecurity(): EnvironmentProviders {
   return makeEnvironmentProviders([
     {
@@ -93,6 +101,7 @@ export function provideFirebaseSecurity(): EnvironmentProviders {
       deps: [FIREBASE_AUTH],
       useFactory: createAuthStateSource,
     },
+    { provide: AUTH_ACTIONS_SOURCE, deps: [FIREBASE_AUTH], useFactory: createAuthActionsSource },
     { provide: API_BASE_URL, useValue: environment.apiBaseUrl },
   ]);
 }
