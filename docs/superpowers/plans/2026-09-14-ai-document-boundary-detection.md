@@ -84,7 +84,7 @@
 - Consumes: existing `detect(image: numpy.ndarray) -> dict` behavior.
 - Produces: `detect_with_opencv(image: numpy.ndarray) -> DocumentBoundaryResult`; `DocumentBoundaryResult.to_json_dict() -> dict`.
 
-- [ ] **Step 1: Add a failing contract test**
+- [x] **Step 1: Add a failing contract test**
 
 ```python
 from boundary.contracts import BoundaryPoint, DocumentBoundaryResult
@@ -99,13 +99,13 @@ def test_boundary_result_serializes_provider_neutral_fields(self):
     self.assertEqual(len(result.to_json_dict()["points"]), 4)
 ```
 
-- [ ] **Step 2: Run the focused test and verify RED**
+- [x] **Step 2: Run the focused test and verify RED**
 
 Run: `C:\yeow\SuperScanner\.task-tools\crop-runtime\Scripts\python.exe -m unittest discover -s src/SuperScanner.Worker/processing -p "test_crop_detection.py" -v`
 
 Expected: FAIL because `boundary.contracts` does not exist.
 
-- [ ] **Step 3: Implement the immutable result contract**
+- [x] **Step 3: Implement the immutable result contract**
 
 ```python
 @dataclass(frozen=True)
@@ -133,13 +133,13 @@ class DocumentBoundaryResult:
 
 Move the current OpenCV body to `detect_with_opencv`. Delete the development-only `shutil.copyfile` capture and its unused import. Keep a compatibility `detect` wrapper until Task 6 replaces it.
 
-- [ ] **Step 4: Run existing crop regressions and verify GREEN**
+- [x] **Step 4: Run existing crop regressions and verify GREEN**
 
 Run: `C:\yeow\SuperScanner\.task-tools\crop-runtime\Scripts\python.exe -m unittest discover -s src/SuperScanner.Worker/processing -p "test_*.py" -v`
 
 Expected: all current paper-boundary regression tests PASS with unchanged coordinates/tolerances.
 
-- [ ] **Step 5: Commit the seam**
+- [x] **Step 5: Commit the seam**
 
 ```powershell
 git add src/SuperScanner.Worker/processing/crop_image.py src/SuperScanner.Worker/processing/boundary src/SuperScanner.Worker/processing/test_crop_detection.py
@@ -156,7 +156,7 @@ git commit -m "refactor: isolate classical document detector"
 - Consumes: BGR `numpy.ndarray`, configured square input size.
 - Produces: `letterbox(image, input_size) -> LetterboxedImage`; `LetterboxedImage.to_source_points(points) -> numpy.ndarray`.
 
-- [ ] **Step 1: Write failing aspect-ratio and inverse-mapping tests**
+- [x] **Step 1: Write failing aspect-ratio and inverse-mapping tests**
 
 ```python
 def test_letterbox_preserves_aspect_ratio_and_inverts_points(self):
@@ -167,13 +167,13 @@ def test_letterbox_preserves_aspect_ratio_and_inverts_points(self):
     np.testing.assert_allclose(source, [[0, 0], [1500, 2000]], atol=7)
 ```
 
-- [ ] **Step 2: Run the test and verify RED**
+- [x] **Step 2: Run the test and verify RED**
 
 Run: `C:\yeow\SuperScanner\.task-tools\crop-runtime\Scripts\python.exe -m unittest discover -s src/SuperScanner.Worker/processing -p "test_boundary_preprocess.py" -v`
 
 Expected: FAIL because `letterbox` is undefined.
 
-- [ ] **Step 3: Implement letterboxing and inverse mapping**
+- [x] **Step 3: Implement letterboxing and inverse mapping**
 
 ```python
 @dataclass(frozen=True)
@@ -194,13 +194,13 @@ class LetterboxedImage:
 
 Use `cv2.INTER_AREA` when shrinking, `cv2.INTER_LINEAR` when enlarging, symmetric padding, and a zero-filled canvas.
 
-- [ ] **Step 4: Run preprocessing tests and the full Python crop suite**
+- [x] **Step 4: Run preprocessing tests and the full Python crop suite**
 
 Run: `C:\yeow\SuperScanner\.task-tools\crop-runtime\Scripts\python.exe -m unittest discover -s src/SuperScanner.Worker/processing -p "test_*.py" -v`
 
 Expected: all tests PASS.
 
-- [ ] **Step 5: Commit preprocessing**
+- [x] **Step 5: Commit preprocessing**
 
 ```powershell
 git add src/SuperScanner.Worker/processing/boundary/preprocess.py src/SuperScanner.Worker/processing/test_boundary_preprocess.py
@@ -222,7 +222,7 @@ git commit -m "feat: add portable boundary preprocessing"
 - Consumes: model metadata path and BGR image.
 - Produces: `OnnxDocumentSegmenter(metadata_path).predict(image) -> SegmentationPrediction`; throws `ModelConfigurationError` for absent/checksum-invalid/incompatible models.
 
-- [ ] **Step 1: Generate and commit a tiny deterministic ONNX test model**
+- [x] **Step 1: Generate and commit a tiny deterministic ONNX test model**
 
 `create_fixture_model.py` must create an ONNX graph that maps normalized NCHW RGB input to a one-channel sigmoid-like center mask without external data. Run:
 
@@ -233,7 +233,7 @@ Get-FileHash tests/fixtures/document-boundary/tiny-segmenter.onnx -Algorithm SHA
 
 Record the printed digest in the test metadata fixture. The fixture is test-only and must stay below 100 KB.
 
-- [ ] **Step 2: Write failing checksum and inference tests**
+- [x] **Step 2: Write failing checksum and inference tests**
 
 ```python
 def test_rejects_model_when_sha256_does_not_match(self):
@@ -248,13 +248,13 @@ def test_returns_probability_mask_in_source_letterbox_space(self):
     self.assertLessEqual(prediction.probability_mask.max(), 1)
 ```
 
-- [ ] **Step 3: Run tests and verify RED**
+- [x] **Step 3: Run tests and verify RED**
 
 Run: `python -m unittest discover -s src/SuperScanner.Worker/processing -p "test_onnx_segmenter.py" -v`
 
 Expected: FAIL because `OnnxDocumentSegmenter` does not exist.
 
-- [ ] **Step 4: Implement the session and pin dependencies**
+- [x] **Step 4: Implement the session and pin dependencies**
 
 `requirements.txt`:
 
@@ -289,7 +289,7 @@ The metadata schema is:
 
 The constructor must reject `enabled: true` unless `sha256` is exactly 64 lowercase hexadecimal characters and matches the binary. Configure ONNX Runtime with one intra-op and one inter-op thread and CPU execution only.
 
-- [ ] **Step 5: Run inference, crop regression, and dependency import checks**
+- [x] **Step 5: Run inference, crop regression, and dependency import checks**
 
 Run:
 
@@ -302,7 +302,7 @@ python -m unittest discover -s src/SuperScanner.Worker/processing -p "test_*.py"
 
 Expected: versions `4.14.0`, `2.3.3`, and `1.30.0` are reported and all tests PASS.
 
-- [ ] **Step 6: Commit runtime support**
+- [x] **Step 6: Commit runtime support**
 
 ```powershell
 git add src/SuperScanner.Worker/processing/boundary/onnx_segmenter.py src/SuperScanner.Worker/processing/test_onnx_segmenter.py src/SuperScanner.Worker/processing/requirements.txt src/SuperScanner.Worker/processing/models/document-boundary-model.json tools/document-boundary/requirements-dev.txt tests/fixtures/document-boundary
@@ -319,7 +319,7 @@ git commit -m "feat: add verified ONNX boundary runtime"
 - Consumes: probability mask, threshold, and `LetterboxedImage` mapping.
 - Produces: `estimate_boundary(mask, mapping, threshold) -> GeometryEstimate | None`; `GeometryEstimate` contains ordered normalized points plus numeric evidence.
 
-- [ ] **Step 1: Write failing clean, folded, shadowed, and internal-rule tests**
+- [x] **Step 1: Write failing clean, folded, shadowed, and internal-rule tests**
 
 ```python
 def test_fits_supporting_lines_around_folded_outer_mask(self):
@@ -337,13 +337,13 @@ def test_rejects_internal_rectangle_when_outer_mask_exists(self):
 
 Also assert ordered clockwise points, finite coordinates in `[0,1]`, rejection of disconnected noise, and `None` for empty/near-full masks.
 
-- [ ] **Step 2: Run tests and verify RED**
+- [x] **Step 2: Run tests and verify RED**
 
 Run: `python -m unittest discover -s src/SuperScanner.Worker/processing -p "test_boundary_geometry.py" -v`
 
 Expected: FAIL because `estimate_boundary` does not exist.
 
-- [ ] **Step 3: Implement focused mask cleanup and supporting-line geometry**
+- [x] **Step 3: Implement focused mask cleanup and supporting-line geometry**
 
 ```python
 @dataclass(frozen=True)
@@ -363,13 +363,13 @@ class GeometryEstimate:
 
 Threshold the mask, close gaps with a kernel capped at 2% of the short side, remove components below 1% area, and reject candidate areas outside 20–98%. Fit each side with `cv2.fitLine` over contour bands selected relative to the oriented minimum-area rectangle. Intersect adjacent infinite lines, validate convexity, and map points through `LetterboxedImage`.
 
-- [ ] **Step 4: Run geometry and full Python suites**
+- [x] **Step 4: Run geometry and full Python suites**
 
 Run: `python -m unittest discover -s src/SuperScanner.Worker/processing -p "test_*.py" -v`
 
 Expected: all tests PASS.
 
-- [ ] **Step 5: Commit geometry extraction**
+- [x] **Step 5: Commit geometry extraction**
 
 ```powershell
 git add src/SuperScanner.Worker/processing/boundary/geometry.py src/SuperScanner.Worker/processing/test_boundary_geometry.py
@@ -388,7 +388,7 @@ git commit -m "feat: refine document masks into corners"
 - Consumes: `GeometryEstimate`, optional OpenCV result, configured thresholds.
 - Produces: `score_geometry(evidence) -> float`; `HybridBoundaryDetector.detect(image) -> DocumentBoundaryResult`.
 
-- [ ] **Step 1: Write failing decision-policy tests**
+- [x] **Step 1: Write failing decision-policy tests**
 
 ```python
 def test_high_confidence_ai_result_is_selected(self):
@@ -406,13 +406,13 @@ def test_two_unreliable_detectors_require_manual_selection(self):
     self.assertEqual(result.confidence, 0)
 ```
 
-- [ ] **Step 2: Run policy tests and verify RED**
+- [x] **Step 2: Run policy tests and verify RED**
 
 Run: `python -m unittest discover -s src/SuperScanner.Worker/processing -p "test_boundary_*.py" -v`
 
 Expected: FAIL because the policy modules do not exist.
 
-- [ ] **Step 3: Implement explicit policy configuration**
+- [x] **Step 3: Implement explicit policy configuration**
 
 ```python
 @dataclass(frozen=True)
@@ -430,13 +430,13 @@ def score_geometry(e: GeometryEvidence) -> float:
 
 `HybridBoundaryDetector` catches only declared model/configuration/inference exceptions, records a safe diagnostics code, and invokes the injected OpenCV function. It must not swallow programming errors such as `TypeError` or `AssertionError`.
 
-- [ ] **Step 4: Run policy and regression suites**
+- [x] **Step 4: Run policy and regression suites**
 
 Run: `python -m unittest discover -s src/SuperScanner.Worker/processing -p "test_*.py" -v`
 
 Expected: all tests PASS.
 
-- [ ] **Step 5: Commit policy**
+- [x] **Step 5: Commit policy**
 
 ```powershell
 git add src/SuperScanner.Worker/processing/boundary/confidence.py src/SuperScanner.Worker/processing/boundary/hybrid.py src/SuperScanner.Worker/processing/test_boundary_confidence.py src/SuperScanner.Worker/processing/test_hybrid_detector.py
@@ -454,7 +454,7 @@ git commit -m "feat: add safe hybrid boundary policy"
 - Consumes: CLI environment values `SUPERSCANNER_BOUNDARY_MODE`, `SUPERSCANNER_BOUNDARY_MODEL_METADATA`, `SUPERSCANNER_BOUNDARY_MASK_THRESHOLD`, `SUPERSCANNER_BOUNDARY_HIGH_CONFIDENCE`, and `SUPERSCANNER_BOUNDARY_MEDIUM_CONFIDENCE`.
 - Produces: one JSON `DocumentBoundaryResult` on stdout and safe diagnostics on stderr; existing `apply` CLI remains unchanged.
 
-- [ ] **Step 1: Write failing subprocess contract tests**
+- [x] **Step 1: Write failing subprocess contract tests**
 
 ```python
 def test_detect_cli_emits_exact_provider_neutral_shape(self):
@@ -468,13 +468,13 @@ def test_detect_cli_emits_exact_provider_neutral_shape(self):
 
 Add tests that `ManualOnly` emits `FullImage`, an absent model in `AiPreferred` emits fallback rather than crashing, and stderr never contains the input path or image bytes.
 
-- [ ] **Step 2: Run CLI tests and verify RED**
+- [x] **Step 2: Run CLI tests and verify RED**
 
 Run: `python -m unittest discover -s src/SuperScanner.Worker/processing -p "test_crop_cli.py" -v`
 
 Expected: FAIL because the CLI still emits the legacy three-field object.
 
-- [ ] **Step 3: Build the detector from validated environment configuration**
+- [x] **Step 3: Build the detector from validated environment configuration**
 
 ```python
 def create_boundary_detector(env: Mapping[str, str]) -> HybridBoundaryDetector:
@@ -487,13 +487,13 @@ def create_boundary_detector(env: Mapping[str, str]) -> HybridBoundaryDetector:
 
 Keep stdout exclusively machine-readable JSON. Map known failures to diagnostics codes such as `ai_model_missing`, `ai_checksum_invalid`, `ai_inference_timeout`, `ai_geometry_invalid`, `opencv_candidate`, and `manual_required`.
 
-- [ ] **Step 4: Run CLI and all Python tests**
+- [x] **Step 4: Run CLI and all Python tests**
 
 Run: `python -m unittest discover -s src/SuperScanner.Worker/processing -p "test_*.py" -v`
 
 Expected: all tests PASS.
 
-- [ ] **Step 5: Commit CLI integration**
+- [x] **Step 5: Commit CLI integration**
 
 ```powershell
 git add src/SuperScanner.Worker/processing/crop_image.py src/SuperScanner.Worker/processing/boundary/__init__.py src/SuperScanner.Worker/processing/test_crop_cli.py
@@ -525,7 +525,7 @@ git commit -m "feat: connect hybrid detector to crop jobs"
 - Produces: `CropDetectionResult(CropPoint[] Points, double Confidence, string Source, string? ModelVersion, string DiagnosticsCode)` and persisted `Page.CropModelVersion`, `Page.CropDiagnosticsCode`.
 - Produces: `DocumentBoundaryHealth.CanAttemptAi`, `DocumentBoundaryHealth.MarkUnhealthy(code)`, and `DocumentBoundaryRollout.ShouldUseAi(pageId, percentage)`.
 
-- [ ] **Step 1: Write failing JSON validation tests**
+- [x] **Step 1: Write failing JSON validation tests**
 
 ```csharp
 [Fact]
@@ -546,13 +546,13 @@ public void AcceptsKnownSources(string source)
 }
 ```
 
-- [ ] **Step 2: Run focused .NET tests and verify RED**
+- [x] **Step 2: Run focused .NET tests and verify RED**
 
 Run: `dotnet test tests/SuperScanner.Infrastructure.IntegrationTests/SuperScanner.Infrastructure.IntegrationTests.csproj --filter FullyQualifiedName~CropDetectionResultTests`
 
 Expected: FAIL because `CropDetectionResult` does not exist.
 
-- [ ] **Step 3: Implement and bind validated options**
+- [x] **Step 3: Implement and bind validated options**
 
 ```csharp
 public sealed class DocumentBoundaryOptions
@@ -570,11 +570,11 @@ public sealed class DocumentBoundaryOptions
 
 Use `AddOptions<DocumentBoundaryOptions>().BindConfiguration(...).Validate(...)` to enforce known modes, ordered thresholds in `[0,1]`, timeout `1..25`, and rollout `0..100`, followed by `ValidateOnStart()`.
 
-- [ ] **Step 4: Pass configuration through `ProcessStartInfo.Environment`**
+- [x] **Step 4: Pass configuration through `ProcessStartInfo.Environment`**
 
 Set the five `SUPERSCANNER_BOUNDARY_*` variables explicitly in `CropProcessor`; never inherit model choice from arbitrary request data. Deserialize `CropDetectionResult`, call `IsValid`, and persist its exact source, model version, confidence, and diagnostics code. `DocumentBoundaryRollout.ShouldUseAi` must use the first unsigned 32 bits of SHA-256 over RFC-4122 page-ID bytes, modulo 100, so the same page always receives the same rollout decision.
 
-- [ ] **Step 5: Add the Worker-lifetime circuit breaker and structured telemetry**
+- [x] **Step 5: Add the Worker-lifetime circuit breaker and structured telemetry**
 
 ```csharp
 public sealed class DocumentBoundaryHealth
@@ -587,7 +587,7 @@ public sealed class DocumentBoundaryHealth
 
 Register it as a singleton. When the subprocess reports `ai_checksum_invalid`, `ai_model_unsupported`, or `ai_model_invalid`, mark AI unhealthy and force subsequent jobs to `OpenCvOnly` until Worker restart. Do not trip the circuit for timeouts or image-specific invalid geometry. Inject `ILogger<CropProcessor>` and log one structured completion event containing page ID, revision, source, confidence, model version, diagnostics code, and elapsed milliseconds; never log paths, image data, OCR text, model tensors, or subprocess environment values.
 
-- [ ] **Step 6: Add provenance columns and migration**
+- [x] **Step 6: Add provenance columns and migration**
 
 Add nullable `CropModelVersion` and `CropDiagnosticsCode` properties with maximum lengths 100 and 64. Generate the migration with:
 
@@ -629,7 +629,7 @@ git commit -m "feat: persist boundary detector provenance"
 - Consumes: `source`, `confidence`, `modelVersion`, and `diagnosticsCode` from the crop status endpoint.
 - Produces: `guidance: 'accurate' | 'verify' | 'manual'` and accessible UI copy; diagnostics code and model version are not displayed as raw error text.
 
-- [ ] **Step 1: Write failing component guidance tests**
+- [x] **Step 1: Write failing component guidance tests**
 
 ```typescript
 it('asks for verification when AI confidence is medium', () => {
@@ -643,13 +643,13 @@ it('requires manual adjustment for a full-image fallback', () => {
 });
 ```
 
-- [ ] **Step 2: Run Angular test and verify RED**
+- [x] **Step 2: Run Angular test and verify RED**
 
 Run: `npm --prefix apps/web test -- --watch=false --include src/app/documents/crop-editor.component.spec.ts`
 
 Expected: FAIL because `applyCropState` and `guidance` do not exist.
 
-- [ ] **Step 3: Implement stable guidance mapping**
+- [x] **Step 3: Implement stable guidance mapping**
 
 ```typescript
 type CropGuidance = 'accurate' | 'verify' | 'manual';
@@ -663,7 +663,7 @@ function cropGuidance(source: string, confidence: number): CropGuidance {
 
 Use the copy “Paper detected. Check the suggested corners.”, “We found a possible boundary. Please verify every corner.”, and “We could not confidently detect the paper. Adjust the corners manually.” Preserve existing dragging, precise coordinate entry, revision conflicts, and apply behavior.
 
-- [ ] **Step 4: Extend API response coverage**
+- [x] **Step 4: Extend API response coverage**
 
 Assert the crop status JSON includes nullable `modelVersion` and a safe `diagnosticsCode`, while ownership and authorization behavior remain unchanged.
 
@@ -698,7 +698,7 @@ git commit -m "feat: explain boundary confidence in crop editor"
 - Consumes: pinned requirements and promoted model metadata.
 - Produces: Worker image with Python modules and ONNX Runtime; production startup either verifies a provisioned model or safely stays in `OpenCvOnly`.
 
-- [ ] **Step 1: Add a failing publish-layout assertion**
+- [x] **Step 1: Add a failing publish-layout assertion**
 
 Add an MSBuild target named `VerifyBoundaryProcessingAssets` that runs after `Publish` and errors when `processing/boundary/hybrid.py`, `processing/requirements.txt`, or `processing/models/document-boundary-model.json` is absent. Run publish before adding content items and verify it fails.
 
@@ -706,7 +706,7 @@ Run: `dotnet publish src/SuperScanner.Worker/SuperScanner.Worker.csproj -c Relea
 
 Expected: FAIL at `VerifyBoundaryProcessingAssets`.
 
-- [ ] **Step 2: Publish all non-secret processing assets**
+- [x] **Step 2: Publish all non-secret processing assets**
 
 ```xml
 <Content Include="processing\**\*.py;processing\requirements.txt;processing\models\*.json"
@@ -716,7 +716,7 @@ Expected: FAIL at `VerifyBoundaryProcessingAssets`.
 
 Explicitly exclude `*.onnx`, evaluation manifests, images, and probability masks from Git and ordinary publish output.
 
-- [ ] **Step 3: Install pinned runtime dependencies in Docker**
+- [x] **Step 3: Install pinned runtime dependencies in Docker**
 
 Replace the distro `python3-opencv` dependency with Python, pip, and the pinned requirements:
 
@@ -728,7 +728,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends python3 python3
 
 Copy `requirements.txt` before the install layer so Docker caching remains effective. The model is mounted or downloaded by deployment provisioning and verified by the application; it is not baked into source control.
 
-- [ ] **Step 4: Create the controlled candidate download script**
+- [x] **Step 4: Create the controlled candidate download script**
 
 The script downloads the U-2-Net small candidate from `https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2netp.onnx` to a caller-specified directory, prints its SHA-256 and size, and never edits production metadata automatically. `README.md` must require license review, benchmark completion, manual checksum copy, and pull-request review before enabling the model.
 
@@ -744,7 +744,7 @@ docker run --rm --entrypoint python3 superscanner-worker:boundary -c "import cv2
 
 Expected: publish succeeds, Docker build succeeds, and the container prints `boundary runtime ready`.
 
-- [ ] **Step 6: Commit packaging**
+- [x] **Step 6: Commit packaging**
 
 ```powershell
 git add src/SuperScanner.Worker/SuperScanner.Worker.csproj src/SuperScanner.Worker/Dockerfile tools/document-boundary .gitignore
@@ -763,7 +763,7 @@ git commit -m "build: package document boundary runtime"
 - Consumes: a local manifest with image path, expected ordered normalized corners, and scenario tags.
 - Produces: geometry-only JSON containing aggregate accuracy, severe misses, confidence violations, latency, and fallback counts; exit `0` only when all promotion gates pass.
 
-- [ ] **Step 1: Write failing metric and privacy tests**
+- [x] **Step 1: Write failing metric and privacy tests**
 
 ```python
 def test_page_pass_requires_every_corner_within_two_percent(self):
@@ -782,13 +782,13 @@ def test_report_contains_no_image_paths_or_document_text(self):
     self.assertNotIn("recognizedText", report)
 ```
 
-- [ ] **Step 2: Run benchmark tests and verify RED**
+- [x] **Step 2: Run benchmark tests and verify RED**
 
 Run: `python -m unittest discover -s tools/document-boundary -p "test_benchmark.py" -v`
 
 Expected: FAIL because benchmark functions do not exist.
 
-- [ ] **Step 3: Implement exact metrics and exit gates**
+- [x] **Step 3: Implement exact metrics and exit gates**
 
 ```python
 promotion_passed = (
@@ -801,7 +801,7 @@ promotion_passed = (
 
 Compute per-corner absolute normalized x/y errors, complete-page pass rate, median and p95 latency, source/fallback counts, and results grouped by scenario tag. Emit only case IDs, tags, numeric metrics, model version, and aggregate counts. Runtime source/confidence/fallback/latency distributions come from the structured completion event added in Task 7; the operational guide must include a Railway log query for that event name.
 
-- [ ] **Step 4: Add a non-sensitive manifest example**
+- [x] **Step 4: Add a non-sensitive manifest example**
 
 ```json
 {
@@ -817,7 +817,7 @@ Compute per-corner absolute normalized x/y errors, complete-page pass rate, medi
 }
 ```
 
-- [ ] **Step 5: Run unit tests and a deliberately incomplete benchmark**
+- [x] **Step 5: Run unit tests and a deliberately incomplete benchmark**
 
 Run:
 
@@ -848,7 +848,7 @@ Expected: summaries contain no paths/text; model usability output is archived lo
 
 If and only if `promotionPassed` is true, copy the evaluated model version, exact SHA-256, input contract, source URL, and Apache-2.0 attribution into `document-boundary-model.json`, set deployment `DocumentBoundary__RolloutPercentage=5`, and keep repository `Mode=OpenCvOnly`. If the gate fails, leave the model disabled and use the grouped metrics to decide whether to fine-tune a document-specific model in a separate design.
 
-- [ ] **Step 9: Commit the benchmark harness, not private data or results**
+- [x] **Step 9: Commit the benchmark harness, not private data or results**
 
 ```powershell
 git add tools/document-boundary/benchmark.py tools/document-boundary/manifest.example.json tools/document-boundary/test_benchmark.py tools/document-boundary/README.md src/SuperScanner.Worker/processing/models/document-boundary-model.json
@@ -866,7 +866,7 @@ git commit -m "test: gate boundary model promotion on accuracy"
 - Consumes: completed Tasks 1–10 and, for AI rollout, a passing protected benchmark.
 - Produces: operational runbook and evidence that OpenCV-only and AI-preferred modes both fail safely.
 
-- [ ] **Step 1: Document configuration and recovery**
+- [x] **Step 1: Document configuration and recovery**
 
 Document exact Railway variables, model checksum provisioning, startup validation, rollout rollback (`DocumentBoundary__Mode=OpenCvOnly`), expected diagnostics codes, metric meanings, and confirmation that Google OCR is a later independent stage.
 
@@ -893,7 +893,7 @@ Start API, Worker, and Angular using the existing secure local scripts. Set `Doc
 
 Set `DocumentBoundary__Mode=AiPreferred`, provision the checksum-matching model, restart only the Worker, upload the same fixture, and verify the UI reports AI/verify guidance consistent with confidence. Change one byte in a disposable model copy and verify the Worker falls back with `ai_checksum_invalid` without logging the model path or image content.
 
-- [ ] **Step 5: Record verification evidence**
+- [x] **Step 5: Record verification evidence**
 
 Add command names, timestamps, exit codes, benchmark aggregate metrics, tested detector modes, and rollback result to `docs/operations/ai-document-boundary.md`. Do not include secrets, local paths, document text, image thumbnails, or private manifest contents.
 
