@@ -1,3 +1,11 @@
 .worktrees/
+.task-tools/
+apps/web/src/environments/app-check.local.ts
 apps/web/playwright-report/
 apps/web/test-results/
+src/SuperScanner.Worker/processing/models/*.onnx
+tools/document-boundary/models/
+tools/document-boundary/datasets/
+tools/document-boundary/release-manifest.json
+tools/document-boundary/*-summary.json
+tools/document-boundary/*-mask.npy

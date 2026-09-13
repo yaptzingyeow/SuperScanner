@@ -8,6 +8,10 @@ RUN dotnet publish src/SuperScanner.Worker/SuperScanner.Worker.csproj -c Release
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
+COPY src/SuperScanner.Worker/processing/requirements.txt /tmp/requirements.txt
+RUN apt-get update && apt-get install -y --no-install-recommends poppler-utils python3 python3-pip \
+    && python3 -m pip install --no-cache-dir --break-system-packages -r /tmp/requirements.txt \
+    && rm -rf /var/lib/apt/lists/* /root/.cache/pip /tmp/requirements.txt
 RUN mkdir -p /app/tmp && chown -R "$APP_UID:$APP_UID" /app
 ENV ASPNETCORE_URLS=http://+:8080 \
     DOTNET_EnableDiagnostics=0 \

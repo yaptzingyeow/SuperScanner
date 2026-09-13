@@ -11,4 +11,21 @@
     <ProjectReference Include="..\SuperScanner.Application\SuperScanner.Application.csproj" />
     <ProjectReference Include="..\SuperScanner.Infrastructure\SuperScanner.Infrastructure.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="processing\**\*.py;processing\requirements.txt"
+             Exclude="processing\test_*.py"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+    <Content Update="processing\models\*.json"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <Target Name="VerifyBoundaryProcessingAssets" AfterTargets="Publish">
+    <Error Condition="!Exists('$(PublishDir)processing\boundary\hybrid.py')"
+           Text="Published Worker is missing processing/boundary/hybrid.py." />
+    <Error Condition="!Exists('$(PublishDir)processing\requirements.txt')"
+           Text="Published Worker is missing processing/requirements.txt." />
+    <Error Condition="!Exists('$(PublishDir)processing\models\document-boundary-model.json')"
+           Text="Published Worker is missing processing/models/document-boundary-model.json." />
+  </Target>
 </Project>
