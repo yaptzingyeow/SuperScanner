@@ -1,0 +1,12 @@
+{
+  "enabled": false,
+  "modelVersion": "u2netp-candidate-1",
+  "fileName": "document-boundary.onnx",
+  "sha256": "disabled-until-benchmark-promotion",
+  "license": "Apache-2.0",
+  "source": "https://github.com/xuebinqin/U-2-Net",
+  "inputSize": 320,
+  "inputLayout": "NCHW",
+  "colorOrder": "RGB",
+  "normalization": "imagenet"
+}
