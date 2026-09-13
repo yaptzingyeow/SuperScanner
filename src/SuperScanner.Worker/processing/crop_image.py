@@ -12,7 +12,11 @@ if sys.platform != "win32":
     resource.setrlimit(resource.RLIMIT_CPU, (25, 25))
 import cv2
 import numpy as np
+from boundary.confidence import ConfidencePolicy
 from boundary.contracts import BoundaryPoint, DocumentBoundaryResult
+from boundary.geometry import estimate_boundary
+from boundary.hybrid import HybridBoundaryDetector
+from boundary.onnx_segmenter import ModelConfigurationError, OnnxDocumentSegmenter
 cv2.setNumThreads(1)
 
 FULL = [{"x": 0, "y": 0}, {"x": 1, "y": 0}, {"x": 1, "y": 1}, {"x": 0, "y": 1}]
@@ -200,6 +204,48 @@ def detect(image):
         payload["source"] = "Automatic"
     return payload
 
+
+def _configured_float(env, name, default):
+    raw = env.get(name)
+    if raw is None:
+        return default
+    try:
+        value = float(raw)
+    except ValueError as error:
+        raise ModelConfigurationError(f"{name} is invalid") from error
+    if not 0 < value < 1:
+        raise ModelConfigurationError(f"{name} is invalid")
+    return value
+
+
+def create_boundary_detector(env):
+    mode = env.get("SUPERSCANNER_BOUNDARY_MODE", "OpenCvOnly")
+    if mode not in {"AiPreferred", "OpenCvOnly", "ManualOnly"}:
+        raise ModelConfigurationError("boundary_mode_invalid")
+
+    policy = ConfidencePolicy(
+        high=_configured_float(env, "SUPERSCANNER_BOUNDARY_HIGH_CONFIDENCE", .78),
+        medium=_configured_float(env, "SUPERSCANNER_BOUNDARY_MEDIUM_CONFIDENCE", .58),
+        fallback_minimum=.45)
+    mask_threshold = _configured_float(
+        env, "SUPERSCANNER_BOUNDARY_MASK_THRESHOLD", .52)
+    metadata_path = env.get(
+        "SUPERSCANNER_BOUNDARY_MODEL_METADATA",
+        os.path.join(os.path.dirname(__file__), "models", "document-boundary-model.json"))
+
+    def detect_with_ai(image):
+        prediction = OnnxDocumentSegmenter(metadata_path).predict(image)
+        geometry = estimate_boundary(
+            prediction.probability_mask, prediction.mapping, mask_threshold)
+        return ((geometry, prediction.model_version)
+                if geometry is not None else None)
+
+    return HybridBoundaryDetector(
+        mode=mode,
+        ai_detector=detect_with_ai,
+        opencv_detector=detect_with_opencv,
+        policy=policy)
+
 def apply_filter(image, name):
     if name == "Original":
         return image
@@ -236,7 +282,8 @@ def main():
     if image is None or max(image.shape[:2]) > 2000 or min(image.shape[:2]) < 2:
         raise ValueError("Invalid source image")
     if mode == "detect":
-        print(json.dumps(detect(image), allow_nan=False))
+        result = create_boundary_detector(os.environ).detect(image)
+        print(json.dumps(result.to_json_dict(), allow_nan=False))
         return
     if mode != "apply":
         raise ValueError("Unknown operation")
