@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "synthetic-clean-a4-001",
+      "image": "tests/fixtures/document-boundary/clean-a4.jpg",
+      "tags": ["a4", "clean", "contrasting-background"],
+      "expected": [[0.12, 0.08], [0.94, 0.08], [0.98, 0.94], [0.04, 0.93]]
+    }
+  ]
+}
