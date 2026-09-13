@@ -101,7 +101,7 @@ def test_boundary_result_serializes_provider_neutral_fields(self):
 
 - [ ] **Step 2: Run the focused test and verify RED**
 
-Run: `C:\yeow\SuperScanner\.task-tools\crop-runtime\python.exe -m unittest src/SuperScanner.Worker/processing/test_crop_detection.py -v`
+Run: `C:\yeow\SuperScanner\.task-tools\crop-runtime\Scripts\python.exe -m unittest discover -s src/SuperScanner.Worker/processing -p "test_crop_detection.py" -v`
 
 Expected: FAIL because `boundary.contracts` does not exist.
 
@@ -135,7 +135,7 @@ Move the current OpenCV body to `detect_with_opencv`. Delete the development-onl
 
 - [ ] **Step 4: Run existing crop regressions and verify GREEN**
 
-Run: `C:\yeow\SuperScanner\.task-tools\crop-runtime\python.exe -m unittest discover -s src/SuperScanner.Worker/processing -p "test_*.py" -v`
+Run: `C:\yeow\SuperScanner\.task-tools\crop-runtime\Scripts\python.exe -m unittest discover -s src/SuperScanner.Worker/processing -p "test_*.py" -v`
 
 Expected: all current paper-boundary regression tests PASS with unchanged coordinates/tolerances.
 
@@ -169,7 +169,7 @@ def test_letterbox_preserves_aspect_ratio_and_inverts_points(self):
 
 - [ ] **Step 2: Run the test and verify RED**
 
-Run: `C:\yeow\SuperScanner\.task-tools\crop-runtime\python.exe -m unittest src/SuperScanner.Worker/processing/test_boundary_preprocess.py -v`
+Run: `C:\yeow\SuperScanner\.task-tools\crop-runtime\Scripts\python.exe -m unittest discover -s src/SuperScanner.Worker/processing -p "test_boundary_preprocess.py" -v`
 
 Expected: FAIL because `letterbox` is undefined.
 
@@ -196,7 +196,7 @@ Use `cv2.INTER_AREA` when shrinking, `cv2.INTER_LINEAR` when enlarging, symmetri
 
 - [ ] **Step 4: Run preprocessing tests and the full Python crop suite**
 
-Run: `C:\yeow\SuperScanner\.task-tools\crop-runtime\python.exe -m unittest discover -s src/SuperScanner.Worker/processing -p "test_*.py" -v`
+Run: `C:\yeow\SuperScanner\.task-tools\crop-runtime\Scripts\python.exe -m unittest discover -s src/SuperScanner.Worker/processing -p "test_*.py" -v`
 
 Expected: all tests PASS.
 
@@ -250,7 +250,7 @@ def test_returns_probability_mask_in_source_letterbox_space(self):
 
 - [ ] **Step 3: Run tests and verify RED**
 
-Run: `python -m unittest src/SuperScanner.Worker/processing/test_onnx_segmenter.py -v`
+Run: `python -m unittest discover -s src/SuperScanner.Worker/processing -p "test_onnx_segmenter.py" -v`
 
 Expected: FAIL because `OnnxDocumentSegmenter` does not exist.
 
@@ -339,7 +339,7 @@ Also assert ordered clockwise points, finite coordinates in `[0,1]`, rejection o
 
 - [ ] **Step 2: Run tests and verify RED**
 
-Run: `python -m unittest src/SuperScanner.Worker/processing/test_boundary_geometry.py -v`
+Run: `python -m unittest discover -s src/SuperScanner.Worker/processing -p "test_boundary_geometry.py" -v`
 
 Expected: FAIL because `estimate_boundary` does not exist.
 
@@ -408,7 +408,7 @@ def test_two_unreliable_detectors_require_manual_selection(self):
 
 - [ ] **Step 2: Run policy tests and verify RED**
 
-Run: `python -m unittest src/SuperScanner.Worker/processing/test_boundary_confidence.py src/SuperScanner.Worker/processing/test_hybrid_detector.py -v`
+Run: `python -m unittest discover -s src/SuperScanner.Worker/processing -p "test_boundary_*.py" -v`
 
 Expected: FAIL because the policy modules do not exist.
 
@@ -470,7 +470,7 @@ Add tests that `ManualOnly` emits `FullImage`, an absent model in `AiPreferred` 
 
 - [ ] **Step 2: Run CLI tests and verify RED**
 
-Run: `python -m unittest src/SuperScanner.Worker/processing/test_crop_cli.py -v`
+Run: `python -m unittest discover -s src/SuperScanner.Worker/processing -p "test_crop_cli.py" -v`
 
 Expected: FAIL because the CLI still emits the legacy three-field object.
 
@@ -784,7 +784,7 @@ def test_report_contains_no_image_paths_or_document_text(self):
 
 - [ ] **Step 2: Run benchmark tests and verify RED**
 
-Run: `python -m unittest tools/document-boundary/test_benchmark.py -v`
+Run: `python -m unittest discover -s tools/document-boundary -p "test_benchmark.py" -v`
 
 Expected: FAIL because benchmark functions do not exist.
 
@@ -822,7 +822,7 @@ Compute per-corner absolute normalized x/y errors, complete-page pass rate, medi
 Run:
 
 ```powershell
-python -m unittest tools/document-boundary/test_benchmark.py -v
+python -m unittest discover -s tools/document-boundary -p "test_benchmark.py" -v
 python tools/document-boundary/benchmark.py --manifest tools/document-boundary/manifest.example.json --output .task-tools/boundary-benchmark.json
 ```
 
@@ -876,7 +876,7 @@ Run:
 
 ```powershell
 python -m unittest discover -s src/SuperScanner.Worker/processing -p "test_*.py" -v
-python -m unittest tools/document-boundary/test_benchmark.py -v
+python -m unittest discover -s tools/document-boundary -p "test_benchmark.py" -v
 dotnet test SuperScanner.slnx --no-restore
 npm --prefix apps/web test -- --watch=false
 npm --prefix apps/web run build
