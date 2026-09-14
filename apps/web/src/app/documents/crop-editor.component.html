@@ -1,0 +1,53 @@
+<section class="crop-page">
+  <a class="back" [routerLink]="['/documents', documentId]">← Back to document</a>
+  <header><p class="eyebrow">MAKE IT YOURS</p><h1>Crop & enhance</h1><p>Adjust the paper’s corners, choose a filter, then save your scan.</p></header>
+  <fieldset class="filter-picker" [disabled]="busy() || !state()">
+    <legend>Scan filter</legend>
+    <div class="filter-options">
+      @for (item of filters; track item.id) {
+        <button type="button" class="filter-option" [class.selected]="filter() === item.id"
+          [attr.aria-pressed]="filter() === item.id" (click)="selectFilter(item.id)">{{ item.label }}</button>
+      }
+    </div>
+    <p aria-live="polite">{{ filterDescription() }}</p>
+    <small>The image below shows the source for corner selection. Your filter appears after saving.</small>
+  </fieldset>
+  <div class="toolbar">
+    <button (click)="submit(true)" [disabled]="busy() || !state()">Auto detect</button>
+    <button (click)="reset()" [disabled]="busy() || !state()">Reset</button>
+    <button class="primary" (click)="submit(false)" [disabled]="busy() || !state() || !valid()">{{ state()?.status === 'Processing' ? 'Saving…' : 'Save scan' }}</button>
+  </div>
+  <div aria-live="polite" class="message">
+    @if (state()?.status === 'Detecting') { <p>Finding the document edges…</p> }
+    @else if (state()?.status === 'Processing') { <p>Saving your flattened document…</p> }
+    @else if (guidance() === 'accurate') { <p class="guidance accurate"><strong>Paper detected.</strong> The boundary looks accurate. Check it briefly, then save your scan.</p> }
+    @else if (guidance() === 'manual') { <p class="guidance manual"><strong>Adjust the corners.</strong> We couldn’t confidently find every paper edge, so the full photo is selected.</p> }
+    @else { <p class="guidance verify"><strong>Please verify the corners.</strong> A boundary was suggested, but folds or shadows may need a small adjustment.</p> }
+    @if (!valid()) { <p class="error">Keep the corners in order and leave enough space inside the selection.</p> }
+    @if (error()) { <p role="alert" class="error">{{ error() }}</p><button (click)="reload()" [disabled]="submitting()">Reload status</button> }
+  </div>
+  @if (sourceUrl()) {
+    <div class="canvas-frame">
+      <div #stage class="stage" (pointermove)="move($event, stage)" (pointerup)="end($event, stage)" (pointercancel)="end($event, stage)" (lostpointercapture)="end($event, stage)">
+        <img [src]="sourceUrl()" alt="Original upright document for selecting corners" draggable="false" />
+        <svg viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true">
+          <defs><mask id="crop-mask"><rect width="1000" height="1000" fill="white"/><polygon [attr.points]="polygon()" fill="black"/></mask></defs>
+          <rect width="1000" height="1000" fill="#071b21" opacity="0.6" mask="url(#crop-mask)"/>
+          <polygon [attr.points]="polygon()" fill="none" stroke="#70efc0" stroke-width="3" vector-effect="non-scaling-stroke"/>
+        </svg>
+        @for (point of points(); track $index) {
+          <button class="handle" [style.left.%]="point.x * 100" [style.top.%]="point.y * 100" [disabled]="busy()"
+            [attr.aria-label]="names[$index] + ' corner. Use arrow keys to adjust.'" (pointerdown)="begin($event, $index, stage)" (keydown)="key($event, $index)">{{ $index + 1 }}</button>
+        }
+      </div>
+    </div>
+    <details><summary>Precise corner positions</summary><p>Values are percentages of the image. Arrow keys also move a focused handle.</p>
+      <div class="coordinates">@for (point of points(); track $index) {
+        <fieldset><legend>{{ $index + 1 }} · {{ names[$index] }}</legend>
+          <label>X % <input type="number" min="0" max="100" step="0.1" [disabled]="busy()" [value]="percent(point.x)" (change)="coordinate($event, $index, 'x')" /></label>
+          <label>Y % <input type="number" min="0" max="100" step="0.1" [disabled]="busy()" [value]="percent(point.y)" (change)="coordinate($event, $index, 'y')" /></label>
+        </fieldset>
+      }</div>
+    </details>
+  }
+</section>

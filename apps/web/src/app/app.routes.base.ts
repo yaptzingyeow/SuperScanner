@@ -1,4 +1,6 @@
 import { Routes } from '@angular/router';
+import { DocumentDetailComponent } from './documents/document-detail.component';
+import { CropEditorComponent } from './documents/crop-editor.component';
 import { DocumentListComponent } from './documents/document-list.component';
 import { NewDocumentComponent } from './documents/new-document.component';
 import { UploadStatusComponent } from './documents/upload-status.component';
@@ -13,8 +15,10 @@ export const foundationRoutes: Routes = [
     component: AppShellComponent,
     canActivate: [authGuard],
     children: [
-      { path: '', component: DocumentListComponent },
-      { path: 'scan', component: NewDocumentComponent },
+      { path: '', component: NewDocumentComponent },
+      { path: 'documents', component: DocumentListComponent },
+      { path: 'documents/:documentId', component: DocumentDetailComponent },
+      { path: 'documents/:documentId/pages/:pageId/crop', component: CropEditorComponent },
       {
         path: 'documents/:documentId/uploads/:uploadId',
         component: UploadStatusComponent,

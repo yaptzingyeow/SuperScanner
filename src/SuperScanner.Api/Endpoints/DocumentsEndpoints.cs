@@ -1,5 +1,9 @@
 using SuperScanner.Api.Auth;
 using SuperScanner.Application.Documents;
+using Microsoft.EntityFrameworkCore;
+using SuperScanner.Infrastructure.Persistence;
+using SuperScanner.Domain.Processing;
+using SuperScanner.Domain.Uploads;
 
 namespace SuperScanner.Api.Endpoints;
 
@@ -38,8 +42,24 @@ public static class DocumentsEndpoints
     private static async Task<IResult> ListAsync(
         ICurrentUser currentUser,
         ListDocuments listDocuments,
-        CancellationToken cancellationToken) =>
-        Results.Ok(await listDocuments.HandleAsync(currentUser.FirebaseUid, cancellationToken));
+        AppDbContext db,
+        CancellationToken cancellationToken)
+    {
+        var documents = await listDocuments.HandleAsync(currentUser.FirebaseUid, cancellationToken);
+        var uploads = await db.UploadIntents.AsNoTracking()
+            .Where(x => x.OwnerFirebaseUid == currentUser.FirebaseUid)
+            .Select(x => new { x.Id, x.DocumentId, x.State }).ToListAsync(cancellationToken);
+        var ids = uploads.Select(x => x.Id.ToString()).ToList();
+        var failed = await db.ProcessingJobs.AsNoTracking()
+            .Where(x => x.Type == "ProcessDocument" && x.Status == ProcessingJobStatus.Failed && ids.Contains(x.Payload))
+            .Select(x => x.Payload).ToListAsync(cancellationToken);
+        var failedDocuments = uploads.Where(x => failed.Contains(x.Id.ToString())).Select(x => x.DocumentId).ToHashSet();
+        var rejectedDocuments = uploads.GroupBy(x => x.DocumentId)
+            .Where(x => x.All(u => u.State == UploadIntentState.Rejected)).Select(x => x.Key).ToHashSet();
+        return Results.Ok(documents.Select(x => x with {
+            Status = failedDocuments.Contains(x.Id) ? "Failed" : rejectedDocuments.Contains(x.Id) ? "Rejected" : x.Status
+        }));
+    }
 
     public sealed record CreateDocumentRequest(string? Title);
 }

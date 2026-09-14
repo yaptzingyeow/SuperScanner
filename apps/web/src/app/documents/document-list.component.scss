@@ -2,6 +2,92 @@
   display: block;
 }
 
+.workspace-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 28px;
+  margin: 34px 0 20px;
+  padding: 38px 42px;
+  border-radius: 16px;
+  background: #e8eddf;
+  overflow: hidden;
+}
+.workspace-banner h2 {
+  font-family: Georgia, serif;
+  font-size: clamp(28px, 3vw, 42px);
+  font-weight: 400;
+  letter-spacing: -1px;
+  line-height: 1.15;
+  margin: 14px 0;
+}
+.workspace-banner p {
+  color: #657162;
+  font-size: 13px;
+  line-height: 1.8;
+}
+.banner-action {
+  border: 0;
+  background: #203b32;
+  color: #fff;
+  border-radius: 7px;
+  padding: 13px 18px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.banner-action span {
+  margin-left: 22px;
+}
+.banner-art {
+  position: relative;
+  flex: 0 0 210px;
+  padding: 15px;
+}
+.art-page {
+  height: 225px;
+  background: #fffef7;
+  padding: 26px;
+  border-radius: 4px;
+  transform: rotate(8deg);
+  box-shadow:
+    -12px 12px 0 #cad7bb,
+    0 15px 30px #253c2214;
+}
+.art-page small {
+  font-size: 7px;
+  letter-spacing: 1px;
+}
+.art-page i {
+  display: block;
+  height: 4px;
+  background: #d9ded2;
+  margin-top: 13px;
+}
+.art-page i:nth-child(3) {
+  width: 70%;
+}
+.art-page b {
+  display: block;
+  margin-top: 25px;
+  font-family: Georgia, serif;
+  font-size: 23px;
+  font-weight: 400;
+}
+.art-seal {
+  position: absolute;
+  right: -4px;
+  bottom: 7px;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #203b32;
+  color: #d0e1bf;
+  font-size: 23px;
+  border: 5px solid #e8eddf;
+}
+
 .documents {
   max-width: 72rem;
   margin: 0 auto;
@@ -50,7 +136,7 @@ h1 {
   border: 0;
   border-radius: 0.9rem;
   background: var(--color-primary);
-  box-shadow: 0 0.55rem 1.2rem rgb(58 72 220 / 24%);
+  box-shadow: 0 3px 8px rgb(32 59 50 / 8%);
   color: white;
   cursor: pointer;
   font: inherit;
@@ -66,11 +152,11 @@ h1 {
 .privacy-note {
   display: flex;
   gap: 0.85rem;
-  margin: 2.2rem 0;
+  margin: 0 0 2.2rem;
   padding: 1rem 1.1rem;
-  border: 1px solid var(--color-border);
+  border: 0;
   border-radius: 1rem;
-  background: var(--color-surface);
+  background: transparent;
 }
 
 .privacy-note__icon {
@@ -106,13 +192,13 @@ h1 {
 }
 
 .state-card {
-  min-height: 9rem;
+  min-height: 14rem;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 1rem;
   padding: 1.5rem;
-  border: 1px dashed var(--color-border-strong);
+  border: 1px solid var(--color-border);
   border-radius: 1.1rem;
   background: var(--color-surface);
   text-align: left;
@@ -219,6 +305,12 @@ h1 {
 }
 
 @media (max-width: 32rem) {
+  .workspace-banner {
+    padding: 26px;
+  }
+  .banner-art {
+    display: none;
+  }
   .documents__header {
     display: grid;
   }
@@ -227,8 +319,11 @@ h1 {
     width: 100%;
   }
 
+  .document-card {
+    flex-wrap: wrap;
+  }
   .document-card__status {
-    display: none;
+    margin-left: 68px;
   }
 }
 

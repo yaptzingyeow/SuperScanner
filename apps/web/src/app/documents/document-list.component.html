@@ -1,9 +1,9 @@
 <section class="documents" aria-labelledby="documents-heading">
   <header class="documents__header">
     <div>
-      <p class="eyebrow">Workspace</p>
+      <p class="eyebrow">Your private workspace</p>
       <h1 id="documents-heading">Your documents</h1>
-      <p class="subtitle">Scan, enhance, and keep important paperwork ready when you need it.</p>
+      <p class="subtitle">A little less paperwork. A little more peace of mind.</p>
     </div>
     <button type="button" class="new-scan" (click)="startNewScan()">
       <span aria-hidden="true">＋</span>
@@ -11,11 +11,28 @@
     </button>
   </header>
 
+  <div class="workspace-banner">
+    <div>
+      <span class="eyebrow">MAKE ROOM FOR WHAT MATTERS</span>
+      <h2>Paperwork, beautifully<br />under control.</h2>
+      <p>Bring a document into your workspace.<br />Keep the important things together.</p>
+      <button type="button" class="banner-action" (click)="startNewScan()">
+        Upload a document <span aria-hidden="true">↗</span>
+      </button>
+    </div>
+    <div class="banner-art" aria-hidden="true">
+      <div class="art-page">
+        <small>DOCUMENTS, ORGANIZED.</small><i></i><i></i><i></i
+        ><b>One less thing<br />on your mind.</b>
+      </div>
+      <span class="art-seal">✓</span>
+    </div>
+  </div>
   <div class="privacy-note">
     <span class="privacy-note__icon" aria-hidden="true">◆</span>
     <div>
       <strong>Private by default</strong>
-      <span>Your scans stay visible only to you unless you choose to share them.</span>
+      <span>Your documents are only visible to your account.</span>
     </div>
   </div>
 
@@ -45,16 +62,16 @@
         <span class="empty-sheet" aria-hidden="true"></span>
         <div>
           <strong>No scans yet</strong>
-          <p>Create your first clear, searchable document.</p>
+          <p>Your next chapter starts with one document.</p>
         </div>
       </div>
     } @else {
       <ul class="document-list">
         @for (document of documents(); track document.id) {
           <li class="document-card">
-            <span class="document-card__preview" aria-hidden="true">PDF</span>
+            <span class="document-card__preview" aria-hidden="true">DOC</span>
             <div class="document-card__body">
-              <strong data-document-title>{{ document.title }}</strong>
+              <a [routerLink]="['/documents', document.id]"><strong data-document-title>{{ document.title }}</strong></a>
               <span
                 >{{ document.pageCount }} {{ document.pageCount === 1 ? 'page' : 'pages' }} ·
                 Updated {{ document.updatedAt | date: 'mediumDate' }}</span

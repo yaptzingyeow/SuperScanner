@@ -101,6 +101,8 @@ app.MapGet("/api/me", (ICurrentUser currentUser) =>
         Results.Ok(new { firebaseUid = currentUser.FirebaseUid }))
     .RequireAuthorization();
 DocumentsEndpoints.Map(app);
+DocumentPreviewEndpoints.Map(app);
+CropEndpoints.Map(app);
 UploadsEndpoints.Map(app);
 app.MapHealthChecks("/health");
 if (e2eIdentityEnabled)
