@@ -119,10 +119,9 @@ public sealed class ValidateUpload(
             return await RejectAsync(target, "malware_detected", cancellationToken);
         }
 
-        var originalKey = $"originals/{upload.DocumentId:N}/{upload.PageId:N}/{actualSha256}";
-        await objectStore.PromoteAsync(upload.QuarantineObjectKey, originalKey, cancellationToken);
-        target.Page.AcceptOriginal(originalKey);
-        upload.Accept();
+        var acceptedKey = $"imports/{upload.DocumentId:N}/{upload.Id:N}/{actualSha256}";
+        await objectStore.PromoteAsync(upload.QuarantineObjectKey, acceptedKey, cancellationToken);
+        upload.Accept(acceptedKey, clock.UtcNow);
         target.Document.MarkProcessing(clock.UtcNow);
         await audit.AppendAsync(
             CreateAuditRequest(upload, "upload.accepted"),
@@ -151,7 +150,10 @@ public sealed class ValidateUpload(
             action,
             "document",
             upload.DocumentId,
-            JsonSerializer.Serialize(new { uploadId = upload.Id, pageId = upload.PageId }),
+            JsonSerializer.Serialize<object>(
+                upload.PageId is null
+                    ? new { uploadId = upload.Id }
+                    : new { uploadId = upload.Id, pageId = upload.PageId }),
             clock.UtcNow);
 
     private static FileStream OpenBoundedTemporaryFile() =>

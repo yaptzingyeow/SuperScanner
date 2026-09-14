@@ -2,7 +2,13 @@ using SuperScanner.Application.Abstractions;
 
 namespace SuperScanner.Application.Uploads;
 
-public sealed record UploadStatusDto(Guid UploadId, string State, string? ErrorCode);
+public sealed record UploadStatusDto(
+    Guid UploadId,
+    string State,
+    int DiscoveredPageCount,
+    int CreatedPageCount,
+    int FailedPageCount,
+    string? ErrorCode);
 
 public sealed class GetUploadStatus(IUploadIntentRepository repository)
 {
@@ -21,6 +27,9 @@ public sealed class GetUploadStatus(IUploadIntentRepository repository)
         return new UploadStatusDto(
             upload.Id,
             upload.State.ToString(),
-            upload.ValidationErrorCode);
+            upload.DiscoveredPageCount,
+            upload.CreatedPageCount,
+            upload.FailedPageCount,
+            upload.ExpansionErrorCode ?? upload.ValidationErrorCode);
     }
 }

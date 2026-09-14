@@ -17,12 +17,9 @@ public sealed class EfUploadValidationRepository(AppDbContext db) : IUploadValid
             return null;
         }
 
-        var page = await db.Pages.SingleOrDefaultAsync(
-            candidate => candidate.Id == upload.PageId,
-            cancellationToken);
         var document = await db.Documents.SingleOrDefaultAsync(
             candidate => candidate.Id == upload.DocumentId, cancellationToken);
-        return page is null || document is null ? null : new UploadValidationTarget(upload, page, document);
+        return document is null ? null : new UploadValidationTarget(upload, document);
     }
 
     public Task SaveChangesAsync(CancellationToken cancellationToken) =>

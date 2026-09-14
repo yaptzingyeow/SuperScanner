@@ -16,9 +16,6 @@ public interface IUploadIntentRepository
         Guid uploadId,
         CancellationToken cancellationToken);
 
-    Task AddAsync(
-        UploadIntent uploadIntent,
-        Page page,
-        CancellationToken cancellationToken);
+    Task AddAsync(UploadIntent uploadIntent, CancellationToken cancellationToken);
     Task SaveChangesAsync(CancellationToken cancellationToken);
 }

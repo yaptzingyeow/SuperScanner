@@ -38,8 +38,8 @@ public sealed class UploadIntent
         Guid id,
         string ownerFirebaseUid,
         Guid documentId,
-        Guid pageId,
         string quarantineObjectKey,
+        string originalFileName,
         string declaredMediaType,
         long declaredSizeBytes,
         string declaredSha256Hex,
@@ -49,8 +49,8 @@ public sealed class UploadIntent
             Id = id,
             OwnerFirebaseUid = ownerFirebaseUid,
             DocumentId = documentId,
-            PageId = pageId,
             QuarantineObjectKey = quarantineObjectKey,
+            OriginalFileName = originalFileName,
             DeclaredMediaType = declaredMediaType,
             DeclaredSizeBytes = declaredSizeBytes,
             DeclaredSha256Hex = declaredSha256Hex,
@@ -75,15 +75,68 @@ public sealed class UploadIntent
         return true;
     }
 
-    public void Accept()
+    public void Accept(string acceptedObjectKey, DateTimeOffset acceptedAt)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(acceptedObjectKey);
         if (State != UploadIntentState.PendingValidation)
         {
             throw new InvalidOperationException("Only a pending upload can be accepted.");
         }
 
         State = UploadIntentState.Accepted;
+        AcceptedObjectKey = acceptedObjectKey;
+        AcceptedAt = acceptedAt;
         ValidationErrorCode = null;
+    }
+
+    public void BeginExpansion(int discoveredPageCount)
+    {
+        if (State != UploadIntentState.Accepted || AcceptedObjectKey is null)
+        {
+            throw new InvalidOperationException("Only an accepted upload can begin expansion.");
+        }
+
+        if (discoveredPageCount < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(discoveredPageCount));
+        }
+
+        DiscoveredPageCount = discoveredPageCount;
+        CreatedPageCount = 0;
+        FailedPageCount = 0;
+        ExpansionErrorCode = null;
+    }
+
+    public void RecordExpansion(int createdPages, int failedPages, string? failureCode)
+    {
+        if (State != UploadIntentState.Accepted || AcceptedObjectKey is null)
+        {
+            throw new InvalidOperationException("Only an accepted upload can record expansion.");
+        }
+
+        if (createdPages < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(createdPages));
+        }
+
+        if (failedPages < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(failedPages));
+        }
+
+        if (createdPages + failedPages > DiscoveredPageCount)
+        {
+            throw new ArgumentOutOfRangeException(nameof(createdPages));
+        }
+
+        if (failureCode is not null && string.IsNullOrWhiteSpace(failureCode))
+        {
+            throw new ArgumentException("The failure code must not be whitespace.", nameof(failureCode));
+        }
+
+        CreatedPageCount = createdPages;
+        FailedPageCount = failedPages;
+        ExpansionErrorCode = failureCode;
     }
 
     public void Reject(string errorCode)

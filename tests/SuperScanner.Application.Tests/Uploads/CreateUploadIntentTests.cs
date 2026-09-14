@@ -22,7 +22,7 @@ public sealed class CreateUploadIntentTests
     };
 
     [Fact]
-    public async Task Create_UsesOpaqueQuarantineKeyAndNeverUserFilename()
+    public async Task Create_CreatesDocumentScopedIntentWithoutReservingAPage()
     {
         var repository = new InMemoryUploadIntentRepository(_document);
         var store = new RecordingObjectStore();
@@ -47,19 +47,22 @@ public sealed class CreateUploadIntentTests
         Assert.StartsWith($"quarantine/{_document.Id:N}/", store.LastRequest!.ObjectKey, StringComparison.Ordinal);
         Assert.DoesNotContain("tax-form", store.LastRequest.ObjectKey, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(Now.AddMinutes(5), result.ExpiresAt);
-        Assert.Equal(result.PageId, Assert.Single(_document.Pages).Id);
+        Assert.Empty(_document.Pages);
+        var storedUpload = Assert.Single(repository.Uploads);
+        Assert.Equal(result.UploadId, storedUpload.Id);
+        Assert.Null(storedUpload.PageId);
+        Assert.Equal("tax-form.pdf", storedUpload.OriginalFileName);
         var auditRequest = Assert.Single(audit.Requests);
         Assert.Equal("upload.intent_created", auditRequest.Action);
         Assert.Equal(_document.Id, auditRequest.TargetId);
         Assert.Contains(result.UploadId.ToString(), auditRequest.RegionJson, StringComparison.Ordinal);
-        Assert.Contains(result.PageId.ToString(), auditRequest.RegionJson, StringComparison.Ordinal);
         Assert.DoesNotContain("tax-form", auditRequest.RegionJson, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain(new string('a', 64), auditRequest.RegionJson, StringComparison.Ordinal);
     }
 
     [Theory]
     [MemberData(nameof(InvalidDeclaredMetadata))]
-    public async Task Create_RejectsInvalidDeclaredMetadataBeforeReservingPage(
+    public async Task Create_RejectsInvalidDeclaredMetadataBeforeCreatingIntent(
         string mediaType,
         long sizeBytes,
         string sha256Hex)
@@ -100,28 +103,6 @@ public sealed class CreateUploadIntentTests
             CancellationToken.None));
 
         Assert.Empty(_document.Pages);
-        Assert.Empty(repository.Uploads);
-    }
-
-    [Fact]
-    public async Task Create_RejectsDocumentAtConfiguredPageLimit()
-    {
-        _document.AddPage(Guid.NewGuid(), 1, Now);
-        var repository = new InMemoryUploadIntentRepository(_document);
-        var handler = new CreateUploadIntent(
-            repository,
-            new RecordingObjectStore(),
-            new FixedClock(Now),
-            new UploadPolicy(1, 25 * 1024 * 1024),
-            new RecordingAuditWriter());
-
-        await Assert.ThrowsAsync<InvalidOperationException>(() => handler.HandleAsync(
-            "user-a",
-            _document.Id,
-            ValidRequest(),
-            CancellationToken.None));
-
-        Assert.Single(_document.Pages);
         Assert.Empty(repository.Uploads);
     }
 
@@ -167,7 +148,6 @@ public sealed class CreateUploadIntentTests
 
         public Task AddAsync(
             UploadIntent uploadIntent,
-            Page page,
             CancellationToken cancellationToken)
         {
             Uploads.Add(uploadIntent);

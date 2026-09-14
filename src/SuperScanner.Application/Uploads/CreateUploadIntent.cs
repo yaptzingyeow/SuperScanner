@@ -14,7 +14,6 @@ public sealed record CreateUploadRequest(
 
 public sealed record UploadIntentDto(
     Guid UploadId,
-    Guid PageId,
     Uri PutUrl,
     DateTimeOffset ExpiresAt);
 
@@ -51,17 +50,15 @@ public sealed class CreateUploadIntent(
         }
 
         var uploadId = Guid.NewGuid();
-        var pageId = Guid.NewGuid();
         var expiresAt = clock.UtcNow.AddMinutes(5);
         var quarantineKey = $"quarantine/{documentId:N}/{uploadId:N}";
-        var page = document.AddPage(pageId, policy.MaxPages, clock.UtcNow);
 
         var uploadIntent = UploadIntent.Create(
             uploadId,
             ownerFirebaseUid,
             documentId,
-            pageId,
             quarantineKey,
+            request.FileName,
             request.MediaType,
             request.SizeBytes,
             request.Sha256Hex,
@@ -70,18 +67,18 @@ public sealed class CreateUploadIntent(
             new PutObjectRequest(quarantineKey, request.MediaType, request.SizeBytes, expiresAt),
             cancellationToken);
 
-        await repository.AddAsync(uploadIntent, page, cancellationToken);
+        await repository.AddAsync(uploadIntent, cancellationToken);
         await audit.AppendAsync(
             new AuditWriteRequest(
                 ownerFirebaseUid,
                 "upload.intent_created",
                 "document",
                 documentId,
-                JsonSerializer.Serialize(new { uploadId, pageId }),
+                JsonSerializer.Serialize(new { uploadId }),
                 clock.UtcNow),
             cancellationToken);
         await repository.SaveChangesAsync(cancellationToken);
-        return new UploadIntentDto(uploadId, pageId, putUrl, expiresAt);
+        return new UploadIntentDto(uploadId, putUrl, expiresAt);
     }
 
     private void ValidateRequest(CreateUploadRequest request)

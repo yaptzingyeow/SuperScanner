@@ -19,8 +19,8 @@ public sealed class CompleteUploadTests
             Guid.NewGuid(),
             "user-a",
             document.Id,
-            page.Id,
             $"quarantine/{document.Id:N}/{Guid.NewGuid():N}",
+            "form.pdf",
             "application/pdf",
             1200,
             new string('a', 64),
@@ -58,8 +58,8 @@ public sealed class CompleteUploadTests
             Guid.NewGuid(),
             "user-a",
             document.Id,
-            page.Id,
             "quarantine/expired",
+            "form.pdf",
             "application/pdf",
             1200,
             new string('a', 64),
@@ -99,8 +99,8 @@ public sealed class CompleteUploadTests
             Guid.NewGuid(),
             "user-a",
             document.Id,
-            page.Id,
             "quarantine/pending",
+            "form.pdf",
             "application/pdf",
             1200,
             new string('a', 64),
@@ -153,7 +153,6 @@ public sealed class CompleteUploadTests
 
         public Task AddAsync(
             UploadIntent uploadIntent,
-            Page page,
             CancellationToken cancellationToken) => throw new NotSupportedException();
 
         public Task SaveChangesAsync(CancellationToken cancellationToken) => Task.CompletedTask;

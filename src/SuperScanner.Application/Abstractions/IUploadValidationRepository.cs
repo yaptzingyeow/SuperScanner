@@ -3,7 +3,7 @@ using SuperScanner.Domain.Uploads;
 
 namespace SuperScanner.Application.Abstractions;
 
-public sealed record UploadValidationTarget(UploadIntent Upload, Page Page, Document Document);
+public sealed record UploadValidationTarget(UploadIntent Upload, Document Document);
 
 public interface IUploadValidationRepository
 {

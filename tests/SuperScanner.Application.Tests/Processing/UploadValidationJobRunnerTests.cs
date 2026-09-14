@@ -70,8 +70,8 @@ public sealed class UploadValidationJobRunnerTests
             Guid.NewGuid(),
             "user-a",
             document.Id,
-            page.Id,
             $"quarantine/{document.Id:N}/{Guid.NewGuid():N}",
+            "scan.pdf",
             "application/pdf",
             PdfBytes.LongLength,
             Convert.ToHexString(SHA256.HashData(PdfBytes)).ToLowerInvariant(),
@@ -84,7 +84,7 @@ public sealed class UploadValidationJobRunnerTests
         services.AddSingleton<IProcessingJobQueue>(queue);
         services.AddSingleton<IMalwareScanner>(scanner);
         services.AddSingleton(new ValidateUpload(
-            new Repository(upload, page, document),
+            new Repository(upload, document),
             store,
             new FixedClock(Now),
             new UploadValidationPolicy(1024),
@@ -162,10 +162,10 @@ public sealed class UploadValidationJobRunnerTests
         }
     }
 
-    private sealed class Repository(UploadIntent upload, Page page, Document document) : IUploadValidationRepository
+    private sealed class Repository(UploadIntent upload, Document document) : IUploadValidationRepository
     {
         public Task<UploadValidationTarget?> FindAsync(Guid uploadId, CancellationToken cancellationToken) =>
-            Task.FromResult<UploadValidationTarget?>(new UploadValidationTarget(upload, page, document));
+            Task.FromResult<UploadValidationTarget?>(new UploadValidationTarget(upload, document));
 
         public Task SaveChangesAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     }
