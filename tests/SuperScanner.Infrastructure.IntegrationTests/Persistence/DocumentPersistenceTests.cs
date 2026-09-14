@@ -1,4 +1,7 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using SuperScanner.Domain.Documents;
 using SuperScanner.Infrastructure.Persistence;
 using Testcontainers.PostgreSql;
@@ -106,7 +109,24 @@ public sealed class DocumentPersistenceTests : IAsyncLifetime
             });
         Assert.Equal(document.Revision, storedExport.DocumentRevision);
         Assert.Equal(2, storedExport.ReadyPageCount);
-        Assert.Contains("\"Position\":1", storedExport.SnapshotJson);
+        var snapshot = JsonSerializer.Deserialize<DocumentExportSnapshotEntry[]>(storedExport.SnapshotJson);
+        Assert.NotNull(snapshot);
+        Assert.Equal(
+            [
+                new DocumentExportSnapshotEntry(
+                    document.ActivePages.ElementAt(0).Id,
+                    1,
+                    0,
+                    ScanFilter.Default,
+                    $"previews/{document.ActivePages.ElementAt(0).Id:N}.png"),
+                new DocumentExportSnapshotEntry(
+                    document.ActivePages.ElementAt(1).Id,
+                    2,
+                    0,
+                    ScanFilter.Default,
+                    $"previews/{document.ActivePages.ElementAt(1).Id:N}.png")
+            ],
+            snapshot);
     }
 
     [Fact]
@@ -177,4 +197,24 @@ public sealed class DocumentPersistenceTests : IAsyncLifetime
     }
 
     private static readonly DateTimeOffset Now = new(2026, 9, 14, 12, 0, 0, TimeSpan.Zero);
+}
+
+public sealed class MultiPageDocumentsMigrationScriptTests
+{
+    [Fact]
+    public void GeneratesExplicitCropStatusBackfillPrecedence()
+    {
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseNpgsql("Host=localhost;Database=unused;Username=unused;Password=unused")
+            .Options;
+        using var db = new AppDbContext(options);
+        var script = db.GetService<IMigrator>().GenerateScript(
+            "20260914000000_AiDocumentBoundary",
+            "20260914210000_MultiPageDocuments");
+
+        Assert.Contains("WHEN p.\"CropStatus\" = 'NeedsCrop' THEN 'NeedsCrop'", script);
+        Assert.Contains("WHEN p.\"CropStatus\" IN ('Detecting', 'Processing') THEN 'Processing'", script);
+        Assert.Contains("WHEN p.\"CropStatus\" = 'Failed' THEN 'Failed'", script);
+        Assert.Contains("WHEN p.\"PreviewObjectKey\" IS NOT NULL THEN 'Ready'", script);
+    }
 }

@@ -48,6 +48,9 @@ public sealed partial class MultiPageDocuments : Migration
                     (SELECT NULLIF(u."DeclaredMediaType", '') FROM "upload_intents" AS u WHERE u."PageId" = p."Id" ORDER BY u."Id" LIMIT 1),
                     'application/octet-stream'),
                 "State" = CASE
+                    WHEN p."CropStatus" = 'NeedsCrop' THEN 'NeedsCrop'
+                    WHEN p."CropStatus" IN ('Detecting', 'Processing') THEN 'Processing'
+                    WHEN p."CropStatus" = 'Failed' THEN 'Failed'
                     WHEN p."PreviewObjectKey" IS NOT NULL THEN 'Ready'
                     WHEN p."CropSourceObjectKey" IS NOT NULL OR p."CropStatus" IS NOT NULL THEN 'NeedsCrop'
                     WHEN p."OriginalObjectKey" IS NOT NULL THEN 'Processing'
