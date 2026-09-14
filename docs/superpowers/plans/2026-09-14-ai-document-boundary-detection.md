@@ -608,7 +608,7 @@ dotnet build SuperScanner.slnx --no-restore
 
 Expected: focused tests PASS and solution build succeeds.
 
-- [ ] **Step 8: Commit configuration and persistence**
+- [x] **Step 8: Commit configuration and persistence**
 
 ```powershell
 git add src/SuperScanner.Infrastructure/Processing src/SuperScanner.Worker/Program.cs src/SuperScanner.Worker/appsettings*.json src/SuperScanner.Domain/Documents/Page.cs src/SuperScanner.Infrastructure/Persistence tests/SuperScanner.Infrastructure.IntegrationTests
@@ -678,7 +678,7 @@ dotnet test tests/SuperScanner.Api.IntegrationTests/SuperScanner.Api.Integration
 
 Expected: all focused tests PASS.
 
-- [ ] **Step 6: Commit UI guidance**
+- [x] **Step 6: Commit UI guidance**
 
 ```powershell
 git add src/SuperScanner.Api/Endpoints/CropEndpoints.cs apps/web/src/app/documents/crop-editor.component.* tests/SuperScanner.Api.IntegrationTests/Documents/DocumentsEndpointsTests.cs
@@ -897,7 +897,7 @@ Set `DocumentBoundary__Mode=AiPreferred`, provision the checksum-matching model,
 
 Add command names, timestamps, exit codes, benchmark aggregate metrics, tested detector modes, and rollback result to `docs/operations/ai-document-boundary.md`. Do not include secrets, local paths, document text, image thumbnails, or private manifest contents.
 
-- [ ] **Step 6: Commit operations documentation**
+- [x] **Step 6: Commit operations documentation**
 
 ```powershell
 git add docs/operations/document-cropping.md docs/operations/ai-document-boundary.md docs/superpowers/plans/2026-09-14-ai-document-boundary-detection.md
