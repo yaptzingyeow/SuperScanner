@@ -7,12 +7,15 @@ public sealed class Page
     }
 
     public Guid Id { get; private set; }
-
     public Guid DocumentId { get; private set; }
-
     public int PageNumber { get; private set; }
-
+    public int Position { get; private set; }
+    public Guid SourceUploadId { get; private set; }
+    public int SourcePageIndex { get; private set; }
+    public PageState State { get; private set; } = PageState.Importing;
+    public string? FailureCode { get; private set; }
     public string? OriginalObjectKey { get; private set; }
+    public string OriginalMediaType { get; private set; } = string.Empty;
     public string? PreviewObjectKey { get; private set; }
     public string? ThumbnailObjectKey { get; private set; }
     public string? CropSourceObjectKey { get; private set; }
@@ -26,6 +29,9 @@ public sealed class Page
     public int AppliedCropRevision { get; private set; }
     public string Filter { get; private set; } = ScanFilter.Default;
     public string AppliedFilter { get; private set; } = ScanFilter.Default;
+    public DateTimeOffset? RemovedAt { get; private set; }
+    public string? RemovedByFirebaseUid { get; private set; }
+    public DateTimeOffset CreatedAt { get; private set; }
 
     public void SetFilter(string filter)
     {
@@ -61,21 +67,97 @@ public sealed class Page
         ThumbnailObjectKey = thumbnailKey;
     }
 
-    public DateTimeOffset CreatedAt { get; private set; }
+    public void MarkImportReady(string originalObjectKey, string originalMediaType)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(originalObjectKey);
+        ArgumentException.ThrowIfNullOrWhiteSpace(originalMediaType);
+        if (OriginalObjectKey is not null)
+        {
+            throw new InvalidOperationException("Original asset is immutable.");
+        }
 
-    internal static Page Create(Guid id, Guid documentId, int pageNumber, DateTimeOffset now) =>
-        new()
+        OriginalObjectKey = originalObjectKey;
+        OriginalMediaType = originalMediaType;
+        State = PageState.Processing;
+        FailureCode = null;
+    }
+
+    public void MarkProcessing()
+    {
+        State = PageState.Processing;
+        FailureCode = null;
+    }
+
+    public void MarkReady()
+    {
+        if (PreviewObjectKey is null)
+        {
+            throw new InvalidOperationException("Preview is not available.");
+        }
+
+        State = PageState.Ready;
+        FailureCode = null;
+    }
+
+    public void MarkFailed(string failureCode)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(failureCode);
+        State = PageState.Failed;
+        FailureCode = failureCode;
+    }
+
+    public void SoftRemove(string firebaseUid, DateTimeOffset now)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(firebaseUid);
+        if (RemovedAt is not null) return;
+
+        RemovedAt = now;
+        RemovedByFirebaseUid = firebaseUid;
+    }
+
+    public string GetExportObjectKey()
+    {
+        if (State != PageState.Ready || PreviewObjectKey is null)
+        {
+            throw new InvalidOperationException("Page is not ready for export.");
+        }
+
+        return PreviewObjectKey;
+    }
+
+    internal static Page Create(
+        Guid id,
+        Guid documentId,
+        Guid sourceUploadId,
+        int sourcePageIndex,
+        int position,
+        DateTimeOffset now)
+    {
+        if (sourcePageIndex < 1) throw new ArgumentOutOfRangeException(nameof(sourcePageIndex));
+        if (position < 1) throw new ArgumentOutOfRangeException(nameof(position));
+
+        return new Page
         {
             Id = id,
             DocumentId = documentId,
-            PageNumber = pageNumber,
+            PageNumber = position,
+            Position = position,
+            SourceUploadId = sourceUploadId,
+            SourcePageIndex = sourcePageIndex,
             CreatedAt = now
         };
+    }
+
+    internal void SetPosition(int position)
+    {
+        if (position < 1) throw new ArgumentOutOfRangeException(nameof(position));
+        Position = position;
+        PageNumber = position;
+    }
 
     public void AcceptOriginal(string objectKey)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(objectKey);
-
         if (OriginalObjectKey is not null)
         {
             throw new InvalidOperationException("Original asset is immutable.");
