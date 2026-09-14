@@ -58,7 +58,7 @@ After a corrected candidate passes the protected benchmark, provision its exact 
 | Angular crop-guidance suite | 3 passed |
 | Solution build | Passed, 0 warnings and 0 errors |
 | Full Angular suite | 30 passed, 8 pre-existing auth/navigation expectation failures; production build succeeds |
-| Full .NET suite | Domain passed 5; Application 33 passed/1 pre-existing job-runner expectation failed; container suites unavailable without Docker |
+| Full .NET suite | Domain passed 5 and Application passed 34; container suites unavailable without Docker |
 | Release Worker publish | Passed; required assets present, tests/models excluded |
 | Example benchmark | Correctly blocked promotion: 1 case, minimum-case and invalid-result gates failed |
 | PostgreSQL container checks | Pending; Docker Desktop engine unavailable |
