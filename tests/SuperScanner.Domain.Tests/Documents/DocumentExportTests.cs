@@ -60,6 +60,52 @@ public sealed class DocumentExportTests
         Assert.Equal(Now.AddMinutes(2), export.CompletedAt);
     }
 
+    [Fact]
+    public void Fail_AndQueueAgain_ResetsTerminalFailureFields()
+    {
+        var export = CreateReadyExport();
+        export.Start(Now.AddMinutes(1));
+
+        export.Fail("export_build_failed", Now.AddMinutes(2));
+
+        Assert.Equal(DocumentExportState.Failed, export.State);
+        Assert.Equal("export_build_failed", export.FailureCode);
+        Assert.Equal(Now.AddMinutes(2), export.CompletedAt);
+
+        export.Queue();
+
+        Assert.Equal(DocumentExportState.Queued, export.State);
+        Assert.Null(export.FailureCode);
+        Assert.Null(export.CompletedAt);
+        Assert.Null(export.OutputObjectKey);
+    }
+
+    [Fact]
+    public void Transitions_RejectInvalidStateChanges()
+    {
+        var export = CreateReadyExport();
+
+        Assert.Throws<InvalidOperationException>(() => export.Queue());
+        Assert.Throws<InvalidOperationException>(() =>
+            export.Complete("exports/document/export/document.pdf", Now));
+
+        export.Start(Now.AddMinutes(1));
+
+        Assert.Throws<InvalidOperationException>(() => export.Start(Now.AddMinutes(2)));
+
+        export.Complete("exports/document/export/document.pdf", Now.AddMinutes(3));
+
+        Assert.Throws<InvalidOperationException>(() => export.Fail("export_build_failed", Now.AddMinutes(4)));
+    }
+
+    private static DocumentExport CreateReadyExport()
+    {
+        var document = Document.Create(Guid.NewGuid(), "firebase-user-1", "Form", Now);
+        var page = document.AppendImportedPages(Guid.NewGuid(), [1], 10, Now).Single();
+        PrepareReadyPage(page, "previews/first.png");
+        return DocumentExport.Create(Guid.NewGuid(), document, "firebase-user-1", Now, TimeSpan.FromDays(7));
+    }
+
     private static void PrepareReadyPage(Page page, string previewObjectKey)
     {
         page.MarkImportReady("page-sources/document/page/source.png", "image/png");

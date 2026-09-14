@@ -45,7 +45,7 @@ public sealed class Document
         var page = Page.Create(pageId, Id, pageId, 1, activePages.Count + 1, now);
         _pages.Add(page);
         Status = DocumentStatus.Uploading;
-        UpdatedAt = now;
+        RecordMembershipChange(now);
         return page;
     }
 

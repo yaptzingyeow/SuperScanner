@@ -35,6 +35,19 @@ public sealed class DocumentTests
     }
 
     [Fact]
+    public void AddPage_IncrementsMembershipRevisions()
+    {
+        var document = CreateDocument();
+
+        document.AddPage(Guid.NewGuid(), 10, Now);
+        document.AddPage(Guid.NewGuid(), 10, Now.AddMinutes(1));
+
+        Assert.Equal(2, document.Revision);
+        Assert.Equal(2, document.PageOrderRevision);
+        Assert.Equal(Now.AddMinutes(1), document.UpdatedAt);
+    }
+
+    [Fact]
     public void AppendImportedPages_AssignsContiguousPositionsAndReusesSourceTuples()
     {
         var document = CreateDocument();
@@ -74,8 +87,8 @@ public sealed class DocumentTests
 
         Assert.Equal([ids[2], ids[0], ids[1]], document.ActivePages.Select(x => x.Id));
         Assert.Equal([1, 2, 3], document.ActivePages.Select(x => x.Position));
-        Assert.Equal(1, document.PageOrderRevision);
-        Assert.Equal(1, document.Revision);
+        Assert.Equal(4, document.PageOrderRevision);
+        Assert.Equal(4, document.Revision);
     }
 
     [Fact]
@@ -98,8 +111,8 @@ public sealed class DocumentTests
 
         Assert.Equal("Page order revision is stale.", stale.Message);
         Assert.Equal([ids[0], ids[1], ids[2]], document.ActivePages.Select(page => page.Id));
-        Assert.Equal(1, document.PageOrderRevision);
-        Assert.Equal(1, document.Revision);
+        Assert.Equal(4, document.PageOrderRevision);
+        Assert.Equal(4, document.Revision);
         Assert.NotNull(duplicate);
         Assert.NotNull(incomplete);
         Assert.NotNull(foreign);
@@ -117,8 +130,8 @@ public sealed class DocumentTests
         Assert.Equal([1, 2], document.ActivePages.Select(page => page.Position));
         Assert.Equal("firebase-user-1", pages[1].RemovedByFirebaseUid);
         Assert.Equal(Now, pages[1].RemovedAt);
-        Assert.Equal(1, document.Revision);
-        Assert.Equal(1, document.PageOrderRevision);
+        Assert.Equal(4, document.Revision);
+        Assert.Equal(4, document.PageOrderRevision);
     }
 
     [Fact]
@@ -134,8 +147,8 @@ public sealed class DocumentTests
 
         Assert.NotNull(error);
         Assert.Equal(activePageIds, document.ActivePages.Select(page => page.Id));
-        Assert.Equal(1, document.Revision);
-        Assert.Equal(1, document.PageOrderRevision);
+        Assert.Equal(4, document.Revision);
+        Assert.Equal(4, document.PageOrderRevision);
     }
 
     [Fact]
@@ -145,8 +158,8 @@ public sealed class DocumentTests
 
         document.MarkContentChanged(Now);
 
-        Assert.Equal(1, document.Revision);
-        Assert.Equal(0, document.PageOrderRevision);
+        Assert.Equal(4, document.Revision);
+        Assert.Equal(3, document.PageOrderRevision);
         Assert.Equal(Now, document.UpdatedAt);
     }
 
