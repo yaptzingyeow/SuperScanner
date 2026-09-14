@@ -12,6 +12,9 @@ public sealed class PageConfiguration : IEntityTypeConfiguration<Page>
         builder.HasKey(page => page.Id);
         builder.Property(page => page.PageNumber).IsRequired();
         builder.Property(page => page.OriginalObjectKey).HasMaxLength(1024);
+        builder.Property(page => page.CropModelVersion).HasMaxLength(100);
+        builder.Property(page => page.CropDiagnosticsCode).HasMaxLength(64);
+        builder.Property(page => page.CropRevision).IsConcurrencyToken();
         builder.Property(page => page.CreatedAt).IsRequired();
         builder.HasIndex(page => new { page.DocumentId, page.PageNumber }).IsUnique();
     }

@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using SuperScanner.Application.Abstractions;
 using SuperScanner.Application.Uploads;
+using SuperScanner.Infrastructure.Processing;
 
 namespace SuperScanner.Worker;
 
@@ -30,8 +31,12 @@ public sealed class UploadValidationJobRunner(
             cancellationToken);
         try
         {
-            if (!string.Equals(lease.Type, "ValidateUpload", StringComparison.Ordinal) ||
-                !Guid.TryParse(lease.Payload, out var uploadId))
+            var cropJob = lease.Type is "DetectDocumentEdges" or "ApplyPerspectiveCrop";
+            var parts = lease.Payload.Split(':');
+            var revision = 0;
+            if ((!cropJob && lease.Type != "ValidateUpload" && lease.Type != "ProcessDocument") ||
+                !Guid.TryParse(parts[0], out var uploadId) ||
+                (cropJob && (parts.Length != 2 || !int.TryParse(parts[1], out revision) || revision < 1)))
             {
                 await queue.RescheduleAsync(lease.Id, workerId, "invalid_job", cancellationToken);
                 return true;
@@ -41,10 +46,28 @@ public sealed class UploadValidationJobRunner(
             var scanner = scope.ServiceProvider.GetRequiredService<IMalwareScanner>();
             try
             {
-                await validator.ValidateAsync(uploadId, scanner, workCancellation.Token);
+                if (cropJob)
+                {
+                    await scope.ServiceProvider.GetRequiredService<CropProcessor>()
+                        .RunAsync(uploadId, revision, lease.Type == "DetectDocumentEdges", workCancellation.Token);
+                }
+                else if (lease.Type == "ProcessDocument")
+                {
+                    await scope.ServiceProvider.GetRequiredService<DocumentPreviewProcessor>()
+                        .ProcessAsync(uploadId, workCancellation.Token);
+                    await scope.ServiceProvider.GetRequiredService<CropProcessor>()
+                        .EnsureDetectionAsync(uploadId, workCancellation.Token);
+                }
+                else
+                {
+                    var result = await validator.ValidateAsync(uploadId, scanner, workCancellation.Token);
+                    if (result.Outcome == UploadValidationOutcome.Accepted)
+                        await queue.EnqueueAsync("ProcessDocument", uploadId.ToString(), $"upload:{uploadId}:preview:v1", workCancellation.Token);
+                }
                 await queue.CompleteAsync(lease.Id, workerId, cancellationToken);
                 logger.LogInformation(
-                    "Upload validation job completed. JobId={JobId} UploadId={UploadId}",
+                    "Document job completed. JobType={JobType} JobId={JobId} UploadId={UploadId}",
+                    lease.Type,
                     lease.Id,
                     uploadId);
             }
@@ -71,10 +94,12 @@ public sealed class UploadValidationJobRunner(
             }
             catch (Exception) when (!cancellationToken.IsCancellationRequested)
             {
+                if (cropJob && lease.AttemptCount >= 6)
+                    await scope.ServiceProvider.GetRequiredService<CropProcessor>().FailAsync(uploadId, revision, cancellationToken);
                 await queue.RescheduleAsync(
                     lease.Id,
                     workerId,
-                    "validation_failed",
+                    cropJob ? "crop_failed" : lease.Type == "ProcessDocument" ? "preview_failed" : "validation_failed",
                     cancellationToken);
                 logger.LogWarning(
                     "Upload validation job rescheduled. JobId={JobId} UploadId={UploadId} ErrorCode={ErrorCode}",

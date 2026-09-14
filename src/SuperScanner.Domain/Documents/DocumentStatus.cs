@@ -9,5 +9,6 @@ public enum DocumentStatus
     Editing,
     Exporting,
     Completed,
-    Failed
+    Failed,
+    NeedsCrop
 }

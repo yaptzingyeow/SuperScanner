@@ -28,6 +28,7 @@ public sealed class UploadValidationJobRunnerTests
         Assert.True(foundWork);
         Assert.Equal(fixture.Queue.JobId, fixture.Queue.CompletedJobId);
         Assert.Null(fixture.Queue.RescheduledErrorCode);
+        Assert.Equal("ProcessDocument", fixture.Queue.EnqueuedType);
         Assert.Equal(UploadIntentState.Accepted, fixture.Upload.State);
     }
 
@@ -83,7 +84,7 @@ public sealed class UploadValidationJobRunnerTests
         services.AddSingleton<IProcessingJobQueue>(queue);
         services.AddSingleton<IMalwareScanner>(scanner);
         services.AddSingleton(new ValidateUpload(
-            new Repository(upload, page),
+            new Repository(upload, page, document),
             store,
             new FixedClock(Now),
             new UploadValidationPolicy(1024),
@@ -111,6 +112,7 @@ public sealed class UploadValidationJobRunnerTests
         public Guid? CompletedJobId { get; private set; }
         public string? RescheduledErrorCode { get; private set; }
         public int HeartbeatCalls { get; private set; }
+        public string? EnqueuedType { get; private set; }
 
         public Task<ProcessingJobLease?> TryLeaseAsync(
             string workerId,
@@ -153,13 +155,17 @@ public sealed class UploadValidationJobRunnerTests
             string type,
             string payload,
             string idempotencyKey,
-            CancellationToken cancellationToken) => throw new NotSupportedException();
+            CancellationToken cancellationToken)
+        {
+            EnqueuedType = type;
+            return Task.CompletedTask;
+        }
     }
 
-    private sealed class Repository(UploadIntent upload, Page page) : IUploadValidationRepository
+    private sealed class Repository(UploadIntent upload, Page page, Document document) : IUploadValidationRepository
     {
         public Task<UploadValidationTarget?> FindAsync(Guid uploadId, CancellationToken cancellationToken) =>
-            Task.FromResult<UploadValidationTarget?>(new UploadValidationTarget(upload, page));
+            Task.FromResult<UploadValidationTarget?>(new UploadValidationTarget(upload, page, document));
 
         public Task SaveChangesAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     }

@@ -22,9 +22,30 @@ builder.Services.AddScoped<IUploadValidationRepository, EfUploadValidationReposi
 builder.Services.AddSingleton(new UploadValidationPolicy(25 * 1024 * 1024));
 builder.Services.AddScoped<ValidateUpload>();
 builder.Services.Configure<R2Options>(builder.Configuration.GetSection(R2Options.SectionName));
-builder.Services.AddSingleton<IObjectStore, R2ObjectStore>();
+builder.Services.AddSingleton<R2ObjectStore>();
+builder.Services.AddSingleton<IObjectStore>(sp => sp.GetRequiredService<R2ObjectStore>());
+builder.Services.AddScoped<DocumentPreviewProcessor>();
+builder.Services.AddOptions<DocumentBoundaryOptions>()
+    .BindConfiguration(DocumentBoundaryOptions.SectionName)
+    .Validate(options => options.IsValid(), "Document boundary configuration is invalid.")
+    .ValidateOnStart();
+builder.Services.AddSingleton<DocumentBoundaryHealth>();
+builder.Services.AddScoped<CropProcessor>();
+ImageMagick.ResourceLimits.Memory = 256UL * 1024 * 1024;
+ImageMagick.ResourceLimits.Disk = 1024UL * 1024 * 1024;
+ImageMagick.ResourceLimits.Width = 20000;
+ImageMagick.ResourceLimits.Height = 20000;
+ImageMagick.ResourceLimits.Thread = 2;
 builder.Services.Configure<ClamAvOptions>(builder.Configuration.GetSection(ClamAvOptions.SectionName));
-builder.Services.AddSingleton<IMalwareScanner, ClamAvMalwareScanner>();
+var malwareScanningEnabled = builder.Configuration.GetValue("MalwareScanning:Enabled", true);
+if (malwareScanningEnabled)
+{
+    builder.Services.AddSingleton<IMalwareScanner, ClamAvMalwareScanner>();
+}
+else
+{
+    builder.Services.AddSingleton<IMalwareScanner, DisabledMalwareScanner>();
+}
 builder.Services.Configure<AuditOptions>(builder.Configuration.GetSection(AuditOptions.SectionName));
 builder.Services.AddScoped<IAuditWriter, HmacAuditWriter>();
 builder.Services.AddSingleton<UploadValidationJobRunner>();

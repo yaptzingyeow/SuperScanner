@@ -118,6 +118,16 @@ public sealed class R2ObjectStore : IObjectStore, IDisposable
 
     public void Dispose() => _client.Dispose();
 
+    public async Task WriteImageAsync(string key, Stream content, CancellationToken cancellationToken)
+    {
+        await _client.PutObjectAsync(new Amazon.S3.Model.PutObjectRequest
+        {
+            BucketName = _bucketName, Key = key, InputStream = content,
+            ContentType = "image/jpeg", DisablePayloadSigning = true,
+            DisableDefaultChecksumValidation = true, AutoCloseStream = false
+        }, cancellationToken);
+    }
+
     private sealed class ResponseOwnedStream(GetObjectResponse response) : Stream
     {
         private readonly Stream _inner = response.ResponseStream;

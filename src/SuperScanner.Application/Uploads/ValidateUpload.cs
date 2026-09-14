@@ -123,6 +123,7 @@ public sealed class ValidateUpload(
         await objectStore.PromoteAsync(upload.QuarantineObjectKey, originalKey, cancellationToken);
         target.Page.AcceptOriginal(originalKey);
         upload.Accept();
+        target.Document.MarkProcessing(clock.UtcNow);
         await audit.AppendAsync(
             CreateAuditRequest(upload, "upload.accepted"),
             cancellationToken);

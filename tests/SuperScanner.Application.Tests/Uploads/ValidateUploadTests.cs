@@ -47,6 +47,7 @@ public sealed class ValidateUploadTests
         var expectedKey = $"originals/{fixture.Document.Id:N}/{fixture.Page.Id:N}/{Sha256(PdfBytes)}";
         Assert.Equal(UploadValidationOutcome.Accepted, result.Outcome);
         Assert.Equal(UploadIntentState.Accepted, fixture.Upload.State);
+        Assert.Equal(DocumentStatus.Processing, fixture.Document.Status);
         Assert.Equal(expectedKey, fixture.Page.OriginalObjectKey);
         Assert.Equal((fixture.Upload.QuarantineObjectKey, expectedKey), Assert.Single(fixture.Store.Promotions));
         var auditRequest = Assert.Single(fixture.Audit.Requests);
@@ -192,7 +193,7 @@ public sealed class ValidateUploadTests
             expiresAt ?? Now.AddMinutes(5));
         upload.TryMarkPendingValidation(Now.AddSeconds(-1));
 
-        var repository = new InMemoryUploadValidationRepository(upload, page);
+        var repository = new InMemoryUploadValidationRepository(upload, page, document);
         var store = new RecordingObjectStore(bytes);
         var audit = new RecordingAuditWriter();
         var handler = new ValidateUpload(
@@ -220,12 +221,12 @@ public sealed class ValidateUploadTests
         public DateTimeOffset UtcNow { get; } = utcNow;
     }
 
-    private sealed class InMemoryUploadValidationRepository(UploadIntent upload, Page page)
+    private sealed class InMemoryUploadValidationRepository(UploadIntent upload, Page page, Document document)
         : IUploadValidationRepository
     {
         public Task<UploadValidationTarget?> FindAsync(Guid uploadId, CancellationToken cancellationToken) =>
             Task.FromResult<UploadValidationTarget?>(
-                upload.Id == uploadId ? new UploadValidationTarget(upload, page) : null);
+                upload.Id == uploadId ? new UploadValidationTarget(upload, page, document) : null);
 
         public Task SaveChangesAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     }

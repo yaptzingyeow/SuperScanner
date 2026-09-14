@@ -101,6 +101,15 @@ public sealed class ProcessingJob
         AvailableAt = now.Add(retryDelays[AttemptCount - 1]);
     }
 
+    public void Retry(DateTimeOffset now)
+    {
+        if (Status != ProcessingJobStatus.Failed) throw new InvalidOperationException("Only failed jobs can be retried.");
+        Status = ProcessingJobStatus.Queued;
+        AttemptCount = 0;
+        AvailableAt = UpdatedAt = now;
+        ErrorCode = null;
+    }
+
     private void EnsureOwnedLease(string workerId)
     {
         if (Status != ProcessingJobStatus.Leased ||
