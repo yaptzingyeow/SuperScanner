@@ -83,6 +83,11 @@ public sealed class CreateUploadIntent(
 
     private void ValidateRequest(CreateUploadRequest request)
     {
+        if (string.IsNullOrWhiteSpace(request.FileName) || request.FileName.Length > 255)
+        {
+            throw new ArgumentException("The file name must be between 1 and 255 characters.", nameof(request));
+        }
+
         if (!SupportedMediaTypes.Contains(request.MediaType))
         {
             throw new ArgumentException("The declared media type is not supported.", nameof(request));

@@ -86,6 +86,73 @@ public sealed class CreateUploadIntentTests
     }
 
     [Fact]
+    public async Task Create_AcceptsFileNameAtPersistenceLimit()
+    {
+        var fileName = new string('a', 251) + ".pdf";
+        var repository = new InMemoryUploadIntentRepository(_document);
+        var handler = new CreateUploadIntent(
+            repository,
+            new RecordingObjectStore(),
+            new FixedClock(Now),
+            new UploadPolicy(50, 25 * 1024 * 1024),
+            new RecordingAuditWriter());
+
+        await handler.HandleAsync(
+            "user-a",
+            _document.Id,
+            new CreateUploadRequest(fileName, "application/pdf", 1200, new string('a', 64)),
+            CancellationToken.None);
+
+        Assert.Equal(fileName, Assert.Single(repository.Uploads).OriginalFileName);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    public async Task Create_RejectsBlankFileNameBeforeSigning(string fileName)
+    {
+        var repository = new InMemoryUploadIntentRepository(_document);
+        var store = new RecordingObjectStore();
+        var handler = new CreateUploadIntent(
+            repository,
+            store,
+            new FixedClock(Now),
+            new UploadPolicy(50, 25 * 1024 * 1024),
+            new RecordingAuditWriter());
+
+        await Assert.ThrowsAsync<ArgumentException>(() => handler.HandleAsync(
+            "user-a",
+            _document.Id,
+            new CreateUploadRequest(fileName, "application/pdf", 1200, new string('a', 64)),
+            CancellationToken.None));
+
+        Assert.Null(store.LastRequest);
+        Assert.Empty(repository.Uploads);
+    }
+
+    [Fact]
+    public async Task Create_RejectsFileNameBeyondPersistenceLimitBeforeSigning()
+    {
+        var repository = new InMemoryUploadIntentRepository(_document);
+        var store = new RecordingObjectStore();
+        var handler = new CreateUploadIntent(
+            repository,
+            store,
+            new FixedClock(Now),
+            new UploadPolicy(50, 25 * 1024 * 1024),
+            new RecordingAuditWriter());
+
+        await Assert.ThrowsAsync<ArgumentException>(() => handler.HandleAsync(
+            "user-a",
+            _document.Id,
+            new CreateUploadRequest(new string('a', 256), "application/pdf", 1200, new string('a', 64)),
+            CancellationToken.None));
+
+        Assert.Null(store.LastRequest);
+        Assert.Empty(repository.Uploads);
+    }
+
+    [Fact]
     public async Task Create_DoesNotRevealDocumentOwnedByAnotherUser()
     {
         var repository = new InMemoryUploadIntentRepository(_document);

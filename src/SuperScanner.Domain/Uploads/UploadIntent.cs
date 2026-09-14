@@ -66,6 +66,11 @@ public sealed class UploadIntent
             return false;
         }
 
+        if (State != UploadIntentState.AwaitingUpload)
+        {
+            throw new InvalidOperationException("Only an awaiting upload can be marked pending validation.");
+        }
+
         if (now >= ExpiresAt)
         {
             throw new InvalidOperationException("The upload intent has expired.");
@@ -78,6 +83,11 @@ public sealed class UploadIntent
     public void Accept(string acceptedObjectKey, DateTimeOffset acceptedAt)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(acceptedObjectKey);
+        if (AcceptedObjectKey is not null || AcceptedAt is not null)
+        {
+            throw new InvalidOperationException("Accepted upload metadata cannot be overwritten.");
+        }
+
         if (State != UploadIntentState.PendingValidation)
         {
             throw new InvalidOperationException("Only a pending upload can be accepted.");
