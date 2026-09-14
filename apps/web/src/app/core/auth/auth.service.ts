@@ -7,8 +7,10 @@ export interface AuthStateSource {
 }
 
 export interface AuthActionsSource {
-  createUser(email: string, password: string): Promise<void>;
-  signIn(email: string, password: string): Promise<void>;
+  ensureGuest(): Promise<void>;
+  signInWithGoogle(): Promise<void>;
+  registerWithEmail(email: string, password: string): Promise<void>;
+  signInWithEmail(email: string, password: string): Promise<void>;
   signOut(): Promise<void>;
 }
 
@@ -22,12 +24,20 @@ export class AuthService {
 
   readonly user$ = this.source.observe().pipe(shareReplay({ bufferSize: 1, refCount: true }));
 
-  createAccount(email: string, password: string): Promise<void> {
-    return this.actions.createUser(email.trim(), password);
+  ensureGuest(): Promise<void> {
+    return this.actions.ensureGuest();
   }
 
-  signIn(email: string, password: string): Promise<void> {
-    return this.actions.signIn(email.trim(), password);
+  signInWithGoogle(): Promise<void> {
+    return this.actions.signInWithGoogle();
+  }
+
+  registerWithEmail(email: string, password: string): Promise<void> {
+    return this.actions.registerWithEmail(email.trim(), password);
+  }
+
+  signInWithEmail(email: string, password: string): Promise<void> {
+    return this.actions.signInWithEmail(email.trim(), password);
   }
 
   signOut(): Promise<void> {

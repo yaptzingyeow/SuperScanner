@@ -16,6 +16,7 @@ export class AppShellComponent {
 
   protected async signOut(): Promise<void> {
     await this.auth.signOut();
-    await this.router.navigateByUrl('/login');
+    await this.auth.ensureGuest();
+    await this.router.navigateByUrl('/');
   }
 }

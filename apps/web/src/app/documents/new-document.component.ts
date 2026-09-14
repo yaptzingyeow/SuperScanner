@@ -1,5 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { UploadFlowError, UploadService } from './upload.service';
 
 const SAFE_ERRORS: Record<string, string> = {
@@ -13,7 +13,6 @@ const SAFE_ERRORS: Record<string, string> = {
 
 @Component({
   selector: 'app-new-document',
-  imports: [RouterLink],
   templateUrl: './new-document.component.html',
   styleUrl: './new-document.component.scss',
 })

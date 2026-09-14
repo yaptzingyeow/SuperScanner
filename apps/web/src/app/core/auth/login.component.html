@@ -1,18 +1,48 @@
 <main class="auth-page">
   <section class="auth-card" aria-labelledby="auth-heading">
-    <a class="brand" href="/" aria-label="SuperScanner home"><span class="brand__mark" aria-hidden="true"><span></span></span><span>SuperScanner</span></a>
-    <p class="eyebrow">PRIVATE DOCUMENT WORKSPACE</p>
-    <h1 id="auth-heading">{{ createMode() ? 'Create your account' : 'Welcome back' }}</h1>
-    <p class="intro">{{ createMode() ? 'Start scanning and organizing documents securely.' : 'Sign in to access your private scans.' }}</p>
-    <form (ngSubmit)="submit()">
+    <a class="back" routerLink="/">← Back to scanner</a>
+    <p class="eyebrow">OPTIONAL ACCOUNT</p>
+    <h1 id="auth-heading">{{ registerMode() ? 'Create your account' : 'Sign in' }}</h1>
+    <p class="intro">Save your workspace and prepare for future premium features.</p>
+    <div class="social-actions">
+      <button type="button" class="social-button" (click)="signInWithGoogle()" [disabled]="busy()">
+        <span class="google-icon" aria-hidden="true">G</span>
+        Continue with Google
+      </button>
+    </div>
+    <div class="divider"><span>or use email</span></div>
+    <form (ngSubmit)="submitEmail()">
       <label for="email">Email address</label>
-      <input id="email" name="email" type="email" autocomplete="email" required [(ngModel)]="email" />
+      <input
+        id="email"
+        name="email"
+        type="email"
+        autocomplete="email"
+        required
+        [(ngModel)]="email"
+      />
       <label for="password">Password</label>
-      <input id="password" name="password" type="password" [autocomplete]="createMode() ? 'new-password' : 'current-password'" minlength="6" required [(ngModel)]="password" />
-      @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
-      <button class="primary" type="submit" [disabled]="busy()">{{ busy() ? 'Please wait…' : createMode() ? 'Create account' : 'Sign in' }}</button>
+      <input
+        id="password"
+        name="password"
+        type="password"
+        minlength="6"
+        required
+        [(ngModel)]="password"
+      />
+      <button type="submit" class="primary" [disabled]="busy()">
+        {{ registerMode() ? 'Create account' : 'Sign in with email' }}
+      </button>
     </form>
-    <button type="button" class="mode" data-create-account (click)="toggleMode()">{{ createMode() ? 'Already have an account? Sign in' : 'New to SuperScanner? Create an account' }}</button>
-    <p class="privacy">Protected by Firebase Authentication and App Check.</p>
+    <button type="button" class="mode" (click)="toggleMode()">
+      {{ registerMode() ? 'Already have an account? Sign in' : 'New here? Create an account' }}
+    </button>
+    @if (error()) {
+      <p class="error" role="alert">{{ error() }}</p>
+    }
+    @if (busy()) {
+      <p class="busy" role="status">Opening secure sign-in…</p>
+    }
+    <p class="privacy">Scanning remains free without an account.</p>
   </section>
 </main>

@@ -1,201 +1,292 @@
 :host {
   display: block;
-  min-height: 100dvh;
 }
-
 .shell {
   min-height: 100dvh;
-  background:
-    radial-gradient(circle at 88% 0%, rgb(103 115 255 / 10%), transparent 28rem),
-    var(--color-background);
 }
-
 .topbar {
-  position: sticky;
-  z-index: 10;
-  top: 0;
-  min-height: 4.5rem;
-  display: grid;
-  grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr);
-  align-items: center;
-  gap: 1rem;
-  padding: 0 1.5rem;
-  border-bottom: 1px solid var(--color-border);
-  background: rgb(250 251 255 / 88%);
-  backdrop-filter: blur(1rem);
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: 236px;
+  background: #203b32;
+  color: #edf4ee;
+  display: flex;
+  flex-direction: column;
+  padding: 34px 22px;
+  z-index: 20;
 }
-
 .brand {
-  min-height: 2.75rem;
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  justify-self: start;
-  gap: 0.65rem;
-  color: var(--color-text);
-  font-weight: 850;
-  letter-spacing: -0.025em;
+  gap: 10px;
+  color: inherit;
   text-decoration: none;
+  font-size: 19px;
+  font-weight: 650;
+  letter-spacing: -0.7px;
 }
-
 .brand__mark {
-  position: relative;
-  width: 2rem;
-  height: 2rem;
   display: grid;
   place-items: center;
-  border-radius: 0.62rem;
-  background: var(--color-primary);
-  box-shadow: 0 0.35rem 0.75rem rgb(58 72 220 / 25%);
+  width: 32px;
+  height: 32px;
+  border: 2px solid #a8c8ad;
+  border-radius: 9px;
 }
-
-.brand__mark::before,
-.brand__mark::after,
-.brand__mark span::before,
-.brand__mark span::after {
-  position: absolute;
-  width: 0.38rem;
-  height: 0.38rem;
-  border-color: white;
-  content: '';
+.brand__mark span {
+  width: 12px;
+  height: 16px;
+  border: 1.5px solid #a8c8ad;
+  border-radius: 2px;
 }
-
-.brand__mark::before {
-  top: 0.48rem;
-  left: 0.48rem;
-  border-top: 2px solid;
-  border-left: 2px solid;
-}
-.brand__mark::after {
-  top: 0.48rem;
-  right: 0.48rem;
-  border-top: 2px solid;
-  border-right: 2px solid;
-}
-.brand__mark span::before {
-  bottom: 0.48rem;
-  left: 0.48rem;
-  border-bottom: 2px solid;
-  border-left: 2px solid;
-}
-.brand__mark span::after {
-  right: 0.48rem;
-  bottom: 0.48rem;
-  border-right: 2px solid;
-  border-bottom: 2px solid;
-}
-
 nav {
+  display: grid;
+  gap: 8px;
+  margin-top: 56px;
+}
+nav a,
+nav .unavailable {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
-  padding: 0.28rem;
-  border: 1px solid var(--color-border);
-  border-radius: 0.9rem;
-  background: var(--color-surface);
-}
-
-nav a {
-  min-height: 2.75rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0 0.82rem;
-  border-radius: 0.66rem;
-  color: var(--color-text-muted);
-  font-size: 0.86rem;
-  font-weight: 700;
+  gap: 12px;
+  min-height: 46px;
+  padding: 0 14px;
+  border-radius: 8px;
+  color: #c5d1c8;
   text-decoration: none;
+  font-size: 14px;
 }
-
-nav a:hover,
 nav a.active {
+  background: #385447;
+  color: #fff;
+}
+nav a:hover {
+  background: #304b3f;
+}
+.nav-icon {
+  font-size: 21px;
+  width: 24px;
+  text-align: center;
+}
+.unavailable {
+  opacity: 0.55;
+}
+.unavailable small {
+  margin-left: auto;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+}
+.topbar__actions {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid #456052;
+  padding-top: 22px;
+}
+.private-state {
+  font-size: 12px;
+  color: #c5d1c8;
+}
+.private-state span {
+  color: #a9cbb0;
+  margin-right: 5px;
+}
+.account-wrap {
+  position: relative;
+}
+.account {
+  width: 40px;
+  height: 40px;
+  border: 1px solid #6c8775;
+  border-radius: 50%;
+  background: #3b5849;
+  color: white;
+  cursor: pointer;
+  font-size: 12px;
+}
+.account-menu {
+  position: absolute;
+  bottom: 52px;
+  left: -145px;
+  width: 200px;
+  background: white;
+  color: #203b32;
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  box-shadow: 0 12px 35px #13251c22;
+}
+.account-menu span {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  margin-bottom: 12px;
+}
+.account-menu button {
+  width: 100%;
+  border: 0;
+  padding: 10px;
   background: var(--color-primary-soft);
   color: var(--color-primary);
-}
-
-.nav-icon {
-  font-size: 1.05rem;
-  line-height: 1;
-}
-.nav-icon--scan {
-  font-size: 1.25rem;
-}
-
-.topbar__actions {
-  display: flex;
-  align-items: center;
-  justify-self: end;
-  gap: 0.8rem;
-}
-
-.private-state {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.42rem;
-  color: var(--color-success-strong);
-  font-size: 0.78rem;
-  font-weight: 750;
-}
-
-.private-state span {
-  font-size: 0.48rem;
-}
-
-.account {
-  width: 2.75rem;
-  height: 2.75rem;
-  border: 1px solid var(--color-border-strong);
-  border-radius: 50%;
-  background: linear-gradient(145deg, #ffffff, #e8ebff);
-  color: var(--color-primary);
+  border-radius: 6px;
+  text-align: left;
   cursor: pointer;
-  font: inherit;
-  font-size: 0.75rem;
-  font-weight: 850;
 }
-
 main {
+  margin-left: 236px;
   min-width: 0;
 }
-
-@media (max-width: 48rem) {
+@media (max-width: 800px) {
   .topbar {
-    grid-template-columns: auto 1fr auto;
-    gap: 0.5rem;
-    padding: 0 0.75rem;
+    position: sticky;
+    inset: auto;
+    top: 0;
+    width: 100%;
+    padding: 16px 20px;
+    flex-direction: row;
+    align-items: center;
+    gap: 18px;
   }
-  .private-state,
+  .brand {
+    font-size: 16px;
+  }
+  nav {
+    display: flex;
+    margin: 0 0 0 auto;
+    gap: 4px;
+  }
+  nav a {
+    padding: 0 10px;
+  }
+  .unavailable {
+    display: none !important;
+  }
+  .topbar__actions {
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+  .private-state {
+    display: none;
+  }
+  .account-menu {
+    top: 52px;
+    bottom: auto;
+    left: auto;
+    right: 0;
+  }
+  main {
+    margin-left: 0;
+  }
+}
+@media (max-width: 480px) {
   .brand__name {
     display: none;
   }
-  nav {
-    justify-self: center;
+  .topbar {
+    padding: 12px 16px;
+  }
+  .nav-label {
+    font-size: 12px;
+  }
+  nav a {
+    gap: 5px;
   }
 }
 
-@media (max-width: 30rem) {
+/* Guest-first scanner shell */
+.topbar {
+  position: sticky;
+  inset: auto;
+  top: 0;
+  width: 100%;
+  min-height: 72px;
+  flex-direction: row;
+  align-items: center;
+  gap: 32px;
+  padding: 0 clamp(18px, 4vw, 56px);
+  border-bottom: 1px solid #dbe1dc;
+  background: rgb(255 255 252 / 94%);
+  color: #203b32;
+  backdrop-filter: blur(14px);
+}
+.brand {
+  color: #203b32;
+}
+.brand__mark {
+  border-color: #203b32;
+}
+.brand__mark span {
+  border-color: #203b32;
+}
+nav {
+  display: flex;
+  gap: 4px;
+  margin: 0 auto;
+}
+nav a {
+  min-height: 42px;
+  padding: 0 14px;
+  color: #66726b;
+}
+nav a:hover {
+  background: #eef2ed;
+}
+nav a.active {
+  background: #e5efe8;
+  color: #18755b;
+}
+.topbar__actions {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  gap: 16px;
+}
+.private-state {
+  color: #66726b;
+}
+.private-state span {
+  color: #29916b;
+}
+.sign-in {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 18px;
+  border-radius: 8px;
+  background: #203b32;
+  color: white;
+  font-size: 13px;
+  font-weight: 650;
+  text-decoration: none;
+}
+.account-menu {
+  top: 52px;
+  right: 0;
+  bottom: auto;
+  left: auto;
+}
+main {
+  margin-left: 0;
+}
+@media (max-width: 600px) {
   .topbar {
-    padding: 0 0.35rem;
+    gap: 10px;
+    padding: 0 14px;
   }
   nav {
-    gap: 0;
-    padding: 0.18rem;
+    margin-left: auto;
   }
   nav a {
-    width: 2.75rem;
-    padding: 0;
-    justify-content: center;
+    padding: 0 8px;
   }
-  .nav-label {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
+  .nav-icon,
+  .private-state {
+    display: none;
+  }
+  .sign-in {
+    padding: 0 13px;
   }
 }
-.account-wrap { position: relative; }
-.account-menu { position: absolute; top: calc(100% + 10px); right: 0; z-index: 20; min-width: 220px; padding: 12px; border: 1px solid #dce5e1; border-radius: 12px; background: white; box-shadow: 0 16px 40px rgba(20, 52, 42, .16); }
-.account-menu span { display: block; overflow: hidden; margin-bottom: 9px; color: #617069; font-size: 12px; text-overflow: ellipsis; }
-.account-menu button { width: 100%; padding: 9px 11px; border: 0; border-radius: 8px; background: #eff7f3; color: #0a7454; font-weight: 700; text-align: left; cursor: pointer; }

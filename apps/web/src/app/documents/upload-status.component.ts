@@ -15,7 +15,7 @@ export class UploadStatusComponent implements OnInit, OnDestroy {
   private readonly api = inject(DocumentsApiService);
   protected readonly status = signal<StatusView>({ state: 'Loading', uploadId: '' });
   private timer?: ReturnType<typeof setTimeout>;
-  private readonly documentId = this.route.snapshot.paramMap.get('documentId') ?? '';
+  protected readonly documentId = this.route.snapshot.paramMap.get('documentId') ?? '';
   private readonly uploadId = this.route.snapshot.paramMap.get('uploadId') ?? '';
 
   ngOnInit(): void {

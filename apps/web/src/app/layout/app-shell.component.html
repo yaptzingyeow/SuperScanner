@@ -10,36 +10,37 @@
         routerLink="/"
         routerLinkActive="active"
         [routerLinkActiveOptions]="{ exact: true }"
-        aria-label="Home"
+        aria-label="Scan"
       >
-        <span class="nav-icon" aria-hidden="true">⌂</span>
-        <span class="nav-label">Home</span>
-      </a>
-      <a routerLink="/scan" routerLinkActive="active" aria-label="Scan">
         <span class="nav-icon nav-icon--scan" aria-hidden="true">＋</span>
         <span class="nav-label">Scan</span>
       </a>
-      <a routerLink="/edit" routerLinkActive="active" aria-label="Edit">
-        <span class="nav-icon" aria-hidden="true">✎</span>
-        <span class="nav-label">Edit</span>
-      </a>
-      <a routerLink="/export" routerLinkActive="active" aria-label="Export">
-        <span class="nav-icon" aria-hidden="true">⇧</span>
-        <span class="nav-label">Export</span>
+      <a routerLink="/documents" routerLinkActive="active" aria-label="My documents">
+        <span class="nav-icon" aria-hidden="true">▤</span>
+        <span class="nav-label">My documents</span>
       </a>
     </nav>
 
     <div class="topbar__actions">
       <span class="private-state"><span aria-hidden="true">●</span> Private</span>
       <div class="account-wrap">
-        <button type="button" class="account" aria-label="Open account menu" (click)="menuOpen.update(value => !value)">
-          {{ (auth.user$ | async)?.email?.slice(0, 2)?.toUpperCase() || 'ME' }}
-        </button>
-        @if (menuOpen()) {
-          <div class="account-menu">
-            <span>{{ (auth.user$ | async)?.email }}</span>
-            <button type="button" data-sign-out (click)="signOut()">Sign out</button>
-          </div>
+        @if ((auth.user$ | async)?.isAnonymous) {
+          <a class="sign-in" routerLink="/login">Sign in</a>
+        } @else {
+          <button
+            type="button"
+            class="account"
+            aria-label="Open account menu"
+            (click)="menuOpen.update((value) => !value)"
+          >
+            {{ (auth.user$ | async)?.email?.slice(0, 2)?.toUpperCase() || 'ME' }}
+          </button>
+          @if (menuOpen()) {
+            <div class="account-menu">
+              <span>{{ (auth.user$ | async)?.email }}</span>
+              <button type="button" data-sign-out (click)="signOut()">Sign out</button>
+            </div>
+          }
         }
       </div>
     </div>

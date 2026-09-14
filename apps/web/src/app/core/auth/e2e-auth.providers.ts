@@ -8,7 +8,12 @@ import {
   IDENTITY_TOKEN_SOURCE,
   IdentityTokenSource,
 } from '../api/security.interceptor';
-import { AUTH_ACTIONS_SOURCE, AUTH_STATE_SOURCE, AuthActionsSource, AuthStateSource } from './auth.service';
+import {
+  AUTH_ACTIONS_SOURCE,
+  AUTH_STATE_SOURCE,
+  AuthActionsSource,
+  AuthStateSource,
+} from './auth.service';
 
 export interface E2eIdentityTokens {
   identityToken: string;
@@ -31,12 +36,20 @@ export class E2eIdentityStore
     return this.user.asObservable();
   }
 
-  createUser(): Promise<void> {
-    return Promise.reject(new Error('Email authentication is unavailable in E2E mode.'));
+  ensureGuest(): Promise<void> {
+    return Promise.resolve();
   }
 
-  signIn(): Promise<void> {
-    return Promise.reject(new Error('Email authentication is unavailable in E2E mode.'));
+  signInWithGoogle(): Promise<void> {
+    return Promise.reject(new Error('Social authentication is unavailable in E2E mode.'));
+  }
+
+  registerWithEmail(): Promise<void> {
+    return Promise.reject(new Error('Account authentication is unavailable in E2E mode.'));
+  }
+
+  signInWithEmail(): Promise<void> {
+    return Promise.reject(new Error('Account authentication is unavailable in E2E mode.'));
   }
 
   signOut(): Promise<void> {

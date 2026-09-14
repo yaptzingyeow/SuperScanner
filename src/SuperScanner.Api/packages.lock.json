@@ -77,6 +77,19 @@
           "Newtonsoft.Json": "13.0.4"
         }
       },
+      "Magick.NET-Q8-AnyCPU": {
+        "type": "Transitive",
+        "resolved": "14.17.1",
+        "contentHash": "qcRjhaQ6XueNp2ZUAXYcDrCWlWWlzw3VatXmhCKXDpG4MABGJJr5+o1KQqOe1EtSZaDS6hQNAh4nU8XjCENDiw==",
+        "dependencies": {
+          "Magick.NET.Core": "14.17.1"
+        }
+      },
+      "Magick.NET.Core": {
+        "type": "Transitive",
+        "resolved": "14.17.1",
+        "contentHash": "4BBbU5l5DmdT9isSNGrIE/0VwAh29SoKMSDMiIvFBDqz6vQfG6EYBFJQOemdCH3xkMfesSzImOVPjnyMf/PIqA=="
+      },
       "Microsoft.Bcl.AsyncInterfaces": {
         "type": "Transitive",
         "resolved": "6.0.0",
@@ -205,6 +218,7 @@
         "dependencies": {
           "AWSSDK.S3": "[4.0.102.4, )",
           "FirebaseAdmin": "[3.6.0, )",
+          "Magick.NET-Q8-AnyCPU": "[14.17.1, )",
           "Microsoft.EntityFrameworkCore": "[10.0.4, )",
           "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.3, )",
           "SuperScanner.Application": "[1.0.0, )",

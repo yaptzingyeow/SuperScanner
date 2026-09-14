@@ -13,8 +13,9 @@
       </p>
     } @else if (status().state === 'Accepted') {
       <span class="status-icon status-icon--success" aria-hidden="true">✓</span>
-      <h1 id="status-heading">Ready</h1>
+      <h1 id="status-heading">Upload accepted</h1>
       <p>Scan accepted. Your original file passed validation and is ready for processing.</p>
+      <a [routerLink]="['/documents', documentId]">Open document preview</a>
     } @else if (status().state === 'Rejected') {
       <span class="status-icon status-icon--error" aria-hidden="true">!</span>
       <h1 id="status-heading">This scan could not be accepted</h1>
@@ -24,6 +25,6 @@
       <h1 id="status-heading">Status unavailable</h1>
       <p>We could not load this scan’s status. Please try again later.</p>
     }
-    <a routerLink="/">Back to documents</a>
+    <a routerLink="/documents">Back to documents</a>
   </div>
 </section>

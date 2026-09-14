@@ -11,7 +11,10 @@ describe('AppShellComponent', () => {
       imports: [AppShellComponent],
       providers: [
         provideRouter([]),
-        { provide: AuthService, useValue: { user$: of({ email: 'user@example.com' }), signOut: vi.fn() } },
+        {
+          provide: AuthService,
+          useValue: { user$: of({ email: 'user@example.com' }), signOut: vi.fn() },
+        },
       ],
     });
     const fixture = TestBed.createComponent(AppShellComponent);
@@ -29,7 +32,10 @@ describe('AppShellComponent', () => {
   });
 
   it('signs the current user out from the account menu', async () => {
-    const auth = { user$: of({ email: 'user@example.com' }), signOut: vi.fn().mockResolvedValue(undefined) };
+    const auth = {
+      user$: of({ email: 'user@example.com' }),
+      signOut: vi.fn().mockResolvedValue(undefined),
+    };
     TestBed.configureTestingModule({
       imports: [AppShellComponent],
       providers: [

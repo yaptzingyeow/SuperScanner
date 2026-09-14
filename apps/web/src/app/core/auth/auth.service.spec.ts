@@ -22,10 +22,12 @@ describe('AuthService', () => {
     await expect(nextUser).resolves.toBe(expectedUser);
   });
 
-  it('delegates email sign-up, sign-in, and sign-out to Firebase actions', async () => {
+  it('delegates guest, Google, email, and sign-out actions to Firebase', async () => {
     const actions = {
-      createUser: vi.fn().mockResolvedValue(undefined),
-      signIn: vi.fn().mockResolvedValue(undefined),
+      ensureGuest: vi.fn().mockResolvedValue(undefined),
+      signInWithGoogle: vi.fn().mockResolvedValue(undefined),
+      registerWithEmail: vi.fn().mockResolvedValue(undefined),
+      signInWithEmail: vi.fn().mockResolvedValue(undefined),
       signOut: vi.fn().mockResolvedValue(undefined),
     };
     TestBed.configureTestingModule({
@@ -37,12 +39,16 @@ describe('AuthService', () => {
     });
     const service = TestBed.inject(AuthService);
 
-    await service.createAccount('new@example.com', 'strong-password');
-    await service.signIn('user@example.com', 'secret-password');
+    await service.ensureGuest();
+    await service.signInWithGoogle();
+    await service.registerWithEmail(' new@example.com ', 'strong-password');
+    await service.signInWithEmail(' user@example.com ', 'secret-password');
     await service.signOut();
 
-    expect(actions.createUser).toHaveBeenCalledWith('new@example.com', 'strong-password');
-    expect(actions.signIn).toHaveBeenCalledWith('user@example.com', 'secret-password');
+    expect(actions.ensureGuest).toHaveBeenCalledOnce();
+    expect(actions.signInWithGoogle).toHaveBeenCalledOnce();
+    expect(actions.registerWithEmail).toHaveBeenCalledWith('new@example.com', 'strong-password');
+    expect(actions.signInWithEmail).toHaveBeenCalledWith('user@example.com', 'secret-password');
     expect(actions.signOut).toHaveBeenCalledOnce();
   });
 });
