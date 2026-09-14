@@ -13,6 +13,8 @@ public sealed class DocumentConfiguration : IEntityTypeConfiguration<Document>
         builder.Property(document => document.OwnerFirebaseUid).HasMaxLength(128).IsRequired();
         builder.Property(document => document.Title).HasMaxLength(200).IsRequired();
         builder.Property(document => document.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
+        builder.Property(document => document.Revision).IsConcurrencyToken().IsRequired();
+        builder.Property(document => document.PageOrderRevision).IsConcurrencyToken().IsRequired();
         builder.Property(document => document.CreatedAt).IsRequired();
         builder.Property(document => document.UpdatedAt).IsRequired();
         builder.HasIndex(document => new { document.OwnerFirebaseUid, document.UpdatedAt });
@@ -22,5 +24,6 @@ public sealed class DocumentConfiguration : IEntityTypeConfiguration<Document>
             .HasForeignKey(page => page.DocumentId)
             .OnDelete(DeleteBehavior.Cascade);
         builder.Navigation(document => document.Pages).UsePropertyAccessMode(PropertyAccessMode.Field);
+        builder.Ignore(document => document.ActivePages);
     }
 }

@@ -17,11 +17,18 @@ public sealed class UploadIntent
     public Guid Id { get; private set; }
     public string OwnerFirebaseUid { get; private set; } = string.Empty;
     public Guid DocumentId { get; private set; }
-    public Guid PageId { get; private set; }
+    public Guid? PageId { get; private set; }
     public string QuarantineObjectKey { get; private set; } = string.Empty;
+    public string? OriginalFileName { get; private set; }
     public string DeclaredMediaType { get; private set; } = string.Empty;
     public long DeclaredSizeBytes { get; private set; }
     public string DeclaredSha256Hex { get; private set; } = string.Empty;
+    public string? AcceptedObjectKey { get; private set; }
+    public DateTimeOffset? AcceptedAt { get; private set; }
+    public int DiscoveredPageCount { get; private set; }
+    public int CreatedPageCount { get; private set; }
+    public int FailedPageCount { get; private set; }
+    public string? ExpansionErrorCode { get; private set; }
     public DateTimeOffset ExpiresAt { get; private set; }
     public UploadIntentState State { get; private set; }
     public string IdempotencyKey { get; private set; } = string.Empty;

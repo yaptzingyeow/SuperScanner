@@ -12,6 +12,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     public DbSet<Page> Pages => Set<Page>();
 
+    public DbSet<DocumentExport> DocumentExports => Set<DocumentExport>();
+
     public DbSet<UploadIntent> UploadIntents => Set<UploadIntent>();
 
     public DbSet<ProcessingJob> ProcessingJobs => Set<ProcessingJob>();

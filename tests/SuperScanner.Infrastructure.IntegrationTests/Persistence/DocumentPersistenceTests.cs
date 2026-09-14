@@ -64,4 +64,117 @@ public sealed class DocumentPersistenceTests : IAsyncLifetime
         Assert.Equal(64, columns["CropDiagnosticsCode"]);
         Assert.Equal(100, columns["CropModelVersion"]);
     }
+
+    [Fact]
+    public async Task SavesExportSnapshotAndOrderedPageMetadata()
+    {
+        await using var db = CreateDbContext();
+        await db.Database.MigrateAsync();
+        var document = SeedReadyDocument();
+        var export = DocumentExport.Create(
+            Guid.NewGuid(),
+            document,
+            document.OwnerFirebaseUid,
+            Now,
+            TimeSpan.FromDays(7));
+        db.AddRange(document, export);
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        var storedDocument = await db.Documents
+            .Include(candidate => candidate.Pages)
+            .SingleAsync();
+        var storedExport = await db.DocumentExports.SingleAsync();
+
+        Assert.Equal(document.Revision, storedDocument.Revision);
+        Assert.Equal(document.PageOrderRevision, storedDocument.PageOrderRevision);
+        Assert.Collection(
+            storedDocument.ActivePages,
+            first =>
+            {
+                Assert.Equal(1, first.Position);
+                Assert.Equal(1, first.SourcePageIndex);
+                Assert.Equal("image/png", first.OriginalMediaType);
+                Assert.Equal(PageState.Ready, first.State);
+            },
+            second =>
+            {
+                Assert.Equal(2, second.Position);
+                Assert.Equal(2, second.SourcePageIndex);
+                Assert.Equal("image/png", second.OriginalMediaType);
+                Assert.Equal(PageState.Ready, second.State);
+            });
+        Assert.Equal(document.Revision, storedExport.DocumentRevision);
+        Assert.Equal(2, storedExport.ReadyPageCount);
+        Assert.Contains("\"Position\":1", storedExport.SnapshotJson);
+    }
+
+    [Fact]
+    public async Task RoundTripsFailedAndSoftRemovedPageMetadata()
+    {
+        await using var db = CreateDbContext();
+        await db.Database.MigrateAsync();
+        var document = Document.Create(Guid.NewGuid(), "owner-a", "Form", Now);
+        var page = document.AppendImportedPages(Guid.NewGuid(), [1], 10, Now).Single();
+        page.MarkImportReady("page-sources/document/page/source.png", "image/png");
+        page.MarkFailed("import-decode-failed");
+        document.RemovePage(page.Id, "owner-a", Now.AddMinutes(1));
+        db.Add(document);
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        var stored = await db.Pages.SingleAsync();
+
+        Assert.Equal(PageState.Failed, stored.State);
+        Assert.Equal("import-decode-failed", stored.FailureCode);
+        Assert.Equal(Now.AddMinutes(1), stored.RemovedAt);
+        Assert.Equal("owner-a", stored.RemovedByFirebaseUid);
+    }
+
+    [Fact]
+    public async Task RejectsDuplicateActivePagePositions()
+    {
+        await using var db = CreateDbContext();
+        await db.Database.MigrateAsync();
+        var document = Document.Create(Guid.NewGuid(), "owner-a", "Form", Now);
+        var pages = document.AppendImportedPages(Guid.NewGuid(), [1, 2], 10, Now);
+        db.Add(document);
+        db.Entry(pages[1]).Property(page => page.Position).CurrentValue = pages[0].Position;
+
+        await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
+    }
+
+    [Fact]
+    public async Task RejectsDuplicateSourcePageTuples()
+    {
+        await using var db = CreateDbContext();
+        await db.Database.MigrateAsync();
+        var document = Document.Create(Guid.NewGuid(), "owner-a", "Form", Now);
+        var pages = document.AppendImportedPages(Guid.NewGuid(), [1, 2], 10, Now);
+        db.Add(document);
+        db.Entry(pages[1]).Property(page => page.SourcePageIndex).CurrentValue = pages[0].SourcePageIndex;
+
+        await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
+    }
+
+    private AppDbContext CreateDbContext() =>
+        new(new DbContextOptionsBuilder<AppDbContext>()
+            .UseNpgsql(_postgres.GetConnectionString())
+            .Options);
+
+    private static Document SeedReadyDocument()
+    {
+        var document = Document.Create(Guid.NewGuid(), "owner-a", "Form", Now);
+        foreach (var page in document.AppendImportedPages(Guid.NewGuid(), [1, 2], 10, Now))
+        {
+            page.MarkImportReady($"page-sources/{page.Id:N}/source.png", "image/png");
+            page.SetPreview($"previews/{page.Id:N}.png", $"thumbnails/{page.Id:N}.png");
+            page.MarkReady();
+        }
+
+        document.MarkReady(Now);
+        return document;
+    }
+
+    private static readonly DateTimeOffset Now = new(2026, 9, 14, 12, 0, 0, TimeSpan.Zero);
 }
