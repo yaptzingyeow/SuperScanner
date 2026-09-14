@@ -212,9 +212,18 @@ public sealed class MultiPageDocumentsMigrationScriptTests
             "20260914000000_AiDocumentBoundary",
             "20260914210000_MultiPageDocuments");
 
-        Assert.Contains("WHEN p.\"CropStatus\" = 'NeedsCrop' THEN 'NeedsCrop'", script);
-        Assert.Contains("WHEN p.\"CropStatus\" IN ('Detecting', 'Processing') THEN 'Processing'", script);
-        Assert.Contains("WHEN p.\"CropStatus\" = 'Failed' THEN 'Failed'", script);
-        Assert.Contains("WHEN p.\"PreviewObjectKey\" IS NOT NULL THEN 'Ready'", script);
+        var previewReadyIndex = script.IndexOf(
+            "WHEN p.\"PreviewObjectKey\" IS NOT NULL THEN 'Ready'",
+            StringComparison.Ordinal);
+        Assert.True(previewReadyIndex >= 0);
+
+        var cropStatusClauseIndexes = new[]
+        {
+            script.IndexOf("WHEN p.\"CropStatus\" = 'NeedsCrop' THEN 'NeedsCrop'", StringComparison.Ordinal),
+            script.IndexOf("WHEN p.\"CropStatus\" IN ('Detecting', 'Processing') THEN 'Processing'", StringComparison.Ordinal),
+            script.IndexOf("WHEN p.\"CropStatus\" = 'Failed' THEN 'Failed'", StringComparison.Ordinal)
+        };
+
+        Assert.All(cropStatusClauseIndexes, index => Assert.InRange(index, 0, previewReadyIndex - 1));
     }
 }
