@@ -1,12 +1,13 @@
 using System.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using SuperScanner.Application.Abstractions;
 using SuperScanner.Domain.Processing;
 using SuperScanner.Infrastructure.Persistence;
 
 namespace SuperScanner.Infrastructure.Processing;
 
-public sealed class PostgresJobQueue(AppDbContext db, IClock clock) : IProcessingJobQueue
+public sealed class PostgresJobQueue(AppDbContext db, IClock clock, IOptions<DocumentImportOptions>? importOptions = null) : IProcessingJobQueue
 {
     private static readonly TimeSpan[] RetryDelays =
     [
@@ -122,7 +123,10 @@ public sealed class PostgresJobQueue(AppDbContext db, IClock clock) : IProcessin
         MutateOwnedLeaseAsync(
             jobId,
             workerId,
-            job => job.Reschedule(workerId, clock.UtcNow, errorCode, RetryDelays),
+            job => job.Reschedule(workerId, clock.UtcNow, errorCode, job.Type is "ExpandDocumentImport" or "ProcessDocument"
+                ? Enumerable.Range(0, Math.Max(0, (importOptions?.Value.MaxAttempts ?? 6) - 1))
+                    .Select(index => RetryDelays[Math.Min(index, RetryDelays.Length - 1)]).ToArray()
+                : RetryDelays),
             cancellationToken);
 
     private async Task MutateOwnedLeaseAsync(

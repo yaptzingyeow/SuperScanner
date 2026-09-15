@@ -52,6 +52,8 @@ public sealed class Page
         if (CropSourceObjectKey is null) throw new InvalidOperationException("Crop source is not available.");
         CropRevision++;
         CropStatus = detect ? "Detecting" : "Processing";
+        State = PageState.Processing;
+        FailureCode = null;
         CropSource = detect ? "Automatic" : "Manual";
         CropConfidence = null;
         CropModelVersion = null;

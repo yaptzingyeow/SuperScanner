@@ -16,6 +16,20 @@ public sealed class DocumentImportProcessor(
     CropProcessor cropProcessor,
     IOptions<DocumentImportOptions> options)
 {
+    public async Task FailAsync(Guid uploadId, CancellationToken ct)
+    {
+        // Discard any partially tracked mutation left by the failed attempt before recording its terminal outcome.
+        db.ChangeTracker.Clear();
+        var upload = await db.UploadIntents.SingleAsync(x => x.Id == uploadId, ct);
+        if (upload.State != UploadIntentState.Accepted || upload.AcceptedObjectKey is null) return;
+        var pages = await db.Pages.Where(p => p.SourceUploadId == uploadId && p.RemovedAt == null).ToListAsync(ct);
+        foreach (var page in pages.Where(p => p.State == PageState.Importing)) page.MarkFailed("import_failed");
+        upload.RecordExpansion(pages.Count(p => p.State != PageState.Failed),
+            pages.Count(p => p.State == PageState.Failed), "import_failed");
+        await db.SaveChangesAsync(ct);
+        await CropDocumentStatus.RefreshAsync(db, upload.DocumentId, ct);
+    }
+
     public async Task ProcessAsync(Guid uploadId, CancellationToken cancellationToken)
     {
         var upload = await db.UploadIntents.SingleAsync(x => x.Id == uploadId, cancellationToken);

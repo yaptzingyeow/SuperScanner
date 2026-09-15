@@ -7,6 +7,12 @@ using SuperScanner.Domain.Documents;
 using SuperScanner.Domain.Uploads;
 using SuperScanner.Worker;
 using SuperScanner.Application.Tests.TestDoubles;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
+using SuperScanner.Infrastructure.Persistence;
+using SuperScanner.Infrastructure.Processing;
 
 namespace SuperScanner.Application.Tests.Processing;
 
@@ -28,7 +34,9 @@ public sealed class UploadValidationJobRunnerTests
         Assert.True(foundWork);
         Assert.Equal(fixture.Queue.JobId, fixture.Queue.CompletedJobId);
         Assert.Null(fixture.Queue.RescheduledErrorCode);
-        Assert.Equal("ProcessDocument", fixture.Queue.EnqueuedType);
+        Assert.Equal("ExpandDocumentImport", fixture.Queue.EnqueuedType);
+        Assert.Equal(fixture.Upload.Id.ToString(), fixture.Queue.EnqueuedPayload);
+        Assert.Equal($"upload:{fixture.Upload.Id}:expand:v1", fixture.Queue.EnqueuedKey);
         Assert.Equal(UploadIntentState.Accepted, fixture.Upload.State);
     }
 
@@ -96,6 +104,108 @@ public sealed class UploadValidationJobRunnerTests
         return new RunnerFixture(upload, queue, store, runner, provider);
     }
 
+    [Theory]
+    [InlineData(false, 1, null, true)]
+    [InlineData(true, 1, "import_failed", true)]
+    [InlineData(true, 3, "import_failed", true)]
+    [InlineData(false, 1, "import_failed", false)]
+    public async Task ImportJob_DispatchesAndBoundsFailure(bool storageOutage, int attempt, string? error, bool encrypted)
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connection).Options);
+        await db.Database.EnsureCreatedAsync();
+        var document = Document.Create(Guid.NewGuid(), "owner", "Import", Now);
+        var upload = UploadIntent.Create(Guid.NewGuid(), "owner", document.Id, "quarantine", "scan.pdf",
+            "application/pdf", 100, new string('a', 64), Now.AddHours(1));
+        upload.TryMarkPendingValidation(Now);
+        upload.Accept("imports/source", Now);
+        upload.BeginExpansion(3);
+        var pages = document.AppendImportedPages(upload.Id, [1, 2, 3], 50, Now);
+        pages[0].MarkImportReady("original", "image/png");
+        pages[0].SetPreview("preview", "thumb");
+        pages[0].InitializeCrop();
+        pages[0].MarkReady();
+        pages[1].MarkFailed("pdf_render_failed");
+        var removed = document.AppendImportedPages(Guid.NewGuid(), [1], 50, Now)[0];
+        document.RemovePage(removed.Id, "owner", Now);
+        db.AddRange(document, upload);
+        await db.SaveChangesAsync();
+        var store = new ImportStore(storageOutage);
+        var queue = new RecordingQueue(upload.Id) { Type = "ExpandDocumentImport", AttemptCount = attempt };
+        var options = Options.Create(new DocumentImportOptions { MaxAttempts = 3 });
+        var crop = new CropProcessor(db, store, new ConfigurationBuilder().Build(),
+            Options.Create(new DocumentBoundaryOptions()), new DocumentBoundaryHealth(), NullLogger<CropProcessor>.Instance);
+        var services = new ServiceCollection();
+        services.AddSingleton<IProcessingJobQueue>(queue);
+        services.AddSingleton(db);
+        services.AddSingleton<IOptions<DocumentImportOptions>>(options);
+        // No validator/scanner registration: expansion must depend only on import services.
+        services.AddSingleton(new DocumentImportProcessor(db, store, new FailingPdfTool(encrypted),
+            new DocumentPreviewProcessor(db, store), crop, options));
+        await using var provider = services.BuildServiceProvider();
+        var runner = new UploadValidationJobRunner(provider.GetRequiredService<IServiceScopeFactory>(),
+            NullLogger<UploadValidationJobRunner>.Instance);
+
+        await runner.RunOnceAsync("worker-a", TimeSpan.FromMinutes(2), CancellationToken.None);
+
+        Assert.Equal(error, queue.RescheduledErrorCode);
+        Assert.Equal(error != null ? null : queue.JobId, queue.CompletedJobId);
+        db.ChangeTracker.Clear();
+        var stored = await db.UploadIntents.SingleAsync();
+        var storedPages = await db.Pages.ToDictionaryAsync(p => p.Id);
+        if (!encrypted)
+        {
+            Assert.Equal("pdf_render_failed", stored.ExpansionErrorCode);
+            Assert.Equal(PageState.Ready, storedPages[pages[0].Id].State);
+            Assert.Equal(2, stored.FailedPageCount);
+        }
+        else if (!storageOutage) Assert.Equal("pdf_encrypted", stored.ExpansionErrorCode);
+        else if (attempt == 3)
+        {
+            Assert.Equal("import_failed", stored.ExpansionErrorCode);
+            Assert.Equal(1, stored.CreatedPageCount);
+            Assert.Equal(2, stored.FailedPageCount);
+            Assert.Equal(PageState.Ready, storedPages[pages[0].Id].State);
+            Assert.Equal("pdf_render_failed", storedPages[pages[1].Id].FailureCode);
+            Assert.Equal("import_failed", storedPages[pages[2].Id].FailureCode);
+            Assert.Equal(PageState.Importing, storedPages[removed.Id].State);
+        }
+        else
+        {
+            Assert.Null(stored.ExpansionErrorCode);
+            Assert.Equal(PageState.Importing, storedPages[pages[2].Id].State);
+        }
+    }
+
+    [Fact]
+    public async Task ImportJob_RejectsExtraPayloadSegments()
+    {
+        using var fixture = CreateFixture(new CleanScanner());
+        fixture.Queue.Type = "ExpandDocumentImport";
+        fixture.Queue.Payload = $"{fixture.Upload.Id}:unexpected";
+        await fixture.Runner.RunOnceAsync("worker-a", TimeSpan.FromMinutes(2), CancellationToken.None);
+        Assert.Equal("invalid_job", fixture.Queue.RescheduledErrorCode);
+        Assert.Null(fixture.Queue.CompletedJobId);
+    }
+
+    private sealed class FailingPdfTool(bool encrypted) : IPdfImportTool
+    {
+        public Task<PdfInspection> InspectAsync(string path, CancellationToken ct) => Task.FromResult(new PdfInspection(3, encrypted, 100));
+        public Task RenderPageAsync(string path, int page, string output, CancellationToken ct) => throw new PdfImportException("pdf_render_failed");
+    }
+
+    private sealed class ImportStore(bool outage) : IObjectStore
+    {
+        public Task<StoredObjectInfo?> HeadAsync(string key, CancellationToken ct) => outage
+            ? throw new IOException("Sensitive storage error")
+            : Task.FromResult<StoredObjectInfo?>(key == "imports/source" ? new StoredObjectInfo(PdfBytes.Length, "application/pdf", "etag") : null);
+        public Task<Stream> OpenReadAsync(string key, CancellationToken ct) => Task.FromResult<Stream>(new MemoryStream(PdfBytes));
+        public Task<Uri> CreatePutUrlAsync(PutObjectRequest request, CancellationToken ct) => throw new NotSupportedException();
+        public Task PromoteAsync(string from, string to, CancellationToken ct) => throw new NotSupportedException();
+        public Task DeleteAsync(string key, CancellationToken ct) => throw new NotSupportedException();
+    }
+
     private sealed record RunnerFixture(
         UploadIntent Upload,
         RecordingQueue Queue,
@@ -108,11 +218,16 @@ public sealed class UploadValidationJobRunnerTests
 
     private sealed class RecordingQueue(Guid uploadId) : IProcessingJobQueue
     {
+        public string Type { get; set; } = "ValidateUpload";
+        public string Payload { get; set; } = uploadId.ToString();
+        public int AttemptCount { get; set; } = 1;
         public Guid JobId { get; } = Guid.NewGuid();
         public Guid? CompletedJobId { get; private set; }
         public string? RescheduledErrorCode { get; private set; }
         public int HeartbeatCalls { get; private set; }
         public string? EnqueuedType { get; private set; }
+        public string? EnqueuedPayload { get; private set; }
+        public string? EnqueuedKey { get; private set; }
 
         public Task<ProcessingJobLease?> TryLeaseAsync(
             string workerId,
@@ -120,9 +235,9 @@ public sealed class UploadValidationJobRunnerTests
             CancellationToken cancellationToken) =>
             Task.FromResult<ProcessingJobLease?>(new ProcessingJobLease(
                 JobId,
-                "ValidateUpload",
-                uploadId.ToString(),
-                1,
+                Type,
+                Payload,
+                AttemptCount,
                 Now.Add(leaseDuration)));
 
         public Task CompleteAsync(Guid jobId, string workerId, CancellationToken cancellationToken)
@@ -158,6 +273,8 @@ public sealed class UploadValidationJobRunnerTests
             CancellationToken cancellationToken)
         {
             EnqueuedType = type;
+            EnqueuedPayload = payload;
+            EnqueuedKey = idempotencyKey;
             return Task.CompletedTask;
         }
     }

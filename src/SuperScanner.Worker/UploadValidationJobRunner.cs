@@ -1,7 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using SuperScanner.Application.Abstractions;
 using SuperScanner.Application.Uploads;
 using SuperScanner.Infrastructure.Processing;
+using SuperScanner.Infrastructure.Persistence;
 
 namespace SuperScanner.Worker;
 
@@ -32,18 +35,18 @@ public sealed class UploadValidationJobRunner(
         try
         {
             var cropJob = lease.Type is "DetectDocumentEdges" or "ApplyPerspectiveCrop";
+            var importJob = lease.Type is "ExpandDocumentImport" or "ProcessDocument";
             var parts = lease.Payload.Split(':');
             var revision = 0;
-            if ((!cropJob && lease.Type != "ValidateUpload" && lease.Type != "ProcessDocument") ||
+            if ((!cropJob && lease.Type != "ValidateUpload" && !importJob) ||
                 !Guid.TryParse(parts[0], out var uploadId) ||
+                (!cropJob && parts.Length != 1) ||
                 (cropJob && (parts.Length != 2 || !int.TryParse(parts[1], out revision) || revision < 1)))
             {
                 await queue.RescheduleAsync(lease.Id, workerId, "invalid_job", cancellationToken);
                 return true;
             }
 
-            var validator = scope.ServiceProvider.GetRequiredService<ValidateUpload>();
-            var scanner = scope.ServiceProvider.GetRequiredService<IMalwareScanner>();
             try
             {
                 if (cropJob)
@@ -51,16 +54,23 @@ public sealed class UploadValidationJobRunner(
                     await scope.ServiceProvider.GetRequiredService<CropProcessor>()
                         .RunAsync(uploadId, revision, lease.Type == "DetectDocumentEdges", workCancellation.Token);
                 }
-                else if (lease.Type == "ProcessDocument")
+                else if (importJob)
                 {
                     await scope.ServiceProvider.GetRequiredService<DocumentImportProcessor>()
                         .ProcessAsync(uploadId, workCancellation.Token);
+                    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                    var upload = await db.UploadIntents.AsNoTracking().SingleAsync(x => x.Id == uploadId, workCancellation.Token);
+                    await CropDocumentStatus.RefreshAsync(db, upload.DocumentId, workCancellation.Token);
+                    if (upload.ExpansionErrorCode is "pdf_render_failed" or "pdf_timeout" or "pdf_tool_unavailable")
+                        throw new InvalidOperationException("Import processing requires a retry.");
                 }
                 else
                 {
+                    var validator = scope.ServiceProvider.GetRequiredService<ValidateUpload>();
+                    var scanner = scope.ServiceProvider.GetRequiredService<IMalwareScanner>();
                     var result = await validator.ValidateAsync(uploadId, scanner, workCancellation.Token);
                     if (result.Outcome == UploadValidationOutcome.Accepted)
-                        await queue.EnqueueAsync("ProcessDocument", uploadId.ToString(), $"upload:{uploadId}:preview:v1", workCancellation.Token);
+                        await queue.EnqueueAsync("ExpandDocumentImport", uploadId.ToString(), $"upload:{uploadId}:expand:v1", workCancellation.Token);
                 }
                 await queue.CompleteAsync(lease.Id, workerId, cancellationToken);
                 logger.LogInformation(
@@ -94,16 +104,19 @@ public sealed class UploadValidationJobRunner(
             {
                 if (cropJob && lease.AttemptCount >= 6)
                     await scope.ServiceProvider.GetRequiredService<CropProcessor>().FailAsync(uploadId, revision, cancellationToken);
+                if (importJob && lease.AttemptCount >= scope.ServiceProvider.GetRequiredService<IOptions<DocumentImportOptions>>().Value.MaxAttempts)
+                    await scope.ServiceProvider.GetRequiredService<DocumentImportProcessor>().FailAsync(uploadId, cancellationToken);
+                var errorCode = cropJob ? "crop_failed" : importJob ? "import_failed" : "validation_failed";
                 await queue.RescheduleAsync(
                     lease.Id,
                     workerId,
-                    cropJob ? "crop_failed" : lease.Type == "ProcessDocument" ? "preview_failed" : "validation_failed",
+                    errorCode,
                     cancellationToken);
                 logger.LogWarning(
                     "Upload validation job rescheduled. JobId={JobId} UploadId={UploadId} ErrorCode={ErrorCode}",
                     lease.Id,
                     uploadId,
-                    "validation_failed");
+                    errorCode);
             }
 
             return true;

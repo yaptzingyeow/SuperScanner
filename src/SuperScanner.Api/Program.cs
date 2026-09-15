@@ -66,6 +66,10 @@ builder.Services.AddScoped<IUploadIntentRepository, EfUploadIntentRepository>();
 builder.Services.AddSingleton(new UploadPolicy(50, 25 * 1024 * 1024));
 builder.Services.AddScoped<CreateUploadIntent>();
 builder.Services.AddScoped<IProcessingJobQueue, PostgresJobQueue>();
+builder.Services.AddOptions<DocumentImportOptions>()
+    .BindConfiguration(DocumentImportOptions.SectionName)
+    .Validate(options => options.IsValid(), "Document import configuration is invalid.")
+    .ValidateOnStart();
 builder.Services.AddScoped<CompleteUpload>();
 builder.Services.AddScoped<GetUploadStatus>();
 builder.Services.Configure<R2Options>(builder.Configuration.GetSection(R2Options.SectionName));

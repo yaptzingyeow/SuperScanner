@@ -4,6 +4,24 @@ namespace SuperScanner.Domain.Tests.Documents;
 
 public sealed class PageTests
 {
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void BeginCrop_RemovesReadyPageFromExportEligibility(bool detect)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var document = Document.Create(Guid.NewGuid(), "owner", "Scan", now);
+        var page = document.AddPage(Guid.NewGuid(), 50, now);
+        page.SetPreview("preview", "thumbnail");
+        page.InitializeCrop();
+        page.MarkReady();
+
+        page.BeginCrop(detect, null);
+
+        Assert.Equal(PageState.Processing, page.State);
+        Assert.Throws<InvalidOperationException>(() => page.GetExportObjectKey());
+    }
+
     [Fact]
     public void AcceptOriginalRejectsReplacingExistingAsset()
     {

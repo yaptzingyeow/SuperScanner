@@ -126,14 +126,7 @@ public sealed class CropProcessor(
                 {
                     boundaryHealth.MarkUnhealthy(detection.DiagnosticsCode);
                 }
-                var pointsJson = JsonSerializer.Serialize(detection.Points, Json);
-                await current.ExecuteUpdateAsync(set => set
-                    .SetProperty(x => x.CropPointsJson, pointsJson)
-                    .SetProperty(x => x.CropConfidence, detection.Confidence)
-                    .SetProperty(x => x.CropSource, detection.Source)
-                    .SetProperty(x => x.CropModelVersion, detection.ModelVersion)
-                    .SetProperty(x => x.CropDiagnosticsCode, detection.DiagnosticsCode)
-                    .SetProperty(x => x.CropStatus, "NeedsCrop"), ct);
+                await CompleteDetectionAsync(pageId, revision, detection, ct);
                 logger.LogInformation(
                     "Document boundary completed for page {PageId} revision {Revision}: source {Source}, confidence {Confidence}, model {ModelVersion}, diagnostics {DiagnosticsCode}, elapsed {ElapsedMilliseconds}ms",
                     pageId, revision, detection.Source, detection.Confidence, detection.ModelVersion,
@@ -171,11 +164,35 @@ public sealed class CropProcessor(
         finally { directory.Delete(true); }
     }
 
+    public async Task CompleteDetectionAsync(
+        Guid pageId,
+        int revision,
+        CropDetectionResult detection,
+        CancellationToken ct)
+    {
+        var pointsJson = JsonSerializer.Serialize(detection.Points, Json);
+        var documentId = await db.Pages.Where(x => x.Id == pageId).Select(x => x.DocumentId).SingleAsync(ct);
+        await db.Pages.Where(x => x.Id == pageId && x.CropRevision == revision && x.CropStatus == "Detecting")
+            .ExecuteUpdateAsync(set => set
+                .SetProperty(x => x.CropPointsJson, pointsJson)
+                .SetProperty(x => x.CropConfidence, detection.Confidence)
+                .SetProperty(x => x.CropSource, detection.Source)
+                .SetProperty(x => x.CropModelVersion, detection.ModelVersion)
+                .SetProperty(x => x.CropDiagnosticsCode, detection.DiagnosticsCode)
+                .SetProperty(x => x.CropStatus, "NeedsCrop")
+                .SetProperty(x => x.State, PageState.NeedsCrop)
+                .SetProperty(x => x.FailureCode, (string?)null), ct);
+        await CropDocumentStatus.RefreshAsync(db, documentId, ct);
+    }
+
     public async Task FailAsync(Guid pageId, int revision, CancellationToken ct)
     {
         await db.Pages.Where(p => p.Id == pageId && p.CropRevision == revision &&
             (p.CropStatus == "Detecting" || p.CropStatus == "Processing"))
-            .ExecuteUpdateAsync(set => set.SetProperty(p => p.CropStatus, "Failed"), ct);
+            .ExecuteUpdateAsync(set => set
+                .SetProperty(p => p.CropStatus, "Failed")
+                .SetProperty(p => p.State, PageState.Failed)
+                .SetProperty(p => p.FailureCode, "crop_failed"), ct);
         var documentId = await db.Pages.Where(p => p.Id == pageId).Select(p => p.DocumentId).SingleAsync(ct);
         await CropDocumentStatus.RefreshAsync(db, documentId, ct);
     }
