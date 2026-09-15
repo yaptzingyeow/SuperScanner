@@ -142,6 +142,7 @@ public sealed class Document
 
         page.SoftRemove(firebaseUid, now);
         CompactActivePositions();
+        if (ActivePages.Count == 0) Status = DocumentStatus.Draft;
         RecordMembershipChange(now);
     }
 

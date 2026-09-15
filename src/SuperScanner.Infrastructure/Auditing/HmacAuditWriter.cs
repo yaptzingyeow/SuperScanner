@@ -34,9 +34,10 @@ public sealed class HmacAuditWriter : IAuditWriter
         CancellationToken cancellationToken)
     {
         Validate(request);
-        await using var transaction = await _db.Database.BeginTransactionAsync(
-            IsolationLevel.ReadCommitted,
-            cancellationToken);
+        // A command may own the transaction so its mutation and audit are saved atomically.
+        await using var transaction = _db.Database.CurrentTransaction is null
+            ? await _db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken)
+            : null;
         var chainKey = request.TargetId.ToString("N");
         await _db.Database.ExecuteSqlInterpolatedAsync(
             $"SELECT pg_advisory_xact_lock(hashtextextended({chainKey}, 0))",
@@ -68,8 +69,11 @@ public sealed class HmacAuditWriter : IAuditWriter
             eventHash,
             signature,
             _signingKeyId));
-        await _db.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
+        if (transaction is not null)
+        {
+            await _db.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
         return eventId;
     }
 

@@ -62,6 +62,8 @@ builder.Services.AddScoped<IDocumentRepository, EfDocumentRepository>();
 builder.Services.AddSingleton<IClock, SuperScanner.Infrastructure.Time.SystemClock>();
 builder.Services.AddScoped<CreateDocument>();
 builder.Services.AddScoped<ListDocuments>();
+builder.Services.AddScoped<ReorderPages>();
+builder.Services.AddScoped<RemovePage>();
 builder.Services.AddScoped<IUploadIntentRepository, EfUploadIntentRepository>();
 builder.Services.AddSingleton(new UploadPolicy(50, 25 * 1024 * 1024));
 builder.Services.AddScoped<CreateUploadIntent>();
@@ -105,6 +107,7 @@ app.MapGet("/api/me", (ICurrentUser currentUser) =>
         Results.Ok(new { firebaseUid = currentUser.FirebaseUid }))
     .RequireAuthorization();
 DocumentsEndpoints.Map(app);
+PageManagementEndpoints.Map(app);
 DocumentPreviewEndpoints.Map(app);
 CropEndpoints.Map(app);
 UploadsEndpoints.Map(app);
