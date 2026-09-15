@@ -26,7 +26,6 @@ interface DocumentDetail { id: string; title: string; status: string; message: s
             @else { <p>Preview pending</p> }
           </article>
         }
-        <p class="note">PDF previews show the first page. Download the original to view the complete PDF.</p>
       } @else if (!error()) { <p role="status">Loading document…</p> }
       @if (error()) { <p role="alert">{{ error() }}</p><button (click)="load()">Reload</button> }
     </section>`,

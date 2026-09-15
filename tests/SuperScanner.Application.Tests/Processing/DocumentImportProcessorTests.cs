@@ -196,6 +196,51 @@ public sealed class DocumentImportProcessorTests
     }
 
     [Fact]
+    public async Task Retry_PreservesNeedsCropPageWhileRepairingAnotherPage()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        fixture.Pdf.FailPage = 2;
+        await fixture.ProcessAsync();
+        var needsCropId = fixture.Document.ActivePages.First().Id;
+        await fixture.CompleteDetectionAsync(needsCropId);
+        await fixture.ReloadAsync();
+        Assert.Equal(PageState.NeedsCrop, fixture.Document.ActivePages.First(page => page.Id == needsCropId).State);
+
+        fixture.Pdf.FailPage = null;
+        await fixture.ProcessAsync();
+
+        var needsCrop = fixture.Document.ActivePages.First(page => page.Id == needsCropId);
+        Assert.Equal(PageState.NeedsCrop, needsCrop.State);
+        Assert.Equal("NeedsCrop", needsCrop.CropStatus);
+        Assert.Equal(3, fixture.Upload.CreatedPageCount);
+        Assert.Equal(0, fixture.Upload.FailedPageCount);
+    }
+
+    [Fact]
+    public async Task TerminalFailure_AfterInspectionTimeoutPreservesPersistedExpansionProgress()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        fixture.Pdf.FailPage = 2;
+        await fixture.ProcessAsync();
+        var importingId = fixture.Document.ActivePages.Last().Id;
+        fixture.Db.Entry(fixture.Document.ActivePages.Last()).Property(page => page.State).CurrentValue = PageState.Importing;
+        await fixture.Db.SaveChangesAsync();
+        fixture.Pdf.InspectException = new PdfImportException("pdf_timeout");
+
+        await fixture.ProcessAsync();
+        await fixture.FailAsync();
+        await fixture.ReloadAsync();
+
+        Assert.Equal(3, fixture.Upload.DiscoveredPageCount);
+        Assert.Equal(1, fixture.Upload.CreatedPageCount);
+        Assert.Equal(2, fixture.Upload.FailedPageCount);
+        Assert.Equal("import_failed", fixture.Upload.ExpansionErrorCode);
+        var importing = fixture.Document.ActivePages.Single(page => page.Id == importingId);
+        Assert.Equal(PageState.Failed, importing.State);
+        Assert.Equal("import_failed", importing.FailureCode);
+    }
+
+    [Fact]
     public async Task ActualDownloadLimit_IsEnforcedBeforeInspection()
     {
         await using var fixture = await Fixture.CreateAsync();
@@ -240,6 +285,7 @@ public sealed class DocumentImportProcessorTests
         public FakePdfTool Pdf { get; } = new();
         public DocumentImportOptions Options { get; } = new();
         private DocumentImportProcessor Processor { get; set; } = null!;
+        private CropProcessor CropProcessor { get; set; } = null!;
 
         public static async Task<Fixture> CreateAsync(string mediaType = "application/pdf")
         {
@@ -264,11 +310,24 @@ public sealed class DocumentImportProcessorTests
             var crop = new CropProcessor(fixture.Db, fixture.Store, new ConfigurationBuilder().Build(),
                 Microsoft.Extensions.Options.Options.Create(new DocumentBoundaryOptions()),
                 new DocumentBoundaryHealth(), NullLogger<CropProcessor>.Instance);
+            fixture.CropProcessor = crop;
             fixture.Processor = new(fixture.Db, fixture.Store, fixture.Pdf, preview, crop, options);
             return fixture;
         }
 
         public Task ProcessAsync() => Processor.ProcessAsync(Upload.Id, CancellationToken.None);
+        public Task FailAsync() => Processor.FailAsync(Upload.Id, CancellationToken.None);
+        public Task CompleteDetectionAsync(Guid pageId) => CropProcessor.CompleteDetectionAsync(
+            pageId,
+            Document.ActivePages.Single(page => page.Id == pageId).CropRevision,
+            new CropDetectionResult([new(0, 0), new(1, 0), new(1, 1), new(0, 1)], 0, "FullImage", null, "full_image"),
+            CancellationToken.None);
+        public async Task ReloadAsync()
+        {
+            Db.ChangeTracker.Clear();
+            Document = await Db.Documents.Include(x => x.Pages).SingleAsync();
+            Upload = await Db.UploadIntents.SingleAsync();
+        }
         public async ValueTask DisposeAsync() { await Db.DisposeAsync(); await connection.DisposeAsync(); }
     }
 
@@ -326,11 +385,16 @@ public sealed class DocumentImportProcessorTests
     private sealed class FakePdfTool : IPdfImportTool
     {
         public PdfInspection Inspection { get; set; } = PdfFixtures.ThreePage.Inspection;
+        public PdfImportException? InspectException { get; set; }
         public int? FailPage { get; set; }
         public int InspectCalls { get; private set; }
         public List<int> RenderedPages { get; } = [];
         public Task<PdfInspection> InspectAsync(string sourcePath, CancellationToken ct)
-        { InspectCalls++; return Task.FromResult(Inspection); }
+        {
+            InspectCalls++;
+            if (InspectException is { } exception) throw exception;
+            return Task.FromResult(Inspection);
+        }
         public async Task RenderPageAsync(string sourcePath, int pageIndex, string outputPngPath, CancellationToken ct)
         {
             RenderedPages.Add(pageIndex);

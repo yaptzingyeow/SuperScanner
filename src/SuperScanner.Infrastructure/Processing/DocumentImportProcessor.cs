@@ -24,6 +24,10 @@ public sealed class DocumentImportProcessor(
         if (upload.State != UploadIntentState.Accepted || upload.AcceptedObjectKey is null) return;
         var pages = await db.Pages.Where(p => p.SourceUploadId == uploadId && p.RemovedAt == null).ToListAsync(ct);
         foreach (var page in pages.Where(p => p.State == PageState.Importing)) page.MarkFailed("import_failed");
+        if (upload.DiscoveredPageCount < pages.Count)
+        {
+            upload.BeginExpansion(pages.Count);
+        }
         upload.RecordExpansion(pages.Count(p => p.State != PageState.Failed),
             pages.Count(p => p.State == PageState.Failed), "import_failed");
         await db.SaveChangesAsync(ct);
@@ -133,11 +137,6 @@ public sealed class DocumentImportProcessor(
 
                     await previewProcessor.ProcessPageAsync(page.Id, cancellationToken);
                     await cropProcessor.EnsureDetectionForPageAsync(page.Id, cancellationToken);
-                    if (page.State != PageState.Ready)
-                    {
-                        page.MarkProcessing();
-                        await db.SaveChangesAsync(cancellationToken);
-                    }
                 }
                 catch (Exception exception) when (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
                 {
@@ -276,8 +275,11 @@ public sealed class DocumentImportProcessor(
 
     private static void RecordRejectedExpansion(UploadIntent upload, string code)
     {
-        upload.BeginExpansion(0);
-        upload.RecordExpansion(0, 0, code);
+        if (upload.DiscoveredPageCount == 0)
+        {
+            upload.BeginExpansion(0);
+        }
+        upload.RecordExpansion(upload.CreatedPageCount, upload.FailedPageCount, code);
     }
 
     private sealed class ImportFailureException(string code) : Exception(code)
