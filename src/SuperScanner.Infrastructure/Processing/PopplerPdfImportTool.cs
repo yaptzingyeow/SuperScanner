@@ -6,6 +6,8 @@ namespace SuperScanner.Infrastructure.Processing;
 
 public sealed class PopplerPdfImportTool(IOptions<DocumentImportOptions> options) : IPdfImportTool
 {
+    private const int RenderDpi = 300;
+
     public async Task<PdfInspection> InspectAsync(string sourcePath, CancellationToken ct)
     {
         var result = await RunAsync("pdfinfo", [sourcePath], options.Value.InspectTimeoutSeconds, ct);
@@ -17,9 +19,29 @@ public sealed class PopplerPdfImportTool(IOptions<DocumentImportOptions> options
 
         var pages = ReadInt(output, "Pages:");
         if (pages < 1) throw new PdfImportException("pdf_invalid");
-        var dimensions = ReadDimensions(output) ?? throw new PdfImportException("pdf_invalid");
-        var pixels = checked((long)Math.Ceiling(dimensions.Width / 72d * 300) *
-            (long)Math.Ceiling(dimensions.Height / 72d * 300) * pages);
+        if (pages > options.Value.MaxPagesPerImport) return new PdfInspection(pages, false, 0);
+
+        long pixels = 0;
+        using var inspectionBudget = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        inspectionBudget.CancelAfter(TimeSpan.FromSeconds(options.Value.InspectTimeoutSeconds));
+        try
+        {
+            for (var pageIndex = 1; pageIndex <= pages; pageIndex++)
+            {
+                var page = await RunAsync("pdfinfo", ["-f", pageIndex.ToString(CultureInfo.InvariantCulture),
+                    "-l", pageIndex.ToString(CultureInfo.InvariantCulture), sourcePath], options.Value.InspectTimeoutSeconds,
+                    inspectionBudget.Token);
+                if (page.ExitCode != 0) throw new PdfImportException("pdf_invalid");
+                var dimensions = ReadDimensions(page.StandardOutput) ?? throw new PdfImportException("pdf_invalid");
+                if (dimensions.Width <= 0 || dimensions.Height <= 0) throw new PdfImportException("pdf_invalid");
+                pixels = checked(pixels + (long)Math.Ceiling(dimensions.Width / 72d * RenderDpi) *
+                    (long)Math.Ceiling(dimensions.Height / 72d * RenderDpi));
+            }
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            throw new PdfImportException("pdf_timeout");
+        }
         return new PdfInspection(pages, false, pixels);
     }
 
@@ -28,7 +50,7 @@ public sealed class PopplerPdfImportTool(IOptions<DocumentImportOptions> options
         if (pageIndex < 1) throw new ArgumentOutOfRangeException(nameof(pageIndex));
         var outputPrefix = Path.Combine(Path.GetDirectoryName(outputPngPath)!, Path.GetFileNameWithoutExtension(outputPngPath));
         var result = await RunAsync("pdftoppm",
-            ["-f", pageIndex.ToString(CultureInfo.InvariantCulture), "-l", pageIndex.ToString(CultureInfo.InvariantCulture),
+            ["-r", RenderDpi.ToString(CultureInfo.InvariantCulture), "-f", pageIndex.ToString(CultureInfo.InvariantCulture), "-l", pageIndex.ToString(CultureInfo.InvariantCulture),
                 "-singlefile", "-png", sourcePath, outputPrefix], options.Value.PageRenderTimeoutSeconds, ct);
         if (result.ExitCode != 0 || !File.Exists(outputPngPath)) throw new PdfImportException("pdf_render_failed");
     }
@@ -54,10 +76,18 @@ public sealed class PopplerPdfImportTool(IOptions<DocumentImportOptions> options
             {
                 await process.WaitForExitAsync(timeout.Token);
             }
-            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            catch (OperationCanceledException)
             {
-                if (!process.HasExited) process.Kill(true);
+                try
+                {
+                    if (!process.HasExited) process.Kill(true);
+                }
+                catch (InvalidOperationException)
+                {
+                    // The process exited between the state check and the kill request.
+                }
                 await process.WaitForExitAsync(CancellationToken.None);
+                if (ct.IsCancellationRequested) throw new OperationCanceledException(ct);
                 throw new PdfImportException("pdf_timeout");
             }
 
@@ -78,7 +108,7 @@ public sealed class PopplerPdfImportTool(IOptions<DocumentImportOptions> options
 
     private static (double Width, double Height)? ReadDimensions(string output)
     {
-        var value = output.Split('\n').FirstOrDefault(line => line.TrimStart().StartsWith("Page size:", StringComparison.OrdinalIgnoreCase));
+        var value = output.Split('\n').FirstOrDefault(line => line.Contains("size:", StringComparison.OrdinalIgnoreCase));
         if (value is null) return null;
         var words = value.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         var x = Array.IndexOf(words, "x");

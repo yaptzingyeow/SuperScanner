@@ -155,7 +155,9 @@ public sealed class CropProcessor(
                     .SetProperty(x => x.ThumbnailObjectKey, thumbnailKey)
                     .SetProperty(x => x.AppliedCropRevision, revision)
                     .SetProperty(x => x.AppliedFilter, page.Filter)
-                    .SetProperty(x => x.CropStatus, "Ready"), ct);
+                    .SetProperty(x => x.CropStatus, "Ready")
+                    .SetProperty(x => x.State, PageState.Ready)
+                    .SetProperty(x => x.FailureCode, (string?)null), ct);
                 if (updated == 1)
                 {
                     var document = await db.Documents.SingleAsync(x => x.Id == page.DocumentId, ct);

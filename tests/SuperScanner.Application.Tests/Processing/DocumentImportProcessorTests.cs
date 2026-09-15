@@ -40,6 +40,27 @@ public sealed class DocumentImportProcessorTests
     }
 
     [Fact]
+    public async Task Poppler_AccountsForEveryMixedPageDimension()
+    {
+        var directory = Directory.CreateTempSubdirectory("superscanner-poppler-test-");
+        try
+        {
+            var sourcePath = Path.Combine(directory.FullName, "mixed-pages.pdf");
+            await File.WriteAllBytesAsync(sourcePath, PdfFixtures.MixedSize.Bytes);
+            var tool = new PopplerPdfImportTool(Options.Create(new DocumentImportOptions()));
+
+            var inspection = await tool.InspectAsync(sourcePath, CancellationToken.None);
+
+            Assert.Equal(2, inspection.PageCount);
+            Assert.Equal(450_000, inspection.EstimatedDecodedPixels);
+        }
+        finally
+        {
+            directory.Delete(true);
+        }
+    }
+
+    [Fact]
     public async Task Photo_UsesAcceptedSourceAndQueuesPageDetection()
     {
         await using var fixture = await Fixture.CreateAsync("image/png");
@@ -86,6 +107,37 @@ public sealed class DocumentImportProcessorTests
         Assert.Equal(3, await fixture.Db.ProcessingJobs.CountAsync());
         Assert.Equal(3, fixture.Pdf.RenderedPages.Count);
         Assert.All(fixture.Store.WriteCounts, pair => Assert.Equal(1, pair.Value));
+    }
+
+    [Fact]
+    public async Task Retry_DoesNotExceedAggregateRenderedLimitWithPersistedSources()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        fixture.Options.MaxRenderedBytes = Png().LongLength * 2;
+
+        await fixture.ProcessAsync();
+        await fixture.ProcessAsync();
+
+        Assert.Equal(2, fixture.Store.Objects.Keys.Count(key => key.StartsWith("page-sources/", StringComparison.Ordinal)));
+        Assert.Equal(PageState.Failed, fixture.Document.ActivePages.Last().State);
+        Assert.Equal("render_size_limit", fixture.Document.ActivePages.Last().FailureCode);
+    }
+
+    [Fact]
+    public async Task Retry_AfterTransientPreviewFailure_ClearsImportFailure()
+    {
+        await using var fixture = await Fixture.CreateAsync("image/png");
+        fixture.Store.FailNextWriteWithPrefix = "previews/";
+
+        await fixture.ProcessAsync();
+        var page = Assert.Single(fixture.Document.ActivePages);
+        Assert.Equal(PageState.Failed, page.State);
+
+        await fixture.ProcessAsync();
+
+        Assert.Equal(PageState.Processing, page.State);
+        Assert.Null(page.FailureCode);
+        Assert.Equal("Detecting", page.CropStatus);
     }
 
     [Theory]
@@ -232,9 +284,13 @@ public sealed class DocumentImportProcessorTests
     {
         public static readonly PdfFixture ThreePage = new(Create(3), new PdfInspection(3, false, 2_000_000));
         public static readonly PdfFixture Encrypted = new(Create(3), new PdfInspection(3, true, 2_000_000));
+        public static readonly PdfFixture MixedSize = new(Create([(72, 72), (144, 144)]), new PdfInspection(2, false, 450_000));
 
-        private static byte[] Create(int pageCount)
+        private static byte[] Create(int pageCount) => Create(Enumerable.Repeat((612, 792), pageCount).ToArray());
+
+        private static byte[] Create(IReadOnlyList<(int Width, int Height)> pageSizes)
         {
+            var pageCount = pageSizes.Count;
             var objects = new List<string>
             {
                 "<< /Type /Catalog /Pages 2 0 R >>",
@@ -245,7 +301,8 @@ public sealed class DocumentImportProcessorTests
             {
                 var pageObject = 4 + (page - 1) * 2;
                 var content = $"BT /F1 12 Tf 72 720 Td (Synthetic page {page}) Tj ET";
-                objects.Add($"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents {pageObject + 1} 0 R >>");
+                var size = pageSizes[page - 1];
+                objects.Add($"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {size.Width} {size.Height}] /Resources << /Font << /F1 3 0 R >> >> /Contents {pageObject + 1} 0 R >>");
                 objects.Add($"<< /Length {content.Length} >>\nstream\n{content}\nendstream");
             }
             var pdf = new System.Text.StringBuilder("%PDF-1.4\n");
@@ -286,11 +343,17 @@ public sealed class DocumentImportProcessorTests
     {
         public Dictionary<string, (string MediaType, byte[] Bytes)> Objects { get; } = [];
         public Dictionary<string, int> WriteCounts { get; } = [];
+        public string? FailNextWriteWithPrefix { get; set; }
         public Task<StoredObjectInfo?> HeadAsync(string key, CancellationToken ct) => Task.FromResult(
             Objects.TryGetValue(key, out var value) ? new StoredObjectInfo(value.Bytes.Length, value.MediaType, "etag") : null);
         public Task<Stream> OpenReadAsync(string key, CancellationToken ct) => Task.FromResult<Stream>(new MemoryStream(Objects[key].Bytes));
         public async Task WriteAsync(string key, string mediaType, Stream content, CancellationToken ct)
         {
+            if (FailNextWriteWithPrefix is { } prefix && key.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                FailNextWriteWithPrefix = null;
+                throw new IOException("Synthetic write failure.");
+            }
             using var bytes = new MemoryStream();
             await content.CopyToAsync(bytes, ct);
             Objects.Add(key, (mediaType, bytes.ToArray()));

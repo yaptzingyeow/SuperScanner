@@ -31,6 +31,42 @@ public sealed class UploadIntentTests
         Assert.Equal("malware_detected", intent.ValidationErrorCode);
     }
 
+    [Fact]
+    public void ExpansionProgress_RejectsUnacceptedAndInvalidCounts()
+    {
+        var unaccepted = UploadIntent.Create(Guid.NewGuid(), "owner", Guid.NewGuid(), "quarantine/key", "scan.pdf",
+            "application/pdf", 1, new string('a', 64), Now.AddMinutes(5));
+        Assert.Throws<InvalidOperationException>(() => unaccepted.BeginExpansion(1));
+        Assert.Throws<InvalidOperationException>(() => unaccepted.RecordExpansion(0, 0, null));
+
+        var accepted = CreateAcceptedIntent();
+        Assert.Throws<ArgumentOutOfRangeException>(() => accepted.BeginExpansion(-1));
+        accepted.BeginExpansion(2);
+        Assert.Throws<ArgumentOutOfRangeException>(() => accepted.RecordExpansion(-1, 0, null));
+        Assert.Throws<ArgumentOutOfRangeException>(() => accepted.RecordExpansion(0, -1, null));
+        Assert.Throws<ArgumentOutOfRangeException>(() => accepted.RecordExpansion(2, 1, "render_failed"));
+        Assert.Throws<ArgumentException>(() => accepted.RecordExpansion(1, 1, " "));
+    }
+
+    [Fact]
+    public void ExpansionProgress_RecordsAndResetsRetryCounts()
+    {
+        var intent = CreateAcceptedIntent();
+        intent.BeginExpansion(3);
+        intent.RecordExpansion(2, 1, "pdf_render_failed");
+
+        Assert.Equal(3, intent.DiscoveredPageCount);
+        Assert.Equal(2, intent.CreatedPageCount);
+        Assert.Equal(1, intent.FailedPageCount);
+        Assert.Equal("pdf_render_failed", intent.ExpansionErrorCode);
+
+        intent.BeginExpansion(3);
+        intent.RecordExpansion(3, 0, null);
+        Assert.Equal(3, intent.CreatedPageCount);
+        Assert.Equal(0, intent.FailedPageCount);
+        Assert.Null(intent.ExpansionErrorCode);
+    }
+
     private static UploadIntent CreatePendingIntent()
     {
         var intent = UploadIntent.Create(
@@ -44,6 +80,13 @@ public sealed class UploadIntentTests
             new string('a', 64),
             Now.AddMinutes(5));
         intent.TryMarkPendingValidation(Now);
+        return intent;
+    }
+
+    private static UploadIntent CreateAcceptedIntent()
+    {
+        var intent = CreatePendingIntent();
+        intent.Accept("imports/document/upload", Now.AddMinutes(1));
         return intent;
     }
 }

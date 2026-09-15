@@ -98,7 +98,7 @@ public sealed class DocumentImportProcessor(
                 return;
             }
 
-            long renderedBytes = 0;
+            long renderedBytes = isPdf ? await GetPersistedRenderedBytesAsync(pages, cancellationToken) : 0;
             foreach (var page in pages.Where(page => page.RemovedAt is null))
             {
                 try
@@ -119,6 +119,11 @@ public sealed class DocumentImportProcessor(
 
                     await previewProcessor.ProcessPageAsync(page.Id, cancellationToken);
                     await cropProcessor.EnsureDetectionForPageAsync(page.Id, cancellationToken);
+                    if (page.State != PageState.Ready)
+                    {
+                        page.MarkProcessing();
+                        await db.SaveChangesAsync(cancellationToken);
+                    }
                 }
                 catch (Exception exception) when (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
                 {
@@ -217,6 +222,18 @@ public sealed class DocumentImportProcessor(
         }
         page.MarkImportReady(sourceKey, "image/png");
         return renderedBytes;
+    }
+
+    private async Task<long> GetPersistedRenderedBytesAsync(IReadOnlyList<Page> pages, CancellationToken ct)
+    {
+        long total = 0;
+        foreach (var page in pages)
+        {
+            if (page.OriginalObjectKey is null) continue;
+            var source = await store.HeadAsync(page.OriginalObjectKey, ct);
+            if (source is not null) total = checked(total + source.SizeBytes);
+        }
+        return total;
     }
 
     private async Task DownloadAsync(string key, string destination, long maxBytes, CancellationToken ct)
