@@ -118,15 +118,19 @@ public sealed class R2ObjectStore : IObjectStore, IDisposable
 
     public void Dispose() => _client.Dispose();
 
-    public async Task WriteImageAsync(string key, Stream content, CancellationToken cancellationToken)
+    public async Task WriteAsync(string objectKey, string mediaType, Stream content, CancellationToken cancellationToken)
     {
         await _client.PutObjectAsync(new Amazon.S3.Model.PutObjectRequest
         {
-            BucketName = _bucketName, Key = key, InputStream = content,
-            ContentType = "image/jpeg", DisablePayloadSigning = true,
+            BucketName = _bucketName, Key = objectKey, InputStream = content,
+            ContentType = mediaType, DisablePayloadSigning = true,
             DisableDefaultChecksumValidation = true, AutoCloseStream = false
         }, cancellationToken);
     }
+
+    // Kept for callers not yet migrated to the media-type-aware write contract.
+    public Task WriteImageAsync(string key, Stream content, CancellationToken cancellationToken) =>
+        WriteAsync(key, "image/jpeg", content, cancellationToken);
 
     private sealed class ResponseOwnedStream(GetObjectResponse response) : Stream
     {

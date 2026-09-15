@@ -25,6 +25,12 @@ builder.Services.Configure<R2Options>(builder.Configuration.GetSection(R2Options
 builder.Services.AddSingleton<R2ObjectStore>();
 builder.Services.AddSingleton<IObjectStore>(sp => sp.GetRequiredService<R2ObjectStore>());
 builder.Services.AddScoped<DocumentPreviewProcessor>();
+builder.Services.AddOptions<DocumentImportOptions>()
+    .BindConfiguration(DocumentImportOptions.SectionName)
+    .Validate(options => options.IsValid(), "Document import configuration is invalid.")
+    .ValidateOnStart();
+builder.Services.AddScoped<IPdfImportTool, PopplerPdfImportTool>();
+builder.Services.AddScoped<DocumentImportProcessor>();
 builder.Services.AddOptions<DocumentBoundaryOptions>()
     .BindConfiguration(DocumentBoundaryOptions.SectionName)
     .Validate(options => options.IsValid(), "Document boundary configuration is invalid.")

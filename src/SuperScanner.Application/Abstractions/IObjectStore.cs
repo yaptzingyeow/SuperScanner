@@ -15,4 +15,7 @@ public interface IObjectStore
     Task<Stream> OpenReadAsync(string objectKey, CancellationToken cancellationToken);
     Task PromoteAsync(string quarantineKey, string acceptedKey, CancellationToken cancellationToken);
     Task DeleteAsync(string objectKey, CancellationToken cancellationToken);
+
+    Task WriteAsync(string objectKey, string mediaType, Stream content, CancellationToken cancellationToken) =>
+        throw new NotSupportedException("This object store does not support writes.");
 }

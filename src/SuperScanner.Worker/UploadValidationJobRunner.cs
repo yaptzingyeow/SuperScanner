@@ -53,10 +53,8 @@ public sealed class UploadValidationJobRunner(
                 }
                 else if (lease.Type == "ProcessDocument")
                 {
-                    await scope.ServiceProvider.GetRequiredService<DocumentPreviewProcessor>()
+                    await scope.ServiceProvider.GetRequiredService<DocumentImportProcessor>()
                         .ProcessAsync(uploadId, workCancellation.Token);
-                    await scope.ServiceProvider.GetRequiredService<CropProcessor>()
-                        .EnsureDetectionAsync(uploadId, workCancellation.Token);
                 }
                 else
                 {

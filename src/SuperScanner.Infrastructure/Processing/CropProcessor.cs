@@ -7,28 +7,24 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SuperScanner.Domain.Documents;
 using SuperScanner.Domain.Processing;
-using SuperScanner.Infrastructure.ObjectStorage;
+using SuperScanner.Application.Abstractions;
 using SuperScanner.Infrastructure.Persistence;
 
 namespace SuperScanner.Infrastructure.Processing;
 
 public sealed class CropProcessor(
     AppDbContext db,
-    R2ObjectStore store,
+    IObjectStore store,
     IConfiguration configuration,
     IOptions<DocumentBoundaryOptions> boundaryOptions,
     DocumentBoundaryHealth boundaryHealth,
     ILogger<CropProcessor> logger)
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
-    public async Task EnsureDetectionAsync(Guid uploadId, CancellationToken ct)
+    public async Task EnsureDetectionForPageAsync(Guid pageId, CancellationToken ct)
     {
-        var upload = await db.UploadIntents.AsNoTracking().SingleAsync(x => x.Id == uploadId, ct);
-        if (upload.DeclaredMediaType is not ("image/jpeg" or "image/png")) return;
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
-        // Lock and reload: concurrent retries must not enqueue two initial revisions.
-        var page = await db.Pages.FromSqlInterpolated($"SELECT * FROM pages WHERE \"Id\" = {upload.PageId} FOR UPDATE").SingleAsync(ct);
-        await db.Entry(page).ReloadAsync(ct);
+        var page = await db.Pages.SingleAsync(x => x.Id == pageId, ct);
         if (page.CropSourceObjectKey is null && page.PreviewObjectKey is not null)
         {
             page.InitializeCrop();
@@ -151,14 +147,22 @@ public sealed class CropProcessor(
                 {
                     if (new FileInfo(file).Length > 12 * 1024 * 1024) throw new InvalidDataException("Output too large.");
                     await using var stream = File.OpenRead(file);
-                    await store.WriteImageAsync(key, stream, ct);
+                    await store.WriteAsync(key, "image/jpeg", stream, ct);
                 }
-                await current.ExecuteUpdateAsync(set => set
+                await using var transaction = await db.Database.BeginTransactionAsync(ct);
+                var updated = await current.ExecuteUpdateAsync(set => set
                     .SetProperty(x => x.PreviewObjectKey, previewKey)
                     .SetProperty(x => x.ThumbnailObjectKey, thumbnailKey)
                     .SetProperty(x => x.AppliedCropRevision, revision)
                     .SetProperty(x => x.AppliedFilter, page.Filter)
                     .SetProperty(x => x.CropStatus, "Ready"), ct);
+                if (updated == 1)
+                {
+                    var document = await db.Documents.SingleAsync(x => x.Id == page.DocumentId, ct);
+                    document.MarkContentChanged(DateTimeOffset.UtcNow);
+                    await db.SaveChangesAsync(ct);
+                }
+                await transaction.CommitAsync(ct);
             }
             await CropDocumentStatus.RefreshAsync(db, page.DocumentId, ct);
         }
