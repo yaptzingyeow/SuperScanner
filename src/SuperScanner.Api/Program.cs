@@ -59,6 +59,10 @@ builder.Services.AddHealthChecks();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("PostgreSql") ?? string.Empty));
 builder.Services.AddScoped<IDocumentRepository, EfDocumentRepository>();
+builder.Services.AddScoped<IDocumentExportRepository, EfDocumentExportRepository>();
+builder.Services.AddSingleton(new DocumentExportPolicy(builder.Configuration.GetValue("DocumentExport:RetentionDays", 7)));
+builder.Services.AddScoped<CreateDocumentExport>();
+builder.Services.AddScoped<GetDocumentExport>();
 builder.Services.AddSingleton<IClock, SuperScanner.Infrastructure.Time.SystemClock>();
 builder.Services.AddScoped<CreateDocument>();
 builder.Services.AddScoped<ListDocuments>();
@@ -108,6 +112,7 @@ app.MapGet("/api/me", (ICurrentUser currentUser) =>
     .RequireAuthorization();
 DocumentsEndpoints.Map(app);
 PageManagementEndpoints.Map(app);
+DocumentExportEndpoints.Map(app);
 DocumentPreviewEndpoints.Map(app);
 CropEndpoints.Map(app);
 UploadsEndpoints.Map(app);

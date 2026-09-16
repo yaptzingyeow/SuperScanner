@@ -27,9 +27,10 @@ public sealed class PostgresJobQueue(AppDbContext db, IClock clock, IOptions<Doc
         var id = Guid.NewGuid();
         var now = clock.UtcNow;
         var queued = ProcessingJobStatus.Queued.ToString();
-        await using var transaction = await db.Database.BeginTransactionAsync(
-            IsolationLevel.ReadCommitted,
-            cancellationToken);
+        // Commands may own the transaction so their mutation, audit, and job commit atomically.
+        await using var transaction = db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken)
+            : null;
         await db.Database.ExecuteSqlInterpolatedAsync($"""
             INSERT INTO processing_jobs
                 ("Id", "Type", "Payload", "IdempotencyKey", "Status", "CreatedAt",
@@ -39,8 +40,11 @@ public sealed class PostgresJobQueue(AppDbContext db, IClock clock, IOptions<Doc
                  {now}, {now}, {0}, {null}, {null}, {null})
             ON CONFLICT ("IdempotencyKey") DO NOTHING
             """, cancellationToken);
-        await db.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
+        if (transaction is not null)
+        {
+            await db.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
     }
 
     public async Task<ProcessingJobLease?> TryLeaseAsync(
