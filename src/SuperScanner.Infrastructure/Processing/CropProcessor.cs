@@ -24,7 +24,7 @@ public sealed class CropProcessor(
     public async Task EnsureDetectionForPageAsync(Guid pageId, CancellationToken ct)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
-        var page = await db.Pages.SingleAsync(x => x.Id == pageId, ct);
+        var page = (await CropDocumentStatus.LockWorkerPageAsync(db, pageId, ct)).Page;
         if (page.CropSourceObjectKey is null && page.PreviewObjectKey is not null)
         {
             page.InitializeCrop();
@@ -114,7 +114,6 @@ public sealed class CropProcessor(
             await errors;
             var result = await output;
             if (process.ExitCode != 0 || result.Length > 8192) throw new InvalidDataException("Crop processing failed.");
-            var current = db.Pages.Where(x => x.Id == pageId && x.CropRevision == revision && x.CropStatus == expectedStatus);
             if (detect)
             {
                 var detection = JsonSerializer.Deserialize<CropDetectionResult>(result, Json)
@@ -142,26 +141,38 @@ public sealed class CropProcessor(
                     await using var stream = File.OpenRead(file);
                     await store.WriteAsync(key, "image/jpeg", stream, ct);
                 }
-                await using var transaction = await db.Database.BeginTransactionAsync(ct);
-                var updated = await current.ExecuteUpdateAsync(set => set
-                    .SetProperty(x => x.PreviewObjectKey, previewKey)
-                    .SetProperty(x => x.ThumbnailObjectKey, thumbnailKey)
-                    .SetProperty(x => x.AppliedCropRevision, revision)
-                    .SetProperty(x => x.AppliedFilter, page.Filter)
-                    .SetProperty(x => x.CropStatus, "Ready")
-                    .SetProperty(x => x.State, PageState.Ready)
-                    .SetProperty(x => x.FailureCode, (string?)null), ct);
-                if (updated == 1)
-                {
-                    var document = await db.Documents.SingleAsync(x => x.Id == page.DocumentId, ct);
-                    document.MarkContentChanged(DateTimeOffset.UtcNow);
-                    await db.SaveChangesAsync(ct);
-                }
-                await transaction.CommitAsync(ct);
+                await CompletePerspectiveCropAsync(pageId, revision, previewKey, thumbnailKey, ct);
             }
             await CropDocumentStatus.RefreshAsync(db, page.DocumentId, ct);
         }
         finally { directory.Delete(true); }
+    }
+
+    public async Task<bool> CompletePerspectiveCropAsync(
+        Guid pageId,
+        int revision,
+        string previewKey,
+        string thumbnailKey,
+        CancellationToken ct)
+    {
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        var locked = await CropDocumentStatus.LockWorkerPageAsync(db, pageId, ct);
+        var updated = await db.Pages.Where(x => x.Id == pageId && x.CropRevision == revision && x.CropStatus == "Processing")
+            .ExecuteUpdateAsync(set => set
+                .SetProperty(x => x.PreviewObjectKey, previewKey)
+                .SetProperty(x => x.ThumbnailObjectKey, thumbnailKey)
+                .SetProperty(x => x.AppliedCropRevision, revision)
+                .SetProperty(x => x.AppliedFilter, locked.Page.Filter)
+                .SetProperty(x => x.CropStatus, "Ready")
+                .SetProperty(x => x.State, PageState.Ready)
+                .SetProperty(x => x.FailureCode, (string?)null), ct);
+        if (updated == 1)
+        {
+            locked.Document.MarkContentChanged(DateTimeOffset.UtcNow);
+            await db.SaveChangesAsync(ct);
+        }
+        await transaction.CommitAsync(ct);
+        return updated == 1;
     }
 
     public async Task CompleteDetectionAsync(

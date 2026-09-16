@@ -113,7 +113,10 @@ public sealed class UploadValidationJobRunnerTests
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");
         await connection.OpenAsync();
-        await using var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connection).Options);
+        await using var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
+            .UseSqlite(connection)
+            .AddInterceptors(new WorkerLockOrderInterceptor(new WorkerLockOrderObserver()))
+            .Options);
         await db.Database.EnsureCreatedAsync();
         var document = Document.Create(Guid.NewGuid(), "owner", "Import", Now);
         var upload = UploadIntent.Create(Guid.NewGuid(), "owner", document.Id, "quarantine", "scan.pdf",

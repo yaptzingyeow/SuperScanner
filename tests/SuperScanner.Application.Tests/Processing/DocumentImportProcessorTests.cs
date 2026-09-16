@@ -291,7 +291,10 @@ public sealed class DocumentImportProcessorTests
         {
             var fixture = new Fixture();
             await fixture.connection.OpenAsync();
-            fixture.Db = new(new DbContextOptionsBuilder<AppDbContext>().UseSqlite(fixture.connection).Options);
+            fixture.Db = new(new DbContextOptionsBuilder<AppDbContext>()
+                .UseSqlite(fixture.connection)
+                .AddInterceptors(new WorkerLockOrderInterceptor(new WorkerLockOrderObserver()))
+                .Options);
             await fixture.Db.Database.EnsureCreatedAsync();
             var now = DateTimeOffset.UtcNow;
             fixture.Document = Document.Create(Guid.NewGuid(), "owner", "Synthetic scan", now);
