@@ -8,11 +8,34 @@ using SuperScanner.Application.Documents;
 using SuperScanner.Domain.Documents;
 using SuperScanner.Infrastructure.Auditing;
 using SuperScanner.Infrastructure.Persistence;
+using SuperScanner.Infrastructure.Processing;
 
 namespace SuperScanner.Application.Tests.Documents;
 
 public sealed class ReorderPagesTests
 {
+    [Fact]
+    public async Task DocumentScopedAudit_TakesDocumentLockBeforeChainAdvisoryLock()
+    {
+        await using var fixture = await PageMutationFixture.CreateAsync();
+
+        await fixture.Audit.AppendAsync(new AuditWriteRequest("user-a", "document.viewed", "document",
+            fixture.DocumentId, "{}", fixture.Clock.UtcNow), default);
+
+        Assert.Equal(["document", "audit"], fixture.LockOrder.Operations);
+    }
+
+    [Fact]
+    public async Task CropSubmission_TakesDocumentLockBeforePageLock()
+    {
+        await using var fixture = await PageMutationFixture.CreateAsync();
+
+        await CropDocumentStatus.LockSubmissionPageAsync(
+            fixture.Db, fixture.DocumentId, fixture.PageIds[0], default);
+
+        Assert.Equal(["document", "page"], fixture.LockOrder.Operations);
+    }
+
     [Fact]
     public async Task AuditWriter_StandaloneCommitsAndPreservesChainAcrossJoinedMutation()
     {
@@ -126,6 +149,7 @@ internal sealed class PageMutationFixture : IAsyncDisposable
     private readonly SqliteConnection connection;
     public AppDbContext Db { get; }
     public SaveCounter SaveCounter { get; } = new();
+    public LockOrderObserver LockOrder { get; } = new();
     public EfDocumentRepository Repository { get; }
     public IClock Clock { get; } = new MutationClock();
     public HmacAuditWriter Audit { get; }
@@ -140,7 +164,7 @@ internal sealed class PageMutationFixture : IAsyncDisposable
     {
         this.connection = connection;
         Db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connection)
-            .AddInterceptors(new SqliteLockTranslation(), SaveCounter).Options);
+            .AddInterceptors(new SqliteLockTranslation(LockOrder), SaveCounter).Options);
         Repository = new EfDocumentRepository(Db);
         Audit = new HmacAuditWriter(Db, Options.Create(new AuditOptions
         {
@@ -222,19 +246,36 @@ internal sealed class SaveCounter : SaveChangesInterceptor
 }
 
 // SQLite exercises relational atomicity and immediate unique constraints, not PostgreSQL locking.
-internal sealed class SqliteLockTranslation : DbCommandInterceptor
+internal sealed class LockOrderObserver
+{
+    public List<string> Operations { get; } = [];
+}
+
+internal sealed class SqliteLockTranslation(LockOrderObserver lockOrder) : DbCommandInterceptor
 {
     public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(DbCommand command,
         CommandEventData eventData, InterceptionResult<DbDataReader> result, CancellationToken cancellationToken = default)
     {
+        if (command.CommandText.Contains("FROM documents", StringComparison.Ordinal) &&
+            command.CommandText.Contains("FOR UPDATE", StringComparison.Ordinal))
+            lockOrder.Operations.Add("document");
+        if (command.CommandText.Contains("FROM pages", StringComparison.Ordinal) &&
+            command.CommandText.Contains("FOR UPDATE", StringComparison.Ordinal))
+            lockOrder.Operations.Add("page");
         command.CommandText = command.CommandText.Replace(" FOR UPDATE", "", StringComparison.Ordinal);
         return ValueTask.FromResult(result);
     }
 
     public override ValueTask<InterceptionResult<int>> NonQueryExecutingAsync(DbCommand command,
         CommandEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default) =>
-        ValueTask.FromResult(command.CommandText.Contains("pg_advisory_xact_lock", StringComparison.Ordinal)
-            ? InterceptionResult<int>.SuppressWithResult(0) : result);
+        ValueTask.FromResult(InterceptNonQuery(command, result));
+
+    private InterceptionResult<int> InterceptNonQuery(DbCommand command, InterceptionResult<int> result)
+    {
+        if (!command.CommandText.Contains("pg_advisory_xact_lock", StringComparison.Ordinal)) return result;
+        lockOrder.Operations.Add("audit");
+        return InterceptionResult<int>.SuppressWithResult(0);
+    }
 }
 
 internal sealed class FailingAuditWriter(IAuditWriter inner) : IAuditWriter

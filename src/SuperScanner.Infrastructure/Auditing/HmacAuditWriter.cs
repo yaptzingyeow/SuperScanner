@@ -38,6 +38,15 @@ public sealed class HmacAuditWriter : IAuditWriter
         await using var transaction = _db.Database.CurrentTransaction is null
             ? await _db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken)
             : null;
+        if (string.Equals(request.TargetType, "document", StringComparison.Ordinal))
+        {
+            // Document mutations lock the document before appending an audit event. Keep the
+            // standalone audit path in that same order before acquiring the chain lock.
+            await _db.Documents.FromSqlInterpolated(
+                    $"SELECT * FROM documents WHERE \"Id\" = {request.TargetId} FOR UPDATE")
+                .AsNoTracking()
+                .SingleOrDefaultAsync(cancellationToken);
+        }
         var chainKey = request.TargetId.ToString("N");
         await _db.Database.ExecuteSqlInterpolatedAsync(
             $"SELECT pg_advisory_xact_lock(hashtextextended({chainKey}, 0))",
