@@ -36,9 +36,10 @@ public sealed class UploadValidationJobRunner(
         {
             var cropJob = lease.Type is "DetectDocumentEdges" or "ApplyPerspectiveCrop";
             var importJob = lease.Type is "ExpandDocumentImport" or "ProcessDocument";
+            var exportJob = lease.Type == "BuildDocumentPdf";
             var parts = lease.Payload.Split(':');
             var revision = 0;
-            if ((!cropJob && lease.Type != "ValidateUpload" && !importJob) ||
+            if ((!cropJob && lease.Type != "ValidateUpload" && !importJob && !exportJob) ||
                 !Guid.TryParse(parts[0], out var uploadId) ||
                 (!cropJob && parts.Length != 1) ||
                 (cropJob && (parts.Length != 2 || !int.TryParse(parts[1], out revision) || revision < 1)))
@@ -49,7 +50,12 @@ public sealed class UploadValidationJobRunner(
 
             try
             {
-                if (cropJob)
+                if (exportJob)
+                {
+                    await scope.ServiceProvider.GetRequiredService<DocumentPdfBuilder>()
+                        .BuildAsync(uploadId, workCancellation.Token);
+                }
+                else if (cropJob)
                 {
                     await scope.ServiceProvider.GetRequiredService<CropProcessor>()
                         .RunAsync(uploadId, revision, lease.Type == "DetectDocumentEdges", workCancellation.Token);
@@ -106,7 +112,7 @@ public sealed class UploadValidationJobRunner(
                     await scope.ServiceProvider.GetRequiredService<CropProcessor>().FailAsync(uploadId, revision, cancellationToken);
                 if (importJob && lease.AttemptCount >= scope.ServiceProvider.GetRequiredService<IOptions<DocumentImportOptions>>().Value.MaxAttempts)
                     await scope.ServiceProvider.GetRequiredService<DocumentImportProcessor>().FailAsync(uploadId, cancellationToken);
-                var errorCode = cropJob ? "crop_failed" : importJob ? "import_failed" : "validation_failed";
+                var errorCode = exportJob ? "export_build_failed" : cropJob ? "crop_failed" : importJob ? "import_failed" : "validation_failed";
                 await queue.RescheduleAsync(
                     lease.Id,
                     workerId,

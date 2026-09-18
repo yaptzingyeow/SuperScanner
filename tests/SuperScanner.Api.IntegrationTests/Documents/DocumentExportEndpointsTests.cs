@@ -17,6 +17,8 @@ public sealed class DocumentExportEndpointsTests : IDisposable
     private readonly PageManagementRepository documents = new();
     private readonly ExportRepository exports;
     private readonly WebApplicationFactory<Program> factory;
+    private readonly DownloadStore store = new();
+    private readonly NullAudit audit = new();
 
     public DocumentExportEndpointsTests()
     {
@@ -31,7 +33,9 @@ public sealed class DocumentExportEndpointsTests : IDisposable
             services.RemoveAll<IDocumentExportRepository>();
             services.AddSingleton<IDocumentExportRepository>(exports);
             services.RemoveAll<IAuditWriter>();
-            services.AddSingleton<IAuditWriter, NullAudit>();
+            services.AddSingleton<IAuditWriter>(audit);
+            services.RemoveAll<IObjectStore>();
+            services.AddSingleton<IObjectStore>(store);
             services.RemoveAll<IProcessingJobQueue>();
             services.AddSingleton<IProcessingJobQueue, Queue>();
         });
@@ -104,11 +108,86 @@ public sealed class DocumentExportEndpointsTests : IDisposable
 
     public void Dispose() => factory.Dispose();
 
+    [Fact]
+    public async Task Download_StreamsPrivatePdfWithSafeFilenameAndIdentifierOnlyAudit()
+    {
+        var export = ReadyExport();
+        // Exercise untrusted titles including path separators, header controls and bidi controls.
+        typeof(Document).GetProperty(nameof(Document.Title))!.SetValue(documents.Document, "../Private\\report\r\n\"\u202efile");
+        using var client = PageManagementHttp.Client(factory);
+        var response = await client.GetAsync($"/api/documents/{documents.Document.Id}/exports/{export.Id}/download");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(store.Bytes, await response.Content.ReadAsByteArrayAsync());
+        Assert.Equal("application/pdf", response.Content.Headers.ContentType!.MediaType);
+        Assert.True(response.Headers.CacheControl!.Private);
+        Assert.True(response.Headers.CacheControl.NoStore);
+        Assert.Equal("nosniff", Assert.Single(response.Headers.GetValues("X-Content-Type-Options")));
+        Assert.Equal("Privatereportfile.pdf", response.Content.Headers.ContentDisposition!.FileNameStar);
+        Assert.Equal(new[] { "private/export.pdf" }, store.Reads);
+        var entry = Assert.Single(audit.Requests);
+        Assert.Equal("document.export_downloaded", entry.Action);
+        Assert.Equal(documents.Document.Id, entry.TargetId);
+        Assert.Equal("user-a", entry.ActorUid);
+        Assert.Equal("document", entry.TargetType);
+        Assert.Equal(JsonSerializer.Serialize(new { exportId = export.Id }), entry.RegionJson);
+        Assert.Equal(1, exports.SaveCalls); // Joined HMAC audit append is only durable after the caller saves.
+    }
+
+    [Theory]
+    [InlineData("other-owner")]
+    [InlineData("missing")]
+    [InlineData("wrong-document")]
+    [InlineData("queued")]
+    [InlineData("processing")]
+    [InlineData("failed")]
+    [InlineData("expired")]
+    public async Task Download_HidesInaccessibleExportsWithoutStorageOrAudit(string scenario)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var export = DocumentExport.Create(Guid.NewGuid(), documents.Document, "user-a",
+            scenario == "expired" ? now.AddDays(-8) : now, TimeSpan.FromDays(7));
+        if (scenario != "queued") export.Start(now);
+        if (scenario == "failed") export.Fail("export_build_failed", now);
+        else if (scenario is not ("queued" or "processing")) export.Complete("private/export.pdf", now);
+        exports.Items.Add(export);
+        using var client = PageManagementHttp.Client(factory, scenario == "other-owner" ? "user-b" : "user-a");
+        var documentId = scenario == "wrong-document" ? Guid.NewGuid() : documents.Document.Id;
+        var exportId = scenario == "missing" ? Guid.NewGuid() : export.Id;
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/api/documents/{documentId}/exports/{exportId}/download")).StatusCode);
+        Assert.Empty(store.Reads);
+        Assert.Empty(audit.Requests);
+    }
+
+    [Theory]
+    [InlineData(null, true)]
+    [InlineData("user-a", false)]
+    [InlineData("invalid-user", true)]
+    public async Task Download_RequiresIdentityAndAppCheck(string? user, bool appCheck)
+    {
+        var export = ReadyExport();
+        using var client = PageManagementHttp.Client(factory, user, appCheck);
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await client.GetAsync($"/api/documents/{documents.Document.Id}/exports/{export.Id}/download")).StatusCode);
+        Assert.Empty(store.Reads);
+        Assert.Empty(audit.Requests);
+    }
+
+    private DocumentExport ReadyExport()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var export = DocumentExport.Create(Guid.NewGuid(), documents.Document, "user-a", now, TimeSpan.FromDays(7));
+        export.Start(now);
+        export.Complete("private/export.pdf", now);
+        exports.Items.Add(export);
+        return export;
+    }
+
     private sealed class ExportRepository(Document document) : IDocumentExportRepository
     {
         public List<DocumentExport> Items { get; } = [];
+        public int SaveCalls { get; private set; }
         public Task AddAsync(DocumentExport export, CancellationToken ct) { Items.Add(export); return Task.CompletedTask; }
-        public Task SaveChangesAsync(CancellationToken ct) => Task.CompletedTask;
+        public Task SaveChangesAsync(CancellationToken ct) { SaveCalls++; return Task.CompletedTask; }
         public Task<OwnedDocumentExport?> FindOwnedAsync(string owner, Guid documentId, Guid exportId, CancellationToken ct)
         {
             var export = Items.SingleOrDefault(e => e.Id == exportId && e.DocumentId == documentId && e.OwnerFirebaseUid == owner);
@@ -118,7 +197,21 @@ public sealed class DocumentExportEndpointsTests : IDisposable
 
     private sealed class NullAudit : IAuditWriter
     {
-        public Task<Guid> AppendAsync(AuditWriteRequest request, CancellationToken ct) => Task.FromResult(Guid.NewGuid());
+        public List<AuditWriteRequest> Requests { get; } = [];
+        public Task<Guid> AppendAsync(AuditWriteRequest request, CancellationToken ct)
+        { Requests.Add(request); return Task.FromResult(Guid.NewGuid()); }
+    }
+
+    private sealed class DownloadStore : IObjectStore
+    {
+        public byte[] Bytes { get; } = "%PDF-1.7\nprivate fixture"u8.ToArray();
+        public List<string> Reads { get; } = [];
+        public Task<Stream> OpenReadAsync(string key, CancellationToken ct)
+        { Reads.Add(key); return Task.FromResult<Stream>(new MemoryStream(Bytes)); }
+        public Task<Uri> CreatePutUrlAsync(PutObjectRequest request, CancellationToken ct) => throw new NotSupportedException();
+        public Task<StoredObjectInfo?> HeadAsync(string key, CancellationToken ct) => throw new NotSupportedException();
+        public Task PromoteAsync(string from, string to, CancellationToken ct) => throw new NotSupportedException();
+        public Task DeleteAsync(string key, CancellationToken ct) => throw new NotSupportedException();
     }
 
     private sealed class Queue : IProcessingJobQueue

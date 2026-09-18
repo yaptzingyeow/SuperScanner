@@ -31,6 +31,7 @@ builder.Services.AddOptions<DocumentImportOptions>()
     .ValidateOnStart();
 builder.Services.AddScoped<IPdfImportTool, PopplerPdfImportTool>();
 builder.Services.AddScoped<DocumentImportProcessor>();
+builder.Services.AddScoped<DocumentPdfBuilder>();
 builder.Services.AddOptions<DocumentBoundaryOptions>()
     .BindConfiguration(DocumentBoundaryOptions.SectionName)
     .Validate(options => options.IsValid(), "Document boundary configuration is invalid.")
