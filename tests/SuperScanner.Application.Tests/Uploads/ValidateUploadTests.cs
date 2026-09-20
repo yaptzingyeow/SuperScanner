@@ -236,6 +236,8 @@ public sealed class ValidateUploadTests
 
     private sealed class RecordingObjectStore(byte[] bytes) : IObjectStore
     {
+        public Task<ObjectCreationResult> WriteIfAbsentAsync(string key, string mediaType, Stream content, CancellationToken ct) =>
+            throw new NotSupportedException();
         public int OpenReadCalls { get; private set; }
         public List<string> DeletedKeys { get; } = [];
         public List<(string QuarantineKey, string AcceptedKey)> Promotions { get; } = [];

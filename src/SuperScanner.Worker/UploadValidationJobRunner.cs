@@ -113,11 +113,23 @@ public sealed class UploadValidationJobRunner(
                 if (importJob && lease.AttemptCount >= scope.ServiceProvider.GetRequiredService<IOptions<DocumentImportOptions>>().Value.MaxAttempts)
                     await scope.ServiceProvider.GetRequiredService<DocumentImportProcessor>().FailAsync(uploadId, cancellationToken);
                 var errorCode = exportJob ? "export_build_failed" : cropJob ? "crop_failed" : importJob ? "import_failed" : "validation_failed";
-                await queue.RescheduleAsync(
-                    lease.Id,
-                    workerId,
-                    errorCode,
-                    cancellationToken);
+                if (exportJob)
+                {
+                    // A failed transaction can leave stale Ready mutations in its tracker or a
+                    // broken connection. Never reschedule through that build's database scope.
+                    await using var recoveryScope = scopeFactory.CreateAsyncScope();
+                    if (lease.AttemptCount >= PostgresJobQueue.DefaultMaxAttempts)
+                        await recoveryScope.ServiceProvider.GetRequiredService<DocumentPdfBuilder>()
+                            .FailAsync(uploadId, cancellationToken);
+                    // If reconciliation is unavailable, leave the lease reclaimable instead of
+                    // terminalizing its job while the export is still pending.
+                    await recoveryScope.ServiceProvider.GetRequiredService<IProcessingJobQueue>()
+                        .RescheduleAsync(lease.Id, workerId, errorCode, cancellationToken);
+                }
+                else
+                {
+                    await queue.RescheduleAsync(lease.Id, workerId, errorCode, cancellationToken);
+                }
                 logger.LogWarning(
                     "Upload validation job rescheduled. JobId={JobId} UploadId={UploadId} ErrorCode={ErrorCode}",
                     lease.Id,

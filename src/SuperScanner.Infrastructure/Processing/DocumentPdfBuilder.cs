@@ -26,16 +26,28 @@ public sealed class DocumentPdfBuilder(AppDbContext db, IObjectStore store, IClo
 {
     private readonly DocumentPdfLimits limits = limits ?? new();
 
+    public async Task FailAsync(Guid exportId, CancellationToken ct)
+    {
+        db.ChangeTracker.Clear();
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        var export = await FindForUpdateAsync(exportId, ct);
+        if (export?.State is DocumentExportState.Queued or DocumentExportState.Processing)
+        {
+            export.Fail("export_build_failed", clock.UtcNow);
+            await db.SaveChangesAsync(ct);
+        }
+        // A previous commit may have succeeded before its acknowledgement was lost. Preserve
+        // Ready (and terminal Failed) when reconciling the final infrastructure failure.
+        await transaction.CommitAsync(ct);
+    }
+
     public async Task BuildAsync(Guid exportId, CancellationToken ct)
     {
         // The export row lock serializes overlapping/reclaimed job leases. Reload after acquiring
         // it so a completed attempt can never be replaced by a stale tracked instance.
         db.ChangeTracker.Clear();
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
-        var export = db.Database.IsNpgsql()
-            ? (await db.DocumentExports.FromSqlInterpolated(
-                $"SELECT * FROM document_exports WHERE \"Id\" = {exportId} FOR UPDATE").ToListAsync(ct)).SingleOrDefault()
-            : await db.DocumentExports.SingleOrDefaultAsync(x => x.Id == exportId, ct);
+        var export = await FindForUpdateAsync(exportId, ct);
         if (export is null || export.State is DocumentExportState.Ready or DocumentExportState.Failed) return;
         if (export.State == DocumentExportState.Queued) export.Start(clock.UtcNow);
         try
@@ -59,6 +71,11 @@ public sealed class DocumentPdfBuilder(AppDbContext db, IObjectStore store, IClo
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
     }
+
+    private async Task<DocumentExport?> FindForUpdateAsync(Guid exportId, CancellationToken ct) => db.Database.IsNpgsql()
+        ? (await db.DocumentExports.FromSqlInterpolated(
+            $"SELECT * FROM document_exports WHERE \"Id\" = {exportId} FOR UPDATE").ToListAsync(ct)).SingleOrDefault()
+        : await db.DocumentExports.SingleOrDefaultAsync(x => x.Id == exportId, ct);
 
     private async Task BuildAndStoreAsync(DocumentExportSnapshotEntry[] snapshot, string key, CancellationToken ct)
     {
@@ -98,13 +115,17 @@ public sealed class DocumentPdfBuilder(AppDbContext db, IObjectStore store, IClo
         pdf.Save(output, closeStream: false);
         ct.ThrowIfCancellationRequested();
         output.Position = 0;
-        await store.WriteAsync(key, "application/pdf", output, ct);
+        var created = await store.WriteIfAbsentAsync(key, "application/pdf", output, ct);
+        if (created == ObjectCreationResult.AlreadyExists && !await HasCompleteOutputAsync(key, snapshot.Length, ct))
+            throw new BuildFailure("export_build_failed");
     }
 
     private async Task<bool> HasCompleteOutputAsync(string key, int pageCount, CancellationToken ct)
     {
         // A successful PUT may outlive a canceled/failed database commit. Never overwrite that
-        // immutable key. Validate it before making it visible, or fail closed if it is corrupt.
+        // immutable key. This HEAD is a recovery optimization, not publication fencing:
+        // WriteIfAbsentAsync enforces that atomically even if a remote PUT outlives our lock.
+        // Validate before making the existing output visible, or fail closed if it is corrupt.
         var info = await store.HeadAsync(key, ct);
         if (info is null) return false;
         if (info.SizeBytes > limits.MaxPdfBytes) throw new BuildFailure("export_size_limit");

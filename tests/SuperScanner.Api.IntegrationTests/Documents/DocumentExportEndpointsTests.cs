@@ -204,6 +204,8 @@ public sealed class DocumentExportEndpointsTests : IDisposable
 
     private sealed class DownloadStore : IObjectStore
     {
+        public Task<ObjectCreationResult> WriteIfAbsentAsync(string key, string mediaType, Stream content, CancellationToken ct) =>
+            throw new NotSupportedException();
         public byte[] Bytes { get; } = "%PDF-1.7\nprivate fixture"u8.ToArray();
         public List<string> Reads { get; } = [];
         public Task<Stream> OpenReadAsync(string key, CancellationToken ct)

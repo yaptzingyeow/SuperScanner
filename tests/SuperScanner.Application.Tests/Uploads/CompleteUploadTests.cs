@@ -160,6 +160,8 @@ public sealed class CompleteUploadTests
 
     private sealed class HeadObjectStore(StoredObjectInfo? info) : IObjectStore
     {
+        public Task<ObjectCreationResult> WriteIfAbsentAsync(string key, string mediaType, Stream content, CancellationToken ct) =>
+            throw new NotSupportedException();
         public int HeadCalls { get; private set; }
 
         public Task<StoredObjectInfo?> HeadAsync(string objectKey, CancellationToken cancellationToken)

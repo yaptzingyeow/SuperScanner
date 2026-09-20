@@ -236,6 +236,8 @@ public sealed class CreateUploadIntentTests
 
     private sealed class ThrowingObjectStore : IObjectStore
     {
+        public Task<ObjectCreationResult> WriteIfAbsentAsync(string key, string mediaType, Stream content, CancellationToken ct) =>
+            throw new NotSupportedException();
         public Task<Uri> CreatePutUrlAsync(PutObjectRequest request, CancellationToken cancellationToken) =>
             Task.FromException<Uri>(new InvalidOperationException("Signing failed."));
 
@@ -254,6 +256,8 @@ public sealed class CreateUploadIntentTests
 
     private sealed class RecordingObjectStore : IObjectStore
     {
+        public Task<ObjectCreationResult> WriteIfAbsentAsync(string key, string mediaType, Stream content, CancellationToken ct) =>
+            throw new NotSupportedException();
         public PutObjectRequest? LastRequest { get; private set; }
 
         public Task<Uri> CreatePutUrlAsync(PutObjectRequest request, CancellationToken cancellationToken)

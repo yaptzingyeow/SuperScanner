@@ -408,6 +408,8 @@ public sealed class DocumentImportProcessorTests
 
     private sealed class MemoryStore : IObjectStore
     {
+        public Task<ObjectCreationResult> WriteIfAbsentAsync(string key, string mediaType, Stream content, CancellationToken ct) =>
+            throw new NotSupportedException();
         public Dictionary<string, (string MediaType, byte[] Bytes)> Objects { get; } = [];
         public Dictionary<string, int> WriteCounts { get; } = [];
         public string? FailNextWriteWithPrefix { get; set; }

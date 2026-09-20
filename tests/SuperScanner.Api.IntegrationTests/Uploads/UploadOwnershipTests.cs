@@ -198,6 +198,8 @@ public sealed class UploadOwnershipTests : IAsyncLifetime
 
     private sealed class FakeObjectStore : IObjectStore
     {
+        public Task<ObjectCreationResult> WriteIfAbsentAsync(string key, string mediaType, Stream content, CancellationToken ct) =>
+            throw new NotSupportedException();
         public Task<Uri> CreatePutUrlAsync(PutObjectRequest request, CancellationToken cancellationToken) =>
             Task.FromResult(new Uri("https://uploads.example.test/opaque"));
 

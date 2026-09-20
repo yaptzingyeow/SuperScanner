@@ -13,7 +13,7 @@ public sealed class R2ObjectStore : IObjectStore, IDisposable
     private readonly string _bucketName;
     private readonly Protocol _presignedUrlProtocol;
 
-    public R2ObjectStore(IOptions<R2Options> options)
+    public R2ObjectStore(IOptions<R2Options> options, IAmazonS3? client = null)
     {
         ArgumentNullException.ThrowIfNull(options);
         var value = options.Value;
@@ -31,7 +31,7 @@ public sealed class R2ObjectStore : IObjectStore, IDisposable
         _presignedUrlProtocol = customEndpoint?.Scheme == Uri.UriSchemeHttp
             ? Protocol.HTTP
             : Protocol.HTTPS;
-        _client = new AmazonS3Client(
+        _client = client ?? new AmazonS3Client(
             new BasicAWSCredentials(value.AccessKeyId, value.SecretAccessKey),
             new AmazonS3Config
             {
@@ -126,6 +126,27 @@ public sealed class R2ObjectStore : IObjectStore, IDisposable
             ContentType = mediaType, DisablePayloadSigning = true,
             DisableDefaultChecksumValidation = true, AutoCloseStream = false
         }, cancellationToken);
+    }
+
+    public async Task<ObjectCreationResult> WriteIfAbsentAsync(
+        string objectKey, string mediaType, Stream content, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _client.PutObjectAsync(new Amazon.S3.Model.PutObjectRequest
+            {
+                BucketName = _bucketName, Key = objectKey, InputStream = content,
+                ContentType = mediaType, DisablePayloadSigning = true,
+                DisableDefaultChecksumValidation = true, AutoCloseStream = false,
+                IfNoneMatch = "*"
+            }, cancellationToken);
+            return ObjectCreationResult.Created;
+        }
+        catch (AmazonS3Exception exception) when (
+            exception.StatusCode == HttpStatusCode.PreconditionFailed && exception.ErrorCode == "PreconditionFailed")
+        {
+            return ObjectCreationResult.AlreadyExists;
+        }
     }
 
     // Kept for callers not yet migrated to the media-type-aware write contract.

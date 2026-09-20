@@ -200,6 +200,8 @@ public sealed class UploadValidationJobRunnerTests
 
     private sealed class ImportStore(bool outage) : IObjectStore
     {
+        public Task<ObjectCreationResult> WriteIfAbsentAsync(string key, string mediaType, Stream content, CancellationToken ct) =>
+            throw new NotSupportedException();
         public Task<StoredObjectInfo?> HeadAsync(string key, CancellationToken ct) => outage
             ? throw new IOException("Sensitive storage error")
             : Task.FromResult<StoredObjectInfo?>(key == "imports/source" ? new StoredObjectInfo(PdfBytes.Length, "application/pdf", "etag") : null);
@@ -292,6 +294,8 @@ public sealed class UploadValidationJobRunnerTests
 
     private sealed class RecordingStore(byte[] bytes) : IObjectStore
     {
+        public Task<ObjectCreationResult> WriteIfAbsentAsync(string key, string mediaType, Stream content, CancellationToken ct) =>
+            throw new NotSupportedException();
         public List<string> DeletedKeys { get; } = [];
 
         public Task<Stream> OpenReadAsync(string objectKey, CancellationToken cancellationToken) =>

@@ -18,6 +18,8 @@ public sealed class PostgresJobQueue(AppDbContext db, IClock clock, IOptions<Doc
         TimeSpan.FromMinutes(30)
     ];
 
+    public static int DefaultMaxAttempts => RetryDelays.Length + 1;
+
     public async Task EnqueueAsync(
         string type,
         string payload,
