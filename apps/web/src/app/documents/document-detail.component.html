@@ -1,0 +1,68 @@
+<main class="organizer-shell">
+  <a class="back-link" routerLink="/documents">← My documents</a>
+  @if (document(); as doc) {
+    <header class="organizer-header">
+      <div>
+        <p class="eyebrow">Document organizer</p>
+        <h1>{{ doc.title }}</h1>
+        <p>
+          {{ doc.pages.length }} {{ doc.pages.length === 1 ? 'page' : 'pages' }} · {{ doc.status }}
+        </p>
+      </div>
+      <button class="primary" type="button" (click)="showAddPages.set(true)">+ Add pages</button>
+    </header>
+    @if (doc.status === 'Failed') {
+      <button type="button" (click)="retry()" [disabled]="retrying()">
+        {{ retrying() ? 'Retrying…' : 'Retry preview' }}
+      </button>
+    }
+    @if (doc.pages.length) {
+      <section
+        class="page-grid"
+        cdkDropList
+        cdkDropListOrientation="mixed"
+        [cdkDropListData]="doc.pages"
+        [cdkDropListDisabled]="reordering()"
+        (cdkDropListDropped)="drop($event)"
+        aria-label="Document pages"
+      >
+        @for (page of doc.pages; track page.id) {
+          <app-page-card
+            cdkDrag
+            [cdkDragData]="page"
+            [page]="page"
+            [documentId]="doc.id"
+            [thumbnailUrl]="images()[page.id]"
+            [first]="$first"
+            [last]="$last"
+            (movePage)="move(page.id, $event)"
+            (removePage)="remove(page)"
+            (downloadOriginal)="download(page.id)"
+          />
+        }
+      </section>
+    } @else {
+      <section class="empty-state">
+        <h2>This document has no pages</h2>
+        <p>Add a photo or PDF to start building it.</p>
+        <button class="primary" type="button" (click)="showAddPages.set(true)">Add pages</button>
+      </section>
+    }
+  } @else if (!error()) {
+    <p role="status">Loading document…</p>
+  }
+  <p class="sr-only" aria-live="polite">{{ announcement() }}</p>
+  @if (error()) {
+    <div class="error" role="alert">
+      <p>{{ error() }}</p>
+      <button type="button" (click)="load()">Reload</button>
+    </div>
+  }
+</main>
+@if (showAddPages() && document(); as doc) {
+  <app-add-pages-dialog
+    [documentId]="doc.id"
+    (closed)="showAddPages.set(false)"
+    (completed)="pagesAdded()"
+  />
+}

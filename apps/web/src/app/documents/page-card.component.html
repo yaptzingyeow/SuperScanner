@@ -1,0 +1,58 @@
+<article
+  class="page-card"
+  [attr.aria-label]="'Page ' + page.position + ', ' + stateLabel(page.state)"
+>
+  <div class="thumbnail">
+    @if (thumbnailUrl) {
+      <img [src]="thumbnailUrl" [alt]="'Thumbnail of page ' + page.position" />
+    } @else {
+      <div class="preview-pending"><span>▧</span><small>Preview pending</small></div>
+    }
+    <span class="page-number">{{ page.position }}</span>
+    <button
+      class="drag-handle"
+      type="button"
+      title="Drag to reorder"
+      aria-label="Drag page to reorder"
+      cdkDragHandle
+    >
+      ⠿
+    </button>
+  </div>
+  <div class="card-body">
+    <div class="status-row">
+      <strong>Page {{ page.position }}</strong
+      ><span class="status" [attr.data-state]="page.state">{{ stateLabel(page.state) }}</span>
+    </div>
+    @if (page.appliedFilter || page.filter) {
+      <p class="filter">Filter: {{ page.appliedFilter || page.filter }}</p>
+    }
+    <div class="primary-actions">
+      @if (page.canCrop) {
+        <a [routerLink]="['/documents', documentId, 'pages', page.id, 'crop']">Crop & filters</a>
+      }
+      @if (page.hasOriginal) {
+        <button type="button" (click)="downloadOriginal.emit()">Original</button>
+      }
+    </div>
+    <div class="order-actions" aria-label="Page order controls">
+      <button
+        type="button"
+        [disabled]="first"
+        (click)="movePage.emit(-1)"
+        [attr.aria-label]="'Move page ' + page.position + ' earlier'"
+      >
+        ← Earlier
+      </button>
+      <button
+        type="button"
+        [disabled]="last"
+        (click)="movePage.emit(1)"
+        [attr.aria-label]="'Move page ' + page.position + ' later'"
+      >
+        Later →
+      </button>
+    </div>
+    <button class="remove" type="button" (click)="removePage.emit()">Remove page</button>
+  </div>
+</article>

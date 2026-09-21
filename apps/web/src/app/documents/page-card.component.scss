@@ -1,0 +1,124 @@
+:host {
+  display: block;
+}
+.page-card {
+  overflow: hidden;
+  border: 1px solid #dce4e0;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 8px 24px #244b3c0d;
+}
+.thumbnail {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  background: linear-gradient(145deg, #e7eeea, #f5f7f6);
+}
+img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.preview-pending {
+  display: grid;
+  place-content: center;
+  height: 100%;
+  color: #73857d;
+  text-align: center;
+}
+.preview-pending span {
+  font-size: 42px;
+}
+.page-number {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  display: grid;
+  place-items: center;
+  min-width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: #17372b;
+  color: #fff;
+  font-weight: 800;
+}
+.drag-handle {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: #fffffff0;
+  color: #315347;
+  font-size: 22px;
+  cursor: grab;
+}
+.card-body {
+  padding: 15px;
+}
+.status-row,
+.primary-actions,
+.order-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.status {
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: #e8f4ee;
+  color: #246148;
+  font-size: 11px;
+  font-weight: 800;
+}
+.status[data-state='Failed'] {
+  background: #ffebe8;
+  color: #9b3325;
+}
+.status[data-state='Processing'],
+.status[data-state='Pending'] {
+  background: #fff2d9;
+  color: #7b5611;
+}
+.filter {
+  margin: 9px 0 0;
+  color: #6a7a74;
+  font-size: 12px;
+}
+.primary-actions {
+  margin-top: 14px;
+}
+a,
+button {
+  border: 0;
+  background: transparent;
+  color: #165e47;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+  text-decoration: none;
+}
+.order-actions {
+  margin-top: 14px;
+}
+.order-actions button {
+  flex: 1;
+  padding: 8px 4px;
+  border: 1px solid #d7e0dc;
+  border-radius: 9px;
+}
+button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.remove {
+  width: 100%;
+  margin-top: 10px;
+  padding: 7px;
+  color: #9b3325;
+}

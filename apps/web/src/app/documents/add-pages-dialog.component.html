@@ -1,0 +1,52 @@
+<div class="backdrop" (click)="closed.emit()">
+  <section
+    class="dialog"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="add-pages-title"
+    (click)="$event.stopPropagation()"
+  >
+    <header>
+      <div>
+        <p>Add to document</p>
+        <h2 id="add-pages-title">Add pages</h2>
+      </div>
+      <button type="button" aria-label="Close add pages" (click)="closed.emit()">×</button>
+    </header>
+    <label class="picker"
+      ><span>Choose photos or PDFs</span><small>Select more than one file if needed.</small
+      ><input
+        type="file"
+        multiple
+        accept=".pdf,.jpg,.jpeg,.png,.heic,application/pdf,image/jpeg,image/png,image/heic"
+        (change)="choose($event)"
+    /></label>
+    @if (selected().length && !items().length) {
+      <p>{{ selected().length }} {{ selected().length === 1 ? 'file' : 'files' }} selected</p>
+    }
+    @if (items().length) {
+      <ul aria-live="polite">
+        @for (item of items(); track item.fileName) {
+          <li>
+            <div>
+              <strong>{{ item.fileName }}</strong
+              ><small>{{ label(item) }}</small>
+            </div>
+            <progress max="100" [value]="item.percent">{{ item.percent }}%</progress>
+          </li>
+        }
+      </ul>
+    }
+    <footer>
+      <button type="button" (click)="closed.emit()">Cancel</button
+      ><button
+        class="primary"
+        type="button"
+        [disabled]="!selected().length || running()"
+        (click)="add()"
+      >
+        {{ running() ? 'Adding…' : 'Add selected files' }}
+      </button>
+    </footer>
+  </section>
+</div>

@@ -1,189 +1,163 @@
-import { Component, OnInit, OnDestroy, inject, signal } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { API_BASE_URL } from '../core/api/security.interceptor';
-import { DocumentDetail } from './document.models';
+import { AddPagesDialogComponent } from './add-pages-dialog.component';
+import { DocumentDetail, DocumentPage } from './document.models';
 import { DocumentsApiService } from './documents-api.service';
+import { PageCardComponent } from './page-card.component';
 
 @Component({
   selector: 'app-document-detail',
   standalone: true,
-  imports: [RouterLink],
-  template: ` <section>
-    <a routerLink="/documents">← My documents</a>
-    @if (document(); as doc) {
-      <header>
-        <div>
-          <h1>{{ doc.title }}</h1>
-          <p>
-            {{
-              doc.status === 'Ready'
-                ? 'Your document preview is ready.'
-                : doc.status === 'NeedsCrop'
-                  ? 'Check your document corners to finish your scan.'
-                  : doc.status === 'Failed'
-                    ? 'Processing could not be completed. Open the corner editor to retry a crop.'
-                    : 'Creating your preview…'
-            }}
-          </p>
-        </div>
-        <span>{{ doc.status === 'NeedsCrop' ? 'Adjust corners' : doc.status }}</span>
-      </header>
-      @if (doc.message) {
-        <p role="status">{{ doc.message }}</p>
-      }
-      @if (doc.status === 'Failed') {
-        <button (click)="retry()" [disabled]="retrying()">
-          {{ retrying() ? 'Retrying…' : 'Retry preview' }}
-        </button>
-      }
-      @for (page of doc.pages; track page.id) {
-        <article>
-          <div class="page-heading">
-            <h2>Page {{ page.pageNumber }}</h2>
-            @if (page.hasOriginal) {
-              <button (click)="download(page.id)">Download original</button>
-            }
-          </div>
-          @if (page.canCrop) {
-            <p>
-              <a [routerLink]="['/documents', doc.id, 'pages', page.id, 'crop']">Crop & filters</a>
-              · {{ page.cropStatus === 'NeedsCrop' ? 'Corners ready for review' : page.cropStatus }}
-            </p>
-            @if (page.previewRevision > 0) {
-              <p class="note">
-                Saved filter:
-                {{ page.appliedFilter === 'BlackAndWhite' ? 'Black & White' : page.appliedFilter }}
-              </p>
-            }
-          }
-          @if (images()[page.id]; as url) {
-            <img [src]="url" [alt]="'Preview of page ' + page.pageNumber" />
-          } @else {
-            <p>Preview pending</p>
-          }
-        </article>
-      }
-    } @else if (!error()) {
-      <p role="status">Loading document…</p>
-    }
-    @if (error()) {
-      <p role="alert">{{ error() }}</p>
-      <button (click)="load()">Reload</button>
-    }
-  </section>`,
-  styles: [
-    `
-      section {
-        max-width: 1000px;
-        margin: auto;
-        padding: 32px 24px;
-      }
-      a {
-        color: inherit;
-      }
-      header,
-      .page-heading {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 16px;
-      }
-      header {
-        margin: 24px 0;
-      }
-      h1 {
-        font-size: 30px;
-        margin-bottom: 8px;
-      }
-      header span {
-        padding: 8px 14px;
-        border-radius: 20px;
-        background: #e4f3e9;
-        color: #23513e;
-      }
-      article {
-        background: white;
-        border: 1px solid #e1e5e4;
-        border-radius: 16px;
-        padding: 20px;
-        margin: 20px 0;
-      }
-      h2 {
-        font-size: 16px;
-      }
-      img {
-        display: block;
-        max-width: 100%;
-        max-height: 1000px;
-        margin: 20px auto;
-        object-fit: contain;
-      }
-      button {
-        padding: 10px 16px;
-        border: 1px solid #ccd8d0;
-        border-radius: 9px;
-        background: #f4f8f5;
-        color: #234437;
-        cursor: pointer;
-      }
-      .note {
-        color: #66736d;
-        font-size: 13px;
-      }
-    `,
-  ],
+  imports: [RouterLink, DragDropModule, PageCardComponent, AddPagesDialogComponent],
+  templateUrl: './document-detail.component.html',
+  styleUrl: './document-detail.component.scss',
 })
 export class DocumentDetailComponent implements OnInit, OnDestroy {
   private readonly http = inject(HttpClient);
   private readonly documentsApi = inject(DocumentsApiService);
   private readonly route = inject(ActivatedRoute);
   private readonly base = inject(API_BASE_URL).replace(/\/+$/, '');
-  private readonly id = this.route.snapshot.paramMap.get('documentId')!;
+  protected readonly id = this.route.snapshot.paramMap.get('documentId') ?? '';
   protected readonly document = signal<DocumentDetail | null>(null);
   protected readonly images = signal<Record<string, string>>({});
   protected readonly error = signal('');
+  protected readonly announcement = signal('');
   protected readonly retrying = signal(false);
+  protected readonly reordering = signal(false);
+  protected readonly showAddPages = signal(false);
   private timer?: ReturnType<typeof setTimeout>;
   private destroyed = false;
   private readonly loadedRevisions: Record<string, number> = {};
+
   ngOnInit(): void {
     void this.load();
   }
+
   async load(): Promise<void> {
     clearTimeout(this.timer);
     this.error.set('');
     try {
       const doc = await this.documentsApi.getDocument(this.id);
       if (this.destroyed) return;
-      this.document.set(doc);
-      for (const page of doc.pages.filter(
-        (p) =>
-          p.hasPreview &&
-          (!this.images()[p.id] || this.loadedRevisions[p.id] !== p.previewRevision),
-      )) {
-        const blob = await firstValueFrom(
-          this.http.get(`${this.base}/documents/${this.id}/pages/${page.id}/preview`, {
-            responseType: 'blob',
-          }),
-        );
-        if (this.destroyed) return;
-        if (this.images()[page.id]) URL.revokeObjectURL(this.images()[page.id]);
-        this.loadedRevisions[page.id] = page.previewRevision;
-        this.images.update((current) => ({ ...current, [page.id]: URL.createObjectURL(blob) }));
-      }
-      if (
-        !this.destroyed &&
-        doc.status !== 'Ready' &&
-        doc.status !== 'Failed' &&
-        doc.status !== 'NeedsCrop'
-      )
+      this.document.set(this.withPositions(doc));
+      await this.loadPreviews(doc);
+      if (!this.destroyed && !['Ready', 'Failed', 'NeedsCrop'].includes(doc.status)) {
         this.timer = setTimeout(() => void this.load(), 3000);
+      }
     } catch {
       if (!this.destroyed) this.error.set('We could not load this document. Please try again.');
     }
   }
+
+  async drop(event: CdkDragDrop<DocumentPage[]>): Promise<void> {
+    if (event.previousIndex === event.currentIndex) return;
+    const pages = [...(this.document()?.pages ?? [])];
+    moveItemInArray(pages, event.previousIndex, event.currentIndex);
+    await this.persistOrder(pages);
+  }
+
+  async move(pageId: string, offset: -1 | 1): Promise<void> {
+    const pages = [...(this.document()?.pages ?? [])];
+    const from = pages.findIndex((page) => page.id === pageId);
+    const to = from + offset;
+    if (from < 0 || to < 0 || to >= pages.length) return;
+    moveItemInArray(pages, from, to);
+    await this.persistOrder(pages);
+  }
+
+  async remove(page: DocumentPage): Promise<void> {
+    if (!window.confirm(`Remove page ${page.position} from this document?`)) return;
+    try {
+      await this.documentsApi.removePage(this.id, page.id);
+      await this.load();
+      this.announcement.set(`Page ${page.position} was removed.`);
+    } catch {
+      this.error.set('We could not remove this page. Please try again.');
+    }
+  }
+
+  protected async pagesAdded(): Promise<void> {
+    this.showAddPages.set(false);
+    await this.load();
+    this.announcement.set('New pages were added to the document.');
+  }
+
+  private async persistOrder(pages: DocumentPage[]): Promise<void> {
+    const doc = this.document();
+    if (!doc || this.reordering()) return;
+    const optimistic = pages.map((page, index) => ({
+      ...page,
+      position: index + 1,
+      pageNumber: index + 1,
+    }));
+    this.document.set({ ...doc, pages: optimistic });
+    this.reordering.set(true);
+    try {
+      const updated = await this.documentsApi.reorderPages(this.id, {
+        expectedPageOrderRevision: doc.pageOrderRevision,
+        pageIds: optimistic.map((page) => page.id),
+      });
+      this.document.set(this.withPositions(updated));
+      this.announcement.set('Page order saved.');
+    } catch (error) {
+      if (error instanceof HttpErrorResponse && error.status === 409) {
+        await this.load();
+        this.announcement.set(
+          'Page order changed in another session. The latest order has been restored.',
+        );
+      } else {
+        this.document.set(doc);
+        this.error.set('We could not save the page order. Please try again.');
+      }
+    } finally {
+      this.reordering.set(false);
+    }
+  }
+
+  private withPositions(doc: DocumentDetail): DocumentDetail {
+    return {
+      ...doc,
+      pages: [...doc.pages]
+        .sort((a, b) => a.position - b.position)
+        .map((page, index) => ({ ...page, position: index + 1, pageNumber: index + 1 })),
+    };
+  }
+
+  private async loadPreviews(doc: DocumentDetail): Promise<void> {
+    const activeIds = new Set(doc.pages.map((page) => page.id));
+    for (const [pageId, url] of Object.entries(this.images())) {
+      if (!activeIds.has(pageId)) {
+        URL.revokeObjectURL(url);
+        delete this.loadedRevisions[pageId];
+        this.images.update((current) => {
+          const next = { ...current };
+          delete next[pageId];
+          return next;
+        });
+      }
+    }
+    for (const page of doc.pages.filter(
+      (candidate) =>
+        candidate.hasPreview &&
+        (!this.images()[candidate.id] ||
+          this.loadedRevisions[candidate.id] !== candidate.previewRevision),
+    )) {
+      const blob = await firstValueFrom(
+        this.http.get(`${this.base}/documents/${this.id}/pages/${page.id}/preview`, {
+          responseType: 'blob',
+        }),
+      );
+      if (this.destroyed) return;
+      if (this.images()[page.id]) URL.revokeObjectURL(this.images()[page.id]);
+      this.loadedRevisions[page.id] = page.previewRevision;
+      this.images.update((current) => ({ ...current, [page.id]: URL.createObjectURL(blob) }));
+    }
+  }
+
   async retry(): Promise<void> {
     this.retrying.set(true);
     try {
@@ -195,6 +169,7 @@ export class DocumentDetailComponent implements OnInit, OnDestroy {
       this.retrying.set(false);
     }
   }
+
   async download(pageId: string): Promise<void> {
     try {
       const blob = await firstValueFrom(
@@ -221,6 +196,7 @@ export class DocumentDetailComponent implements OnInit, OnDestroy {
       this.error.set('Could not download the original. Please try again.');
     }
   }
+
   ngOnDestroy(): void {
     this.destroyed = true;
     clearTimeout(this.timer);
