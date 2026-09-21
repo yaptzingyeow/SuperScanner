@@ -12,6 +12,7 @@ public sealed class R2ObjectStore : IObjectStore, IDisposable
     private readonly IAmazonS3 _client;
     private readonly string _bucketName;
     private readonly Protocol _presignedUrlProtocol;
+    private readonly bool _disablePayloadSigning;
 
     public R2ObjectStore(IOptions<R2Options> options, IAmazonS3? client = null)
     {
@@ -31,6 +32,7 @@ public sealed class R2ObjectStore : IObjectStore, IDisposable
         _presignedUrlProtocol = customEndpoint?.Scheme == Uri.UriSchemeHttp
             ? Protocol.HTTP
             : Protocol.HTTPS;
+        _disablePayloadSigning = _presignedUrlProtocol == Protocol.HTTPS;
         _client = client ?? new AmazonS3Client(
             new BasicAWSCredentials(value.AccessKeyId, value.SecretAccessKey),
             new AmazonS3Config
@@ -123,7 +125,7 @@ public sealed class R2ObjectStore : IObjectStore, IDisposable
         await _client.PutObjectAsync(new Amazon.S3.Model.PutObjectRequest
         {
             BucketName = _bucketName, Key = objectKey, InputStream = content,
-            ContentType = mediaType, DisablePayloadSigning = true,
+            ContentType = mediaType, DisablePayloadSigning = _disablePayloadSigning,
             DisableDefaultChecksumValidation = true, AutoCloseStream = false
         }, cancellationToken);
     }
@@ -136,7 +138,7 @@ public sealed class R2ObjectStore : IObjectStore, IDisposable
             await _client.PutObjectAsync(new Amazon.S3.Model.PutObjectRequest
             {
                 BucketName = _bucketName, Key = objectKey, InputStream = content,
-                ContentType = mediaType, DisablePayloadSigning = true,
+                ContentType = mediaType, DisablePayloadSigning = _disablePayloadSigning,
                 DisableDefaultChecksumValidation = true, AutoCloseStream = false,
                 IfNoneMatch = "*"
             }, cancellationToken);

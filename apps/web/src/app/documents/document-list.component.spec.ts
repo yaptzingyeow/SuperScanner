@@ -1,14 +1,14 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Router } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { API_BASE_URL } from '../core/api/security.interceptor';
 import { DocumentListComponent } from './document-list.component';
 
 describe('DocumentListComponent', () => {
   let fixture: ComponentFixture<DocumentListComponent>;
   let httpTesting: HttpTestingController;
-  let navigations: unknown[][];
+  let navigations: (readonly unknown[])[];
 
   beforeEach(async () => {
     navigations = [];
@@ -17,19 +17,15 @@ describe('DocumentListComponent', () => {
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
+        provideRouter([]),
         { provide: API_BASE_URL, useValue: '/api' },
-        {
-          provide: Router,
-          useValue: {
-            navigate: (commands: unknown[]) => {
-              navigations.push(commands);
-              return Promise.resolve(true);
-            },
-          },
-        },
       ],
     }).compileComponents();
 
+    vi.spyOn(TestBed.inject(Router), 'navigate').mockImplementation((commands) => {
+      navigations.push(commands);
+      return Promise.resolve(true);
+    });
     fixture = TestBed.createComponent(DocumentListComponent);
     httpTesting = TestBed.inject(HttpTestingController);
     fixture.detectChanges();
@@ -94,7 +90,7 @@ describe('DocumentListComponent', () => {
 
     button.click();
 
-    expect(navigations).toEqual([['/scan']]);
+    expect(navigations).toEqual([['/']]);
     httpTesting.expectOne('/api/documents').flush([]);
   });
 });

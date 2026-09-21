@@ -13,6 +13,8 @@ const sharedEnvironment = {
   R2__AccessKeyId: 'superscanner_local',
   R2__SecretAccessKey: 'superscanner_local_only_password',
   R2__BucketName: 'superscanner-private',
+  Crop__PythonPath: process.env['E2E_CROP_PYTHON'] ?? 'python3',
+  DocumentBoundary__Mode: 'ManualOnly',
   Audit__SigningKeyBase64: 'MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=',
   Audit__SigningKeyId: 'e2e-local-only',
 };

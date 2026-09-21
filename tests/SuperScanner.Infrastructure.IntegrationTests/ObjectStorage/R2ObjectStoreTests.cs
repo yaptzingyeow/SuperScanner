@@ -60,6 +60,19 @@ public sealed class R2ObjectStoreTests
     }
 
     [Fact]
+    public async Task MutableWrite_AllowsPayloadSigningForHttpMinioEndpoint()
+    {
+        using var transport = new ConditionalTransport();
+        using var store = CreateStore(transport, "http://minio.local");
+        using var source = new MemoryStream("page source"u8.ToArray());
+
+        await store.WriteAsync("page-sources/document/page/source.png", "image/png", source, default);
+
+        Assert.NotEmpty(Assert.Single(transport.Objects).Value);
+        Assert.Equal(HttpMethod.Put, Assert.Single(transport.Methods));
+    }
+
+    [Fact]
     public async Task CreateOnly_CancellationAfterRemoteCommit_PropagatesAndRetryCannotReplaceBytes()
     {
         using var cancellation = new CancellationTokenSource();
@@ -75,11 +88,11 @@ public sealed class R2ObjectStoreTests
         Assert.Equal("published before cancellation"u8.ToArray(), transport.Objects.Values.Single());
     }
 
-    private static R2ObjectStore CreateStore(HttpMessageHandler transport)
+    private static R2ObjectStore CreateStore(HttpMessageHandler transport, string serviceUrl = "https://r2.invalid")
     {
         var options = Options.Create(new R2Options
         {
-            ServiceUrl = "https://r2.invalid", AccessKeyId = "test-access", SecretAccessKey = "test-secret", BucketName = "private-scans"
+            ServiceUrl = serviceUrl, AccessKeyId = "test-access", SecretAccessKey = "test-secret", BucketName = "private-scans"
         });
         var sdk = new AmazonS3Client(new BasicAWSCredentials("test-access", "test-secret"), new AmazonS3Config
         {

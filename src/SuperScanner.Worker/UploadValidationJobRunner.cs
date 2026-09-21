@@ -106,7 +106,7 @@ public sealed class UploadValidationJobRunner(
                     uploadId,
                     "lease_lost");
             }
-            catch (Exception) when (!cancellationToken.IsCancellationRequested)
+            catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
             {
                 if (cropJob && lease.AttemptCount >= 6)
                     await scope.ServiceProvider.GetRequiredService<CropProcessor>().FailAsync(uploadId, revision, cancellationToken);
@@ -131,6 +131,7 @@ public sealed class UploadValidationJobRunner(
                     await queue.RescheduleAsync(lease.Id, workerId, errorCode, cancellationToken);
                 }
                 logger.LogWarning(
+                    exception,
                     "Upload validation job rescheduled. JobId={JobId} UploadId={UploadId} ErrorCode={ErrorCode}",
                     lease.Id,
                     uploadId,
