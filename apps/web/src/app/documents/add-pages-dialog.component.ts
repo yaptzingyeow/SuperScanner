@@ -26,7 +26,7 @@ export class AddPagesDialogComponent {
     this.running.set(true);
     try {
       const results = await this.uploads.addFiles(this.documentId, this.selected());
-      if (results.some((item) => item.stage === 'accepted')) this.completed.emit();
+      if (results.every((item) => item.stage === 'accepted')) this.completed.emit();
     } finally {
       this.running.set(false);
     }

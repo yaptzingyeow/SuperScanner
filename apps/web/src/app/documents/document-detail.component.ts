@@ -93,6 +93,11 @@ export class DocumentDetailComponent implements OnInit, OnDestroy {
     this.announcement.set('New pages were added to the document.');
   }
 
+  protected closeAddPages(): void {
+    this.showAddPages.set(false);
+    void this.load();
+  }
+
   private async persistOrder(pages: DocumentPage[]): Promise<void> {
     const doc = this.document();
     if (!doc || this.reordering()) return;

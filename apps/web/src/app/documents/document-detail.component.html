@@ -68,7 +68,7 @@
 @if (showAddPages() && document(); as doc) {
   <app-add-pages-dialog
     [documentId]="doc.id"
-    (closed)="showAddPages.set(false)"
+    (closed)="closeAddPages()"
     (completed)="pagesAdded()"
   />
 }
