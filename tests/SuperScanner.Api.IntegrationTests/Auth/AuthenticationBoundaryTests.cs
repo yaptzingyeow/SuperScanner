@@ -65,6 +65,24 @@ public sealed class AuthenticationBoundaryTests : IDisposable
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
+    [Theory]
+    [InlineData("PUT", "/api/documents/11111111-1111-1111-1111-111111111111/page-order")]
+    [InlineData("DELETE", "/api/documents/11111111-1111-1111-1111-111111111111/pages/22222222-2222-2222-2222-222222222222")]
+    [InlineData("GET", "/api/documents/11111111-1111-1111-1111-111111111111/exports/33333333-3333-3333-3333-333333333333")]
+    [InlineData("GET", "/api/documents/11111111-1111-1111-1111-111111111111/exports/33333333-3333-3333-3333-333333333333/download")]
+    public async Task OrganizerAndExportEndpoints_RejectMissingOrInvalidAppCheck(string method, string path)
+    {
+        using var missing = CreateClient("valid-user-a", string.Empty);
+        missing.DefaultRequestHeaders.Remove("X-Firebase-AppCheck");
+        using var invalid = CreateClient("valid-user-a", "expired-app-token");
+
+        using var missingResponse = await missing.SendAsync(new HttpRequestMessage(new HttpMethod(method), path));
+        using var invalidResponse = await invalid.SendAsync(new HttpRequestMessage(new HttpMethod(method), path));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, missingResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, invalidResponse.StatusCode);
+    }
+
     public void Dispose() => _factory.Dispose();
 
     private HttpClient CreateClient(string? idToken, string appCheckToken)

@@ -31,6 +31,10 @@ builder.Services.AddOptions<DocumentImportOptions>()
     .ValidateOnStart();
 builder.Services.AddScoped<IPdfImportTool, PopplerPdfImportTool>();
 builder.Services.AddScoped<DocumentImportProcessor>();
+builder.Services.AddSingleton(new DocumentPdfLimits
+{
+    MaxPdfBytes = builder.Configuration.GetValue("DocumentExport:MaxOutputBytes", 104_857_600L)
+});
 builder.Services.AddScoped<DocumentPdfBuilder>();
 builder.Services.AddOptions<DocumentBoundaryOptions>()
     .BindConfiguration(DocumentBoundaryOptions.SectionName)
