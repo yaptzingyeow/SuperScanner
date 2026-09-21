@@ -37,6 +37,16 @@ describe('UploadService', () => {
         requests.push({ documentId, uploadId });
         return { uploadId, state: 'PendingValidation' as const };
       },
+      async getUploadStatus(_documentId: string, uploadId: string) {
+        return {
+          uploadId,
+          state: 'Accepted' as const,
+          discoveredPageCount: 1,
+          createdPageCount: 1,
+          failedPageCount: 0,
+          errorCode: null,
+        };
+      },
     } as DocumentsApiService;
     const uploader: SignedUploadClient = {
       put:
@@ -65,8 +75,8 @@ describe('UploadService', () => {
         sha256Hex: '86edbaa24831badfa0a8b04bb410141e2ee4182b6d0014493fe262a7a331c20b',
       },
     });
-    expect(result).toEqual({ documentId: 'doc-1', uploadId: 'up-1', state: 'PendingValidation' });
-    expect(service.progress()).toEqual({ stage: 'validating', percent: 100 });
+    expect(result).toEqual({ documentId: 'doc-1', uploadId: 'up-1', state: 'Accepted' });
+    expect(service.progress()).toEqual({ stage: 'accepted', percent: 100, errorCode: undefined });
   });
 
   it('rejects unsupported files before creating a document', async () => {
@@ -129,6 +139,91 @@ describe('UploadService', () => {
     });
     finishPut();
     await first;
+  });
+
+  it('adds files sequentially and retains an independent failed item', async () => {
+    const order: string[] = [];
+    let nextId = 0;
+    const api = {
+      createUploadIntent: async (_documentId: string, request: { fileName: string }) => {
+        const id = ++nextId;
+        order.push(`intent:${request.fileName}`);
+        return {
+          uploadId: `up-${id}`,
+          putUrl: `https://upload/${id}`,
+          expiresAt: '2099-01-01T00:00:00Z',
+        };
+      },
+      completeUpload: async (_documentId: string, uploadId: string) => ({
+        uploadId,
+        state: 'PendingValidation',
+      }),
+      getUploadStatus: async (_documentId: string, uploadId: string) => ({
+        uploadId,
+        state: uploadId === 'up-1' ? 'Accepted' : 'Rejected',
+        discoveredPageCount: uploadId === 'up-1' ? 1 : 0,
+        createdPageCount: uploadId === 'up-1' ? 1 : 0,
+        failedPageCount: 0,
+        errorCode: uploadId === 'up-1' ? null : 'pdf_invalid',
+      }),
+    } as unknown as DocumentsApiService;
+    const uploader: SignedUploadClient = {
+      put: async (_url, file) => {
+        order.push(`put:${file.name}`);
+      },
+    };
+    const service = new UploadService(api, uploader, 0);
+
+    const items = await service.addFiles('doc-1', [
+      new File(['photo'], 'photo.jpg', { type: 'image/jpeg' }),
+      new File(['%PDF'], 'broken.pdf', { type: 'application/pdf' }),
+    ]);
+
+    expect(order).toEqual([
+      'intent:photo.jpg',
+      'put:photo.jpg',
+      'intent:broken.pdf',
+      'put:broken.pdf',
+    ]);
+    expect(items.map((item) => item.fileName)).toEqual(['photo.jpg', 'broken.pdf']);
+    expect(items.map((item) => item.stage)).toEqual(['accepted', 'rejected']);
+    expect(items[1].errorCode).toBe('pdf_invalid');
+  });
+
+  it('polls expansion until all discovered pages are accounted for', async () => {
+    let polls = 0;
+    const api = {
+      createUploadIntent: async () => ({
+        uploadId: 'up-1',
+        putUrl: 'https://upload/1',
+        expiresAt: '2099-01-01T00:00:00Z',
+      }),
+      completeUpload: async () => ({ uploadId: 'up-1', state: 'PendingValidation' }),
+      getUploadStatus: async () => {
+        polls++;
+        return polls === 1
+          ? {
+              uploadId: 'up-1',
+              state: 'Accepted',
+              discoveredPageCount: 3,
+              createdPageCount: 1,
+              failedPageCount: 0,
+            }
+          : {
+              uploadId: 'up-1',
+              state: 'Accepted',
+              discoveredPageCount: 3,
+              createdPageCount: 3,
+              failedPageCount: 0,
+            };
+      },
+    } as unknown as DocumentsApiService;
+    const service = new UploadService(api, { put: async () => undefined }, 0);
+
+    const [item] = await service.addFiles('doc-1', [pdf()]);
+
+    expect(polls).toBe(2);
+    expect(item).toMatchObject({ stage: 'accepted', discoveredPageCount: 3, createdPageCount: 3 });
   });
 });
 

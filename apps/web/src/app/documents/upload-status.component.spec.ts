@@ -13,8 +13,20 @@ describe('UploadStatusComponent', () => {
     vi.useFakeTimers();
     calls = 0;
     responses = [
-      { uploadId: 'up-1', state: 'PendingValidation' },
-      { uploadId: 'up-1', state: 'Accepted' },
+      {
+        uploadId: 'up-1',
+        state: 'PendingValidation',
+        discoveredPageCount: 0,
+        createdPageCount: 0,
+        failedPageCount: 0,
+      },
+      {
+        uploadId: 'up-1',
+        state: 'Accepted',
+        discoveredPageCount: 1,
+        createdPageCount: 1,
+        failedPageCount: 0,
+      },
     ];
     await TestBed.configureTestingModule({
       imports: [UploadStatusComponent],
@@ -55,7 +67,16 @@ describe('UploadStatusComponent', () => {
   });
 
   it('shows a safe message for rejected validation', async () => {
-    responses = [{ uploadId: 'up-1', state: 'Rejected', errorCode: 'malware_detected' }];
+    responses = [
+      {
+        uploadId: 'up-1',
+        state: 'Rejected',
+        discoveredPageCount: 0,
+        createdPageCount: 0,
+        failedPageCount: 0,
+        errorCode: 'malware_detected',
+      },
+    ];
     fixture.detectChanges();
     await vi.advanceTimersByTimeAsync(0);
     fixture.detectChanges();
