@@ -48,6 +48,12 @@
         <button class="primary" type="button" (click)="showAddPages.set(true)">Add pages</button>
       </section>
     }
+    <app-export-status
+      [documentId]="doc.id"
+      [documentTitle]="doc.title"
+      [pages]="doc.pages"
+      [initialExport]="doc.latestExport"
+    />
   } @else if (!error()) {
     <p role="status">Loading document…</p>
   }

@@ -7,12 +7,19 @@ import { API_BASE_URL } from '../core/api/security.interceptor';
 import { AddPagesDialogComponent } from './add-pages-dialog.component';
 import { DocumentDetail, DocumentPage } from './document.models';
 import { DocumentsApiService } from './documents-api.service';
+import { ExportStatusComponent } from './export-status.component';
 import { PageCardComponent } from './page-card.component';
 
 @Component({
   selector: 'app-document-detail',
   standalone: true,
-  imports: [RouterLink, DragDropModule, PageCardComponent, AddPagesDialogComponent],
+  imports: [
+    RouterLink,
+    DragDropModule,
+    PageCardComponent,
+    AddPagesDialogComponent,
+    ExportStatusComponent,
+  ],
   templateUrl: './document-detail.component.html',
   styleUrl: './document-detail.component.scss',
 })

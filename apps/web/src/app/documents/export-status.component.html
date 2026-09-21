@@ -1,0 +1,61 @@
+<section class="export-panel" aria-labelledby="export-title">
+  <div>
+    <p class="eyebrow">Final document</p>
+    <h2 id="export-title">Export PDF</h2>
+  </div>
+  <p data-testid="export-summary">
+    <strong>{{ readyCount }}</strong> ready {{ readyCount === 1 ? 'page' : 'pages' }} will be
+    included. <strong>{{ excludedCount }}</strong> {{ excludedCount === 1 ? 'page' : 'pages' }} will
+    be excluded.
+  </p>
+  @if (current(); as item) {
+    <div class="export-state">
+      <span [attr.data-state]="item.state">{{ item.state }}</span>
+      @if (item.state === 'Queued' || item.state === 'Processing') {
+        <p>Building your PDF… You can keep organizing while this finishes.</p>
+      }
+      @if (item.state === 'Failed') {
+        <p>The PDF could not be generated. Your pages are unchanged.</p>
+      }
+      @if (item.state === 'Ready' && item.isOutdated) {
+        <p>
+          This PDF is from an earlier page order. You can still download it or generate an updated
+          PDF.
+        </p>
+      }
+    </div>
+    <div class="actions">
+      @if (item.state === 'Ready') {
+        <button
+          type="button"
+          [class.secondary]="item.isOutdated"
+          [disabled]="busy()"
+          (click)="download()"
+        >
+          Download PDF
+        </button>
+      }
+      @if (item.state === 'Failed' || item.isOutdated) {
+        <button
+          class="primary"
+          type="button"
+          [disabled]="!readyCount || busy()"
+          (click)="generate()"
+        >
+          {{ item.isOutdated ? 'Generate updated PDF' : 'Retry export' }}
+        </button>
+      }
+    </div>
+  } @else {
+    <button class="primary" type="button" [disabled]="!readyCount || busy()" (click)="generate()">
+      {{ busy() ? 'Starting…' : 'Generate PDF' }}
+    </button>
+  }
+  @if (!readyCount) {
+    <p class="hint">At least one Ready page is required.</p>
+  }
+  @if (error()) {
+    <p class="error" role="alert">{{ error() }}</p>
+  }
+  <p class="sr-only" aria-live="polite">{{ announcement() }}</p>
+</section>
