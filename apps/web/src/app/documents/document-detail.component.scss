@@ -64,6 +64,10 @@ button:disabled {
   gap: 20px;
   align-items: start;
 }
+.page-stack {
+  display: grid;
+  gap: 10px;
+}
 .cdk-drag-preview {
   border-radius: 18px;
   box-shadow: 0 18px 50px #183c2f38;

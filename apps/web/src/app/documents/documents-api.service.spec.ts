@@ -70,4 +70,19 @@ describe('DocumentsApiService organizer APIs', () => {
     downloadRequest.flush(new Blob(['pdf'], { type: 'application/pdf' }));
     await expect(download).resolves.toBeInstanceOf(Blob);
   });
+
+  it('gets and requests OCR for an exact document page', async () => {
+    const status = service.getPageOcr('doc-1', 'page-2');
+    const get = http.expectOne('/api/documents/doc-1/pages/page-2/ocr');
+    expect(get.request.method).toBe('GET');
+    get.flush({ state: 'NotRequested', elementCount: 0, canRetry: false, elements: [] });
+    await status;
+
+    const request = service.requestPageOcr('doc-1', 'page-2', true);
+    const post = http.expectOne('/api/documents/doc-1/pages/page-2/ocr');
+    expect(post.request.method).toBe('POST');
+    expect(post.request.body).toEqual({ retryFailed: true });
+    post.flush({ state: 'Queued', elementCount: 0, canRetry: false, elements: [] });
+    await request;
+  });
 });

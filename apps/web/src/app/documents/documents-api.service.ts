@@ -6,6 +6,7 @@ import {
   DocumentDetail,
   DocumentDto,
   DocumentExport,
+  PageOcr,
   ReorderPagesRequest,
 } from './document.models';
 
@@ -98,6 +99,20 @@ export class DocumentsApiService {
     return firstValueFrom(
       this.http.get(`${this.baseUrl}/documents/${id}/exports/${exportId}/download`, {
         responseType: 'blob',
+      }),
+    );
+  }
+
+  getPageOcr(documentId: string, pageId: string): Promise<PageOcr> {
+    return firstValueFrom(
+      this.http.get<PageOcr>(`${this.baseUrl}/documents/${documentId}/pages/${pageId}/ocr`),
+    );
+  }
+
+  requestPageOcr(documentId: string, pageId: string, retryFailed: boolean): Promise<PageOcr> {
+    return firstValueFrom(
+      this.http.post<PageOcr>(`${this.baseUrl}/documents/${documentId}/pages/${pageId}/ocr`, {
+        retryFailed,
       }),
     );
   }

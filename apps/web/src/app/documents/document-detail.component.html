@@ -27,18 +27,25 @@
         aria-label="Document pages"
       >
         @for (page of doc.pages; track page.id) {
-          <app-page-card
+          <div
+            class="page-stack"
             cdkDrag
             [cdkDragData]="page"
-            [page]="page"
-            [documentId]="doc.id"
-            [thumbnailUrl]="images()[page.id]"
-            [first]="$first"
-            [last]="$last"
-            (movePage)="move(page.id, $event)"
-            (removePage)="remove(page)"
-            (downloadOriginal)="download(page.id)"
-          />
+          >
+            <app-page-card
+              [page]="page"
+              [documentId]="doc.id"
+              [thumbnailUrl]="images()[page.id]"
+              [first]="$first"
+              [last]="$last"
+              (movePage)="move(page.id, $event)"
+              (removePage)="remove(page)"
+              (downloadOriginal)="download(page.id)"
+            />
+            @if (page.state === 'Ready') {
+              <app-ocr-status [documentId]="doc.id" [pageId]="page.id" />
+            }
+          </div>
         }
       </section>
     } @else {

@@ -46,6 +46,13 @@ describe('DocumentDetailComponent organizer', () => {
           detail(request.pageIds.map((id: string, index: number) => page(id, index + 1))),
         ),
       removePage: vi.fn().mockResolvedValue(undefined),
+      getPageOcr: vi.fn().mockResolvedValue({
+        state: 'NotRequested',
+        elementCount: 0,
+        canRetry: false,
+        elements: [],
+      }),
+      requestPageOcr: vi.fn(),
     };
     TestBed.configureTestingModule({
       imports: [DocumentDetailComponent],

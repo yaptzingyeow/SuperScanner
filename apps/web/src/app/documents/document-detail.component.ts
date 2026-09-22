@@ -9,6 +9,7 @@ import { DocumentDetail, DocumentPage } from './document.models';
 import { DocumentsApiService } from './documents-api.service';
 import { ExportStatusComponent } from './export-status.component';
 import { PageCardComponent } from './page-card.component';
+import { OcrStatusComponent } from './ocr-status.component';
 
 @Component({
   selector: 'app-document-detail',
@@ -19,6 +20,7 @@ import { PageCardComponent } from './page-card.component';
     PageCardComponent,
     AddPagesDialogComponent,
     ExportStatusComponent,
+    OcrStatusComponent,
   ],
   templateUrl: './document-detail.component.html',
   styleUrl: './document-detail.component.scss',

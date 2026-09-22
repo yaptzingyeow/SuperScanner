@@ -68,6 +68,39 @@ export interface ReorderPagesRequest {
   pageIds: string[];
 }
 
+export type OcrState = 'NotRequested' | 'Queued' | 'Processing' | 'Ready' | 'Failed';
+
+export interface OcrPoint {
+  x: number;
+  y: number;
+}
+
+export interface OcrElement {
+  id: string;
+  kind: 'Block' | 'Line' | 'Word';
+  text: string;
+  confidence: number;
+  textType: 'Printed' | 'Handwritten' | 'Unknown';
+  readingOrder: number;
+  polygon: OcrPoint[];
+  children: OcrElement[];
+}
+
+export interface PageOcr {
+  resultId?: string | null;
+  state: OcrState;
+  sourceFingerprint?: string | null;
+  fullText?: string | null;
+  aggregateConfidence?: number | null;
+  elementCount: number;
+  failureCode?: string | null;
+  canRetry: boolean;
+  queuedAt?: string | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  elements: OcrElement[];
+}
+
 export type UploadStage =
   | 'idle'
   | 'preparing'
