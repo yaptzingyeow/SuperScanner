@@ -1,0 +1,37 @@
+<div class="ocr-overlay" aria-label="Selectable recognized text">
+  @if (words().length) {
+    <p id="ocr-selection-help" class="sr-only">
+      Drag across recognized words to select them. Press Escape to clear the selection.
+    </p>
+    <svg
+      viewBox="0 0 1 1"
+      preserveAspectRatio="none"
+      tabindex="0"
+      aria-describedby="ocr-selection-help"
+      (pointerdown)="beginSelection($event)"
+      (pointermove)="updateSelection($event)"
+      (pointerup)="finishSelection($event)"
+      (pointercancel)="cancelSelection($event)"
+      (lostpointercapture)="cancelSelection($event)"
+      (keydown)="handleKeydown($event)"
+    >
+      @for (word of words(); track word.id) {
+        <polygon
+          [attr.points]="polygonPoints(word.polygon)"
+          [attr.data-word-id]="word.id"
+          [class.selected]="selectedIds().has(word.id)"
+        />
+      }
+    </svg>
+    @if (summary(); as selection) {
+      <aside class="selection-summary" aria-live="polite">
+        <strong class="selected-phrase">{{ selection.phrase }}</strong>
+        <span>{{ selection.wordCount }} {{ selection.wordCount === 1 ? 'word' : 'words' }}</span>
+        <span>{{ selection.averageConfidence * 100 | number: '1.0-0' }}% confidence</span>
+        <span>{{ selection.textType }}</span>
+      </aside>
+    }
+  } @else {
+    <p class="empty-selection">No selectable text detected</p>
+  }
+</div>

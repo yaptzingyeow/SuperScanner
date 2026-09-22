@@ -1,0 +1,74 @@
+:host {
+  display: block;
+}
+
+.ocr-overlay {
+  position: absolute;
+  inset: 0;
+}
+
+svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  touch-action: none;
+}
+
+polygon {
+  fill: transparent;
+  stroke: transparent;
+  stroke-width: 0.003;
+  pointer-events: all;
+}
+
+polygon.selected {
+  fill: rgb(37 99 235 / 28%);
+  stroke: rgb(29 78 216 / 90%);
+}
+
+.selection-summary {
+  position: absolute;
+  z-index: 2;
+  left: .5rem;
+  right: .5rem;
+  bottom: .5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem .75rem;
+  padding: .55rem .7rem;
+  border: 1px solid rgb(147 197 253 / 85%);
+  border-radius: .65rem;
+  background: rgb(255 255 255 / 94%);
+  box-shadow: 0 .35rem 1rem rgb(15 23 42 / 18%);
+  color: #172554;
+  font-size: .75rem;
+}
+
+.selected-phrase {
+  flex-basis: 100%;
+  overflow-wrap: anywhere;
+}
+
+.empty-selection {
+  position: absolute;
+  inset: auto .5rem .5rem;
+  margin: 0;
+  padding: .45rem .6rem;
+  border-radius: .5rem;
+  background: rgb(255 255 255 / 90%);
+  color: #475569;
+  font-size: .75rem;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
