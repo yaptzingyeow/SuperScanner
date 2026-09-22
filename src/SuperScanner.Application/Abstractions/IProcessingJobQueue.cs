@@ -28,6 +28,13 @@ public interface IProcessingJobQueue
 
     Task CompleteAsync(Guid jobId, string workerId, CancellationToken cancellationToken);
 
+    Task FailAsync(
+        Guid jobId,
+        string workerId,
+        string errorCode,
+        CancellationToken cancellationToken) =>
+        throw new NotSupportedException("Terminal job failure is not supported by this queue.");
+
     Task RescheduleAsync(
         Guid jobId,
         string workerId,

@@ -135,6 +135,17 @@ public sealed class PostgresJobQueue(AppDbContext db, IClock clock, IOptions<Doc
                 : RetryDelays),
             cancellationToken);
 
+    public Task FailAsync(
+        Guid jobId,
+        string workerId,
+        string errorCode,
+        CancellationToken cancellationToken) =>
+        MutateOwnedLeaseAsync(
+            jobId,
+            workerId,
+            job => job.Fail(workerId, clock.UtcNow, errorCode),
+            cancellationToken);
+
     public async Task RetryFailedAsync(
         string idempotencyKey,
         CancellationToken cancellationToken)

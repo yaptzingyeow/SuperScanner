@@ -7,6 +7,8 @@ using SuperScanner.Infrastructure.Persistence;
 using SuperScanner.Infrastructure.Processing;
 using SuperScanner.Infrastructure.Security;
 using SuperScanner.Infrastructure.Auditing;
+using SuperScanner.Infrastructure.Ocr;
+using SuperScanner.Application.Ocr;
 
 var builder = WebApplication.CreateBuilder(args);
 if (builder.Environment.IsEnvironment("E2E"))
@@ -18,6 +20,15 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("PostgreSql") ?? string.Empty));
 builder.Services.AddSingleton<IClock, SuperScanner.Infrastructure.Time.SystemClock>();
 builder.Services.AddScoped<IProcessingJobQueue, PostgresJobQueue>();
+builder.Services.AddOptions<OcrOptions>()
+    .BindConfiguration(OcrOptions.SectionName)
+    .Validate(options => options.IsValid(builder.Environment.EnvironmentName),
+        "OCR configuration is invalid.")
+    .ValidateOnStart();
+if (string.Equals(builder.Configuration["Ocr:Provider"], "Fake", StringComparison.Ordinal))
+    builder.Services.AddSingleton<IOcrProvider, FakeOcrProvider>();
+builder.Services.AddSingleton<OcrMetrics>();
+builder.Services.AddScoped<OcrProcessor>();
 builder.Services.AddScoped<IUploadValidationRepository, EfUploadValidationRepository>();
 builder.Services.AddSingleton(new UploadValidationPolicy(25 * 1024 * 1024));
 builder.Services.AddScoped<ValidateUpload>();
