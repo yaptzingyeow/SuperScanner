@@ -183,6 +183,19 @@ public sealed class GoogleDocumentAiOcrProviderTests
     }
 
     [Fact]
+    public async Task RecognizeAsync_PreservesGrpcCancellationWhenCallerTokenIsCancelledInFlight()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var provider = Provider(new CancelingRpcClient(cancellation));
+        await using var content = new MemoryStream([1]);
+
+        var error = await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            provider.RecognizeAsync(new(content, "image/jpeg", "en"), cancellation.Token));
+
+        Assert.Equal(cancellation.Token, error.CancellationToken);
+    }
+
+    [Fact]
     public async Task RecognizeAsync_RecordsOnlyAllowListedMetricTags()
     {
         var captured = new List<KeyValuePair<string, object?>>();
@@ -282,6 +295,18 @@ public sealed class GoogleDocumentAiOcrProviderTests
             string mediaType,
             CancellationToken cancellationToken) =>
             Task.FromException<ProcessResponse>(exception);
+    }
+
+    private sealed class CancelingRpcClient(CancellationTokenSource cancellation) : IDocumentAiClient
+    {
+        public Task<ProcessResponse> ProcessAsync(
+            ByteString content,
+            string mediaType,
+            CancellationToken cancellationToken)
+        {
+            cancellation.Cancel();
+            throw new RpcException(new Status(StatusCode.Cancelled, "cancelled"));
+        }
     }
 
     private sealed class NonSeekableStream(byte[] bytes) : MemoryStream(bytes)

@@ -46,6 +46,15 @@ public sealed class GoogleDocumentAiOptionsTests
             options.ProcessorName);
     }
 
+    [Fact]
+    public void GoogleOptions_EmptyEndpointDerivesRegionalEndpoint()
+    {
+        var options = ValidGoogleOptions(endpoint: string.Empty);
+
+        Assert.True(options.IsValid());
+        Assert.Equal("asia-southeast1-documentai.googleapis.com", options.EffectiveEndpoint);
+    }
+
     [Theory]
     [InlineData(false, "Disabled", "Development", "en", true)]
     [InlineData(true, "GoogleDocumentAi", "Development", "en", true)]

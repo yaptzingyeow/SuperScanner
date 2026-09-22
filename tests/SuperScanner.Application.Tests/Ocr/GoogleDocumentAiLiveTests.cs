@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text;
 using ImageMagick;
+using SuperScanner.Application.Ocr;
 using SuperScanner.Domain.Ocr;
 using SuperScanner.Infrastructure.Ocr;
 using Xunit.Abstractions;
@@ -22,6 +23,10 @@ public sealed class GoogleDocumentAiLiveTests(ITestOutputHelper output)
                 ?? "fc0b14e64c62e7aa",
             Endpoint = Environment.GetEnvironmentVariable("GOOGLE_DOCUMENT_AI_ENDPOINT")
                 ?? "asia-southeast1-documentai.googleapis.com",
+            EnableStyleInfo = string.Equals(
+                Environment.GetEnvironmentVariable("GOOGLE_DOCUMENT_AI_ENABLE_STYLE_INFO"),
+                "1",
+                StringComparison.Ordinal),
             MaxInputBytes = 25 * 1024 * 1024
         };
         Assert.True(options.IsValid());
@@ -31,9 +36,18 @@ public sealed class GoogleDocumentAiLiveTests(ITestOutputHelper output)
         await using var image = new MemoryStream(CreateSyntheticPng());
         var stopwatch = Stopwatch.StartNew();
 
-        var result = await provider.RecognizeAsync(
-            new(image, "image/png", "en"),
-            CancellationToken.None);
+        NormalizedOcrDocument result;
+        try
+        {
+            result = await provider.RecognizeAsync(
+                new(image, "image/png", "en"),
+                CancellationToken.None);
+        }
+        catch (OcrProviderException exception)
+        {
+            output.WriteLine("OCR live acceptance failed with safe_code={0}", exception.SafeCode);
+            throw;
+        }
 
         stopwatch.Stop();
         Assert.Equal(OcrProviderNames.GoogleDocumentAi, result.ProviderName);

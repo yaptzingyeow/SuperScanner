@@ -16,8 +16,11 @@ public sealed partial class GoogleDocumentAiOptions
     public string ProcessorId { get; init; } = string.Empty;
     public string? Endpoint { get; init; }
     public long MaxInputBytes { get; init; } = 25 * 1024 * 1024;
+    public bool EnableStyleInfo { get; init; }
 
-    public string EffectiveEndpoint => Endpoint ?? $"{Location}-documentai.googleapis.com";
+    public string EffectiveEndpoint => string.IsNullOrEmpty(Endpoint)
+        ? $"{Location}-documentai.googleapis.com"
+        : Endpoint;
 
     public string ProcessorName =>
         $"projects/{ProjectId}/locations/{Location}/processors/{ProcessorId}";

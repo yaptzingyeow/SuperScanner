@@ -1,3 +1,5 @@
+using Google.Api.Gax;
+using Google.Api.Gax.Grpc;
 using Google.Cloud.DocumentAI.V1;
 using Google.Protobuf;
 
@@ -29,11 +31,12 @@ public sealed class DocumentAiClient : IDocumentAiClient
     }
 
     public static DocumentAiClient Create(GoogleDocumentAiOptions options) =>
-        Create(options, endpoint =>
+        Create(options, (endpoint, settings) =>
         {
             var client = new DocumentProcessorServiceClientBuilder
             {
-                Endpoint = endpoint
+                Endpoint = endpoint,
+                Settings = settings
             }.Build();
 
             return (request, cancellationToken) =>
@@ -42,14 +45,18 @@ public sealed class DocumentAiClient : IDocumentAiClient
 
     public static DocumentAiClient Create(
         GoogleDocumentAiOptions options,
-        Func<string, ProcessDocumentDelegate> transportFactory)
+        Func<string, DocumentProcessorServiceSettings, ProcessDocumentDelegate> transportFactory)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(transportFactory);
 
-        return new DocumentAiClient(
-            options,
-            transportFactory(options.EffectiveEndpoint));
+        var settings = new DocumentProcessorServiceSettings
+        {
+            ProcessDocumentSettings = CallSettings.FromExpiration(Expiration.None)
+        };
+
+        return new DocumentAiClient(options,
+            transportFactory(options.EffectiveEndpoint, settings));
     }
 
     public Task<ProcessResponse> ProcessAsync(
@@ -63,6 +70,17 @@ public sealed class DocumentAiClient : IDocumentAiClient
             {
                 Content = content,
                 MimeType = mediaType
-            }
+            },
+            ProcessOptions = options.EnableStyleInfo
+                ? new ProcessOptions
+                {
+                    OcrConfig = new OcrConfig
+                    {
+#pragma warning disable CS0612 // Required until the configured processor accepts PremiumFeatures.ComputeStyleInfo.
+                        ComputeStyleInfo = true
+#pragma warning restore CS0612
+                    }
+                }
+                : null
         }, cancellationToken);
 }

@@ -97,6 +97,7 @@ $env:Ocr__Google__Location = 'asia-southeast1'
 $env:Ocr__Google__ProcessorId = 'fc0b14e64c62e7aa'
 $env:Ocr__Google__Endpoint = 'asia-southeast1-documentai.googleapis.com'
 $env:Ocr__Google__MaxInputBytes = '26214400'
+$env:Ocr__Google__EnableStyleInfo = 'false'
 ```
 
 Start the API and Worker in separate terminals after setting the variables in their respective
@@ -117,6 +118,13 @@ The test sends one synthetic English PNG to the Singapore endpoint. Output is li
 count, word count, latency, and aggregate confidence; it never prints recognized text. An
 `ocr_auth_failed` result means ADC or IAM must be corrected. Do not create a service-account key as
 a workaround.
+
+`Ocr__Google__EnableStyleInfo=true` requests token style metadata for handwriting classification.
+The currently deployed processor rejects both the legacy and newer premium style-info request
+forms, so keep this flag `false` until a compatible OCR processor version is deployed and the live
+test passes with `GOOGLE_DOCUMENT_AI_ENABLE_STYLE_INFO=1`. Review Google's style-information pricing
+before activation. SDK-level retries are disabled; the bounded `Ocr__MaxAttempts` queue policy is
+the only retry owner, keeping request counts and cost metrics predictable.
 
 ### Safe disablement
 

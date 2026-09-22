@@ -15,15 +15,17 @@ public sealed class DocumentAiClientTests
         var expectedContent = ByteString.CopyFrom([1, 2, 3]);
         using var cancellation = new CancellationTokenSource();
         string? receivedEndpoint = null;
+        DocumentProcessorServiceSettings? receivedSettings = null;
         ProcessRequest? receivedRequest = null;
         CancellationToken receivedCancellation = default;
         var expectedResponse = new ProcessResponse();
 
         var client = DocumentAiClient.Create(
             ValidOptions(),
-            endpoint =>
+            (endpoint, settings) =>
             {
                 receivedEndpoint = endpoint;
+                receivedSettings = settings;
                 return (request, ct) =>
                 {
                     receivedRequest = request;
@@ -36,10 +38,15 @@ public sealed class DocumentAiClientTests
 
         Assert.Same(expectedResponse, response);
         Assert.Equal(expectedEndpoint, receivedEndpoint);
+        Assert.NotNull(receivedSettings);
+        Assert.Null(receivedSettings.ProcessDocumentSettings.Retry);
         Assert.NotNull(receivedRequest);
         Assert.Equal(expectedName, receivedRequest.Name);
         Assert.Equal(expectedContent, receivedRequest.RawDocument.Content);
         Assert.Equal("image/png", receivedRequest.RawDocument.MimeType);
+#pragma warning disable CS0612 // Processor-compatible style flag is intentionally verified.
+        Assert.True(receivedRequest.ProcessOptions.OcrConfig.ComputeStyleInfo);
+#pragma warning restore CS0612
         Assert.Equal(cancellation.Token, receivedCancellation);
     }
 
@@ -48,6 +55,7 @@ public sealed class DocumentAiClientTests
         ProjectId = "superscanner-dev",
         Location = "asia-southeast1",
         ProcessorId = "fc0b14e64c62e7aa",
-        Endpoint = "asia-southeast1-documentai.googleapis.com"
+        Endpoint = "asia-southeast1-documentai.googleapis.com",
+        EnableStyleInfo = true
     };
 }

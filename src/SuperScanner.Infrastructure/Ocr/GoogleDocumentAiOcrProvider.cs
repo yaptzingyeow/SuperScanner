@@ -46,6 +46,9 @@ public sealed class GoogleDocumentAiOcrProvider(
         }
         catch (RpcException exception)
         {
+            if (exception.StatusCode == StatusCode.Cancelled && cancellationToken.IsCancellationRequested)
+                throw new OperationCanceledException(cancellationToken);
+
             var translated = Translate(exception.StatusCode);
             metrics?.ProviderRequest("google_document_ai", translated.SafeCode,
                 stopwatch.Elapsed.TotalMilliseconds);
