@@ -165,6 +165,19 @@ public sealed class OcrWorkerTests
     }
 
     [Fact]
+    public async Task LocalProviderDeadline_MapsToRetryableTimeout()
+    {
+        await using var fixture = await Fixture.CreateAsync(
+            new WaitingProvider(), timeoutSeconds: 1);
+
+        var error = await Assert.ThrowsAsync<OcrProviderException>(() =>
+            fixture.Processor.RunAsync(fixture.Result.Id, 1, default));
+
+        Assert.Equal("ocr_timeout", error.SafeCode);
+        Assert.True(error.Retryable);
+    }
+
+    [Fact]
     public async Task TerminalFailure_RollsBackResultWhenQueueFailureCannotCommit()
     {
         await using var fixture = await Fixture.CreateAsync(
@@ -239,7 +252,10 @@ public sealed class OcrWorkerTests
         public IObjectStore Store { get; }
         public OcrProcessor Processor { get; }
 
-        public static async Task<Fixture> CreateAsync(IOcrProvider provider, IObjectStore? objectStore = null)
+        public static async Task<Fixture> CreateAsync(
+            IOcrProvider provider,
+            IObjectStore? objectStore = null,
+            int timeoutSeconds = 30)
         {
             var connection = new SqliteConnection("Data Source=:memory:");
             await connection.OpenAsync();
@@ -259,7 +275,12 @@ public sealed class OcrWorkerTests
             await db.SaveChangesAsync();
             var store = objectStore ?? new RecordingStore();
             var processor = new OcrProcessor(db, store, provider, new FixedClock(),
-                Options.Create(new OcrOptions { Enabled = true, Provider = "Fake" }), new OcrMetrics());
+                Options.Create(new OcrOptions
+                {
+                    Enabled = true,
+                    Provider = "Fake",
+                    TimeoutSeconds = timeoutSeconds
+                }), new OcrMetrics());
             return new Fixture(connection, db, result, store, processor);
         }
 
@@ -280,6 +301,15 @@ public sealed class OcrWorkerTests
     {
         public Task<NormalizedOcrDocument> RecognizeAsync(OcrInput input, CancellationToken ct) =>
             Task.FromException<NormalizedOcrDocument>(exception);
+    }
+
+    private sealed class WaitingProvider : IOcrProvider
+    {
+        public async Task<NormalizedOcrDocument> RecognizeAsync(OcrInput input, CancellationToken ct)
+        {
+            await Task.Delay(Timeout.InfiniteTimeSpan, ct);
+            throw new InvalidOperationException("unreachable");
+        }
     }
 
     private sealed class RunnerQueue(Guid resultId, int attemptCount) : IProcessingJobQueue

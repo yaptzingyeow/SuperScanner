@@ -1,5 +1,7 @@
+using System.Diagnostics.Metrics;
 using Google.Cloud.DocumentAI.V1;
 using Google.Protobuf;
+using Grpc.Core;
 using SuperScanner.Application.Ocr;
 using SuperScanner.Infrastructure.Ocr;
 
@@ -139,15 +141,89 @@ public sealed class GoogleDocumentAiOcrProviderTests
         Assert.False(error.Retryable);
     }
 
+    [Theory]
+    [InlineData(StatusCode.DeadlineExceeded, "ocr_timeout", true)]
+    [InlineData(StatusCode.ResourceExhausted, "ocr_rate_limited", true)]
+    [InlineData(StatusCode.Unavailable, "ocr_provider_unavailable", true)]
+    [InlineData(StatusCode.Internal, "ocr_provider_unavailable", true)]
+    [InlineData(StatusCode.Unauthenticated, "ocr_auth_failed", false)]
+    [InlineData(StatusCode.PermissionDenied, "ocr_auth_failed", false)]
+    [InlineData(StatusCode.InvalidArgument, "ocr_unsupported_media", false)]
+    [InlineData(StatusCode.DataLoss, "ocr_failed", false)]
+    public async Task RecognizeAsync_MapsRpcStatusToSafeFailure(
+        StatusCode status,
+        string safeCode,
+        bool retryable)
+    {
+        const string privateDetail = "private-name object-key credential-path";
+        var provider = Provider(new ThrowingClient(
+            new RpcException(new Status(status, privateDetail))));
+        await using var content = new MemoryStream([1]);
+
+        var error = await Assert.ThrowsAsync<OcrProviderException>(() =>
+            provider.RecognizeAsync(new(content, "image/jpeg", "en"), default));
+
+        Assert.Equal(safeCode, error.SafeCode);
+        Assert.Equal(retryable, error.Retryable);
+        Assert.DoesNotContain(privateDetail, error.Message);
+        Assert.DoesNotContain("private-name", error.ToString());
+    }
+
+    [Fact]
+    public async Task RecognizeAsync_PreservesCallerCancellation()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var provider = Provider(new ThrowingClient(
+            new OperationCanceledException(cancellation.Token)));
+        await using var content = new MemoryStream([1]);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            provider.RecognizeAsync(new(content, "image/jpeg", "en"), cancellation.Token));
+    }
+
+    [Fact]
+    public async Task RecognizeAsync_RecordsOnlyAllowListedMetricTags()
+    {
+        var captured = new List<KeyValuePair<string, object?>>();
+        using var listener = new MeterListener();
+        listener.InstrumentPublished = (instrument, meterListener) =>
+        {
+            if (instrument.Meter.Name == OcrMetrics.MeterName &&
+                instrument.Name == "superscanner.ocr.provider.requests")
+            {
+                meterListener.EnableMeasurementEvents(instrument);
+            }
+        };
+        listener.SetMeasurementEventCallback<long>((_, _, tags, _) => captured.AddRange(tags.ToArray()));
+        listener.Start();
+        var metrics = new OcrMetrics();
+        var provider = Provider(
+            new ThrowingClient(new RpcException(new Status(
+                StatusCode.PermissionDenied,
+                "private-name object-key credential-path"))),
+            metrics: metrics);
+        await using var content = new MemoryStream([1]);
+
+        await Assert.ThrowsAsync<OcrProviderException>(() =>
+            provider.RecognizeAsync(new(content, "image/jpeg", "en"), default));
+
+        Assert.Equal(2, captured.Count);
+        Assert.Contains(captured, tag => tag.Key == "provider" && Equals(tag.Value, "google_document_ai"));
+        Assert.Contains(captured, tag => tag.Key == "outcome" && Equals(tag.Value, "ocr_auth_failed"));
+        Assert.DoesNotContain(captured, tag => tag.Value?.ToString()?.Contains("private", StringComparison.Ordinal) == true);
+    }
+
     private static GoogleDocumentAiOcrProvider Provider(
         IDocumentAiClient client,
-        long maxInputBytes = 10) => new(client, new GoogleDocumentAiOptions
+        long maxInputBytes = 10,
+        OcrMetrics? metrics = null) => new(client, new GoogleDocumentAiOptions
         {
             ProjectId = "superscanner-dev",
             Location = "asia-southeast1",
             ProcessorId = "fc0b14e64c62e7aa",
             MaxInputBytes = maxInputBytes
-        });
+        }, metrics);
 
     private static ProcessResponse ValidResponse()
     {
@@ -197,6 +273,15 @@ public sealed class GoogleDocumentAiOcrProviderTests
             MediaType = mediaType;
             return Task.FromResult(response);
         }
+    }
+
+    private sealed class ThrowingClient(Exception exception) : IDocumentAiClient
+    {
+        public Task<ProcessResponse> ProcessAsync(
+            ByteString content,
+            string mediaType,
+            CancellationToken cancellationToken) =>
+            Task.FromException<ProcessResponse>(exception);
     }
 
     private sealed class NonSeekableStream(byte[] bytes) : MemoryStream(bytes)

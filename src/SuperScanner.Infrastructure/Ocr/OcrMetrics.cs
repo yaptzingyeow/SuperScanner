@@ -9,6 +9,8 @@ public sealed class OcrMetrics
     private readonly Counter<long> jobs = Meter.CreateCounter<long>("superscanner.ocr.jobs");
     private readonly Histogram<double> queueMilliseconds = Meter.CreateHistogram<double>("superscanner.ocr.queue.duration", "ms");
     private readonly Histogram<double> providerMilliseconds = Meter.CreateHistogram<double>("superscanner.ocr.provider.duration", "ms");
+    private readonly Counter<long> providerRequests = Meter.CreateCounter<long>("superscanner.ocr.provider.requests");
+    private readonly Histogram<double> providerRequestMilliseconds = Meter.CreateHistogram<double>("superscanner.ocr.provider.request.duration", "ms");
     private readonly Histogram<long> elements = Meter.CreateHistogram<long>("superscanner.ocr.elements");
     private readonly Histogram<double> confidence = Meter.CreateHistogram<double>("superscanner.ocr.confidence");
 
@@ -31,4 +33,12 @@ public sealed class OcrMetrics
 
     public void Failed(string failureCode, bool retryable) =>
         jobs.Add(1, new("outcome", retryable ? "retry" : "failed"), new("failure_code", failureCode));
+
+    public void ProviderRequest(string provider, string outcome, double elapsedMilliseconds)
+    {
+        providerRequests.Add(1, new("provider", provider), new("outcome", outcome));
+        providerRequestMilliseconds.Record(elapsedMilliseconds,
+            new KeyValuePair<string, object?>("provider", provider),
+            new KeyValuePair<string, object?>("outcome", outcome));
+    }
 }
