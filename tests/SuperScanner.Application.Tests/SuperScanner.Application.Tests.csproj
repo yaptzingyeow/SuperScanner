@@ -26,4 +26,10 @@
     <ProjectReference Include="..\..\src\SuperScanner.Worker\SuperScanner.Worker.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Fixtures\Ocr\google-document-ai-response.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>
