@@ -60,6 +60,17 @@ describe('OcrTextOverlayComponent', () => {
       .toContain('Mixed');
   });
 
+  it('moves focus to the interaction region when pointer selection starts', () => {
+    const outside = document.createElement('button');
+    document.body.appendChild(outside);
+    outside.focus();
+
+    pointer('pointerdown', 145, 95);
+
+    expect(document.activeElement).toBe(svg());
+    outside.remove();
+  });
+
   it('keeps OCR reading order when dragged in reverse', () => {
     drag(500, 165, 145, 95);
 
@@ -72,6 +83,28 @@ describe('OcrTextOverlayComponent', () => {
     drag(275, 125, 277, 126);
 
     expect(selectedIds()).toEqual(['w2']);
+  });
+
+  it('treats a two-pixel gesture as a click on only the release word', () => {
+    fixture.componentRef.setInput('ocr', ocr('close', [{
+      id: 'b-close', kind: 'Block', text: 'One Two', confidence: 1,
+      textType: 'Printed', readingOrder: 1, polygon: [], children: [{
+        id: 'l-close', kind: 'Line', text: 'One Two', confidence: 1,
+        textType: 'Printed', readingOrder: 1, polygon: [], children: [
+          word('close-1', 'One', 1, .1, .2),
+          word('close-2', 'Two', 2, .201, .3),
+        ],
+      }],
+    }]));
+    fixture.detectChanges();
+    Object.defineProperty(svg(), 'getBoundingClientRect', {
+      value: () => ({ left: 100, top: 50, width: 500, height: 250, right: 600, bottom: 300 }),
+      configurable: true,
+    });
+
+    drag(199.5, 125, 201.5, 125);
+
+    expect(selectedIds()).toEqual(['close-2']);
   });
 
   it('clears selection on empty click and Escape', () => {

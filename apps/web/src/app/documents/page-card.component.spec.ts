@@ -62,6 +62,24 @@ describe('PageCardComponent', () => {
     expect(fixture.nativeElement.querySelector('app-ocr-text-overlay')).toBeNull();
   });
 
+  it('lets a portrait preview determine its full uncropped height', async () => {
+    await TestBed.configureTestingModule({
+      imports: [PageCardComponent],
+      providers: [provideRouter([])],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(PageCardComponent);
+    fixture.componentRef.setInput('page', { ...page, state: 'Ready' });
+    fixture.componentRef.setInput('documentId', 'doc-1');
+    fixture.componentRef.setInput('thumbnailUrl', 'blob:a4-preview');
+    fixture.componentRef.setInput('ocr', readyOcr());
+    fixture.detectChanges();
+
+    const thumbnail = fixture.nativeElement.querySelector('.thumbnail');
+    expect(getComputedStyle(thumbnail).aspectRatio).not.toBe('3/4');
+    expect(thumbnail.querySelector('.preview-surface img')).toBeTruthy();
+    expect(thumbnail.querySelector('.preview-surface app-ocr-text-overlay')).toBeTruthy();
+  });
+
   function readyOcr(): PageOcr {
     return {
       resultId: 'r1', state: 'Ready', elementCount: 0, canRetry: false, elements: [],

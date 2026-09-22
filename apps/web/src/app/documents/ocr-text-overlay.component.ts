@@ -41,6 +41,7 @@ export class OcrTextOverlayComponent implements OnChanges, OnDestroy {
   });
 
   private dragStart?: OcrPoint;
+  private dragStartClient?: OcrPoint;
   private activePointerId?: number;
   private anchorIndex?: number;
 
@@ -53,7 +54,9 @@ export class OcrTextOverlayComponent implements OnChanges, OnDestroy {
     if (!point) return;
     event.stopPropagation();
     event.preventDefault();
+    (event.currentTarget as SVGSVGElement).focus();
     this.dragStart = point;
+    this.dragStartClient = { x: event.clientX, y: event.clientY };
     this.activePointerId = event.pointerId;
     const target = event.currentTarget as SVGSVGElement;
     target.setPointerCapture?.(event.pointerId);
@@ -75,7 +78,18 @@ export class OcrTextOverlayComponent implements OnChanges, OnDestroy {
 
   protected finishSelection(event: PointerEvent): void {
     if (!this.dragStart || event.pointerId !== this.activePointerId) return;
-    this.updateSelection(event);
+    const point = this.toNormalizedPoint(event);
+    const clickSized = this.dragStartClient !== undefined &&
+      Math.hypot(
+        event.clientX - this.dragStartClient.x,
+        event.clientY - this.dragStartClient.y,
+      ) <= 4;
+    if (point && clickSized) {
+      event.stopPropagation();
+      this.applyRegion({ x1: point.x, y1: point.y, x2: point.x, y2: point.y });
+    } else {
+      this.updateSelection(event);
+    }
     this.endGesture(event);
   }
 
@@ -83,6 +97,7 @@ export class OcrTextOverlayComponent implements OnChanges, OnDestroy {
     if (this.activePointerId !== undefined &&
         event.pointerId !== undefined && event.pointerId !== this.activePointerId) return;
     this.dragStart = undefined;
+    this.dragStartClient = undefined;
     this.activePointerId = undefined;
   }
 
@@ -136,11 +151,13 @@ export class OcrTextOverlayComponent implements OnChanges, OnDestroy {
     const target = event.currentTarget as SVGSVGElement;
     if (target.hasPointerCapture?.(event.pointerId)) target.releasePointerCapture(event.pointerId);
     this.dragStart = undefined;
+    this.dragStartClient = undefined;
     this.activePointerId = undefined;
   }
 
   private clearSelection(): void {
     this.dragStart = undefined;
+    this.dragStartClient = undefined;
     this.activePointerId = undefined;
     this.anchorIndex = undefined;
     this.focusedIndex.set(-1);

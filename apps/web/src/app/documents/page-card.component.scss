@@ -12,7 +12,6 @@
   position: relative;
   display: grid;
   place-items: center;
-  aspect-ratio: 3 / 4;
   overflow: hidden;
   background: linear-gradient(145deg, #e7eeea, #f5f7f6);
 }
@@ -33,7 +32,8 @@ app-ocr-text-overlay {
 .preview-pending {
   display: grid;
   place-content: center;
-  height: 100%;
+  width: 100%;
+  aspect-ratio: 3 / 4;
   color: #73857d;
   text-align: center;
 }
