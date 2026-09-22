@@ -17,6 +17,13 @@ const sharedEnvironment = {
   DocumentBoundary__Mode: 'ManualOnly',
   Audit__SigningKeyBase64: 'MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=',
   Audit__SigningKeyId: 'e2e-local-only',
+  Ocr__Enabled: process.env['E2E_OCR_READY'] === '1' ? 'true' : 'false',
+  Ocr__Provider: process.env['E2E_OCR_READY'] === '1' ? 'Fake' : 'Disabled',
+  Ocr__Language: 'en',
+  Ocr__MaxAttempts: '3',
+  Ocr__TimeoutSeconds: '30',
+  Ocr__MaxElements: '10000',
+  Ocr__MaxRecognizedCharacters: '1000000',
 };
 
 function start(command: string, args: string[], environment = process.env): ChildProcess {
