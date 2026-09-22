@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { DocumentPage } from './document.models';
+import { DocumentPage, PageOcr } from './document.models';
 import { PageCardComponent } from './page-card.component';
 
 describe('PageCardComponent', () => {
@@ -38,4 +38,33 @@ describe('PageCardComponent', () => {
     expect(fixture.nativeElement.querySelector('img').alt).toBe('Thumbnail of page 2');
     expect(fixture.nativeElement.querySelector('[aria-label="Move page 2 earlier"]')).toBeTruthy();
   });
+
+  it('shows the selection overlay only for a Ready OCR result with a preview', async () => {
+    await TestBed.configureTestingModule({
+      imports: [PageCardComponent],
+      providers: [provideRouter([])],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(PageCardComponent);
+    fixture.componentRef.setInput('page', { ...page, state: 'Ready' });
+    fixture.componentRef.setInput('documentId', 'doc-1');
+    fixture.componentRef.setInput('thumbnailUrl', 'blob:preview');
+    fixture.componentRef.setInput('ocr', readyOcr());
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('app-ocr-text-overlay')).toBeTruthy();
+
+    fixture.componentRef.setInput('ocr', { ...readyOcr(), state: 'Processing' });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('app-ocr-text-overlay')).toBeNull();
+
+    fixture.componentRef.setInput('ocr', readyOcr());
+    fixture.componentRef.setInput('thumbnailUrl', undefined);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('app-ocr-text-overlay')).toBeNull();
+  });
+
+  function readyOcr(): PageOcr {
+    return {
+      resultId: 'r1', state: 'Ready', elementCount: 0, canRetry: false, elements: [],
+    };
+  }
 });

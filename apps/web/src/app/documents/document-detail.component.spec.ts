@@ -4,7 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, provideRouter } from '@angular/router';
 import { vi } from 'vitest';
 import { API_BASE_URL } from '../core/api/security.interceptor';
-import { DocumentDetail, DocumentPage } from './document.models';
+import { DocumentDetail, DocumentPage, PageOcr } from './document.models';
 import { DocumentDetailComponent } from './document-detail.component';
 import { DocumentsApiService } from './documents-api.service';
 
@@ -106,5 +106,20 @@ describe('DocumentDetailComponent organizer', () => {
     expect(component.announcement()).toBe(
       'Page order changed in another session. The latest order has been restored.',
     );
+  });
+
+  it('keeps OCR snapshots page-local and removes them when a page disappears', async () => {
+    const { component, api } = setup();
+    await component.load();
+    const ready: PageOcr = {
+      resultId: 'ocr-p2', state: 'Ready', elementCount: 0, canRetry: false, elements: [],
+    };
+
+    component.ocrUpdated('p2', ready);
+    expect(component.ocrByPage()).toEqual({ p2: ready });
+
+    api.getDocument.mockResolvedValueOnce(detail([page('p1', 1)]));
+    await component.load();
+    expect(component.ocrByPage()).toEqual({});
   });
 });

@@ -5,7 +5,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { API_BASE_URL } from '../core/api/security.interceptor';
 import { AddPagesDialogComponent } from './add-pages-dialog.component';
-import { DocumentDetail, DocumentPage } from './document.models';
+import { DocumentDetail, DocumentPage, PageOcr } from './document.models';
 import { DocumentsApiService } from './documents-api.service';
 import { ExportStatusComponent } from './export-status.component';
 import { PageCardComponent } from './page-card.component';
@@ -33,6 +33,7 @@ export class DocumentDetailComponent implements OnInit, OnDestroy {
   protected readonly id = this.route.snapshot.paramMap.get('documentId') ?? '';
   protected readonly document = signal<DocumentDetail | null>(null);
   protected readonly images = signal<Record<string, string>>({});
+  protected readonly ocrByPage = signal<Record<string, PageOcr>>({});
   protected readonly error = signal('');
   protected readonly announcement = signal('');
   protected readonly retrying = signal(false);
@@ -100,6 +101,10 @@ export class DocumentDetailComponent implements OnInit, OnDestroy {
     void this.load();
   }
 
+  protected ocrUpdated(pageId: string, ocr: PageOcr): void {
+    this.ocrByPage.update((current) => ({ ...current, [pageId]: ocr }));
+  }
+
   private async persistOrder(pages: DocumentPage[]): Promise<void> {
     const doc = this.document();
     if (!doc || this.reordering()) return;
@@ -143,6 +148,9 @@ export class DocumentDetailComponent implements OnInit, OnDestroy {
 
   private async loadPreviews(doc: DocumentDetail): Promise<void> {
     const activeIds = new Set(doc.pages.map((page) => page.id));
+    this.ocrByPage.update((current) => Object.fromEntries(
+      Object.entries(current).filter(([pageId]) => activeIds.has(pageId)),
+    ));
     for (const [pageId, url] of Object.entries(this.images())) {
       if (!activeIds.has(pageId)) {
         URL.revokeObjectURL(url);

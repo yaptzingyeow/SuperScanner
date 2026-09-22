@@ -47,6 +47,8 @@ describe('OcrStatusComponent', () => {
   });
 
   it('polls pending OCR and stops when Ready', async () => {
+    const emitted: PageOcr[] = [];
+    fixture.componentInstance.statusChange.subscribe((value) => emitted.push(value));
     api.getPageOcr.mockResolvedValueOnce(queued).mockResolvedValueOnce(ready);
     fixture.detectChanges();
     await vi.advanceTimersByTimeAsync(0);
@@ -58,6 +60,7 @@ describe('OcrStatusComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('12 text elements recognized');
     expect(fixture.nativeElement.textContent).toContain('94% confidence');
     expect(api.getPageOcr).toHaveBeenCalledTimes(2);
+    expect(emitted).toEqual([queued, ready]);
     await vi.advanceTimersByTimeAsync(3000);
     expect(api.getPageOcr).toHaveBeenCalledTimes(2);
   });
@@ -81,6 +84,8 @@ describe('OcrStatusComponent', () => {
   });
 
   it('starts recognition and exposes no fabricated progress percentage', async () => {
+    const emitted: PageOcr[] = [];
+    fixture.componentInstance.statusChange.subscribe((value) => emitted.push(value));
     api.getPageOcr.mockResolvedValueOnce(notRequested);
     fixture.detectChanges();
     await vi.advanceTimersByTimeAsync(0);
@@ -94,8 +99,20 @@ describe('OcrStatusComponent', () => {
     fixture.detectChanges();
 
     expect(api.requestPageOcr).toHaveBeenCalledWith('d1', 'p1', false);
+    expect(emitted).toEqual([notRequested, queued]);
     expect(fixture.nativeElement.textContent).toContain('Waiting for text recognition');
     expect(fixture.nativeElement.textContent).not.toMatch(/\d+% complete/);
+  });
+
+  it('does not emit a new snapshot when an OCR refresh fails', async () => {
+    const emitted: PageOcr[] = [];
+    fixture.componentInstance.statusChange.subscribe((value) => emitted.push(value));
+    api.getPageOcr.mockRejectedValueOnce(new Error('private upstream detail'));
+
+    fixture.detectChanges();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(emitted).toEqual([]);
   });
 
   it('shows only safe failure copy and allows retry when the API permits it', async () => {

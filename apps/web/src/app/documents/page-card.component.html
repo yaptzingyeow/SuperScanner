@@ -4,7 +4,12 @@
 >
   <div class="thumbnail">
     @if (thumbnailUrl) {
-      <img [src]="thumbnailUrl" [alt]="'Thumbnail of page ' + page.position" />
+      <div class="preview-surface">
+        <img [src]="thumbnailUrl" [alt]="'Thumbnail of page ' + page.position" />
+        @if (ocr?.state === 'Ready') {
+          <app-ocr-text-overlay [pageId]="page.id" [ocr]="ocr!" />
+        }
+      </div>
     } @else {
       <div class="preview-pending"><span>▧</span><small>Preview pending</small></div>
     }

@@ -1,5 +1,5 @@
 import { DatePipe, DecimalPipe } from '@angular/common';
-import { Component, Input, OnDestroy, OnInit, inject, signal } from '@angular/core';
+import { Component, EventEmitter, Input, OnDestroy, OnInit, Output, inject, signal } from '@angular/core';
 import { PageOcr } from './document.models';
 import { DocumentsApiService } from './documents-api.service';
 
@@ -14,6 +14,7 @@ export class OcrStatusComponent implements OnInit, OnDestroy {
   private readonly api = inject(DocumentsApiService);
   @Input({ required: true }) documentId = '';
   @Input({ required: true }) pageId = '';
+  @Output() readonly statusChange = new EventEmitter<PageOcr>();
   protected readonly status = signal<PageOcr | null>(null);
   protected readonly busy = signal(false);
   protected readonly error = signal('');
@@ -33,6 +34,7 @@ export class OcrStatusComponent implements OnInit, OnDestroy {
       const next = await this.api.requestPageOcr(this.documentId, this.pageId, retryFailed);
       if (this.destroyed) return;
       this.status.set(next);
+      this.statusChange.emit(next);
       this.schedule(next);
     } catch {
       if (!this.destroyed)
@@ -48,6 +50,7 @@ export class OcrStatusComponent implements OnInit, OnDestroy {
       const next = await this.api.getPageOcr(this.documentId, this.pageId);
       if (this.destroyed) return;
       this.status.set(next);
+      this.statusChange.emit(next);
       this.error.set('');
       this.schedule(next);
     } catch {

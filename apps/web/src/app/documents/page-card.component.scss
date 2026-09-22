@@ -10,14 +10,25 @@
 }
 .thumbnail {
   position: relative;
+  display: grid;
+  place-items: center;
   aspect-ratio: 3 / 4;
   overflow: hidden;
   background: linear-gradient(145deg, #e7eeea, #f5f7f6);
 }
-img {
+.preview-surface {
+  position: relative;
   width: 100%;
-  height: 100%;
-  object-fit: contain;
+}
+img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+app-ocr-text-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
 }
 .preview-pending {
   display: grid;
@@ -41,6 +52,7 @@ img {
   background: #17372b;
   color: #fff;
   font-weight: 800;
+  z-index: 2;
 }
 .drag-handle {
   position: absolute;
@@ -55,6 +67,7 @@ img {
   color: #315347;
   font-size: 22px;
   cursor: grab;
+  z-index: 2;
 }
 .card-body {
   padding: 15px;

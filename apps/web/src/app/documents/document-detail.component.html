@@ -36,6 +36,7 @@
               [page]="page"
               [documentId]="doc.id"
               [thumbnailUrl]="images()[page.id]"
+              [ocr]="ocrByPage()[page.id]"
               [first]="$first"
               [last]="$last"
               (movePage)="move(page.id, $event)"
@@ -43,7 +44,11 @@
               (downloadOriginal)="download(page.id)"
             />
             @if (page.state === 'Ready') {
-              <app-ocr-status [documentId]="doc.id" [pageId]="page.id" />
+              <app-ocr-status
+                [documentId]="doc.id"
+                [pageId]="page.id"
+                (statusChange)="ocrUpdated(page.id, $event)"
+              />
             }
           </div>
         }
