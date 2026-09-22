@@ -21,16 +21,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddSingleton<IClock, SuperScanner.Infrastructure.Time.SystemClock>();
 builder.Services.AddScoped<IProcessingJobQueue, PostgresJobQueue>();
 builder.Services.AddScoped<IOcrRepository, EfOcrRepository>();
-builder.Services.AddOptions<OcrOptions>()
-    .BindConfiguration(OcrOptions.SectionName)
-    .Validate(options => options.IsValid(builder.Environment.EnvironmentName),
-        "OCR configuration is invalid.")
-    .ValidateOnStart();
-if (string.Equals(builder.Configuration["Ocr:Provider"], "Fake", StringComparison.Ordinal))
-    builder.Services.AddSingleton<IOcrProvider, FakeOcrProvider>();
-else
-    builder.Services.AddSingleton<IOcrProvider, DisabledOcrProvider>();
-builder.Services.AddSingleton<OcrMetrics>();
+builder.Services.AddOcrServices(builder.Configuration, builder.Environment);
 builder.Services.AddScoped<OcrProcessor>();
 builder.Services.AddScoped<OcrJobScheduler>();
 builder.Services.AddScoped<IUploadValidationRepository, EfUploadValidationRepository>();
