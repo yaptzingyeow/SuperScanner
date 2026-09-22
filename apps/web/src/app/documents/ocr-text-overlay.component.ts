@@ -34,9 +34,15 @@ export class OcrTextOverlayComponent implements OnChanges, OnDestroy {
     return this.words().filter((word) => ids.has(word.id));
   });
   protected readonly summary = computed(() => summarizeSelection(this.selectedWords()));
+  protected readonly focusedIndex = signal(-1);
+  protected readonly activeWordDomId = computed(() => {
+    const word = this.words()[this.focusedIndex()];
+    return word ? `ocr-word-${word.id}` : null;
+  });
 
   private dragStart?: OcrPoint;
   private activePointerId?: number;
+  private anchorIndex?: number;
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['pageId'] || changes['ocr']) this.clearSelection();
@@ -81,9 +87,36 @@ export class OcrTextOverlayComponent implements OnChanges, OnDestroy {
   }
 
   protected handleKeydown(event: KeyboardEvent): void {
-    if (event.key !== 'Escape') return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      this.clearSelection();
+      return;
+    }
+    if (event.key === 'Enter') {
+      const word = this.words()[this.focusedIndex()];
+      if (!word) return;
+      event.preventDefault();
+      this.anchorIndex = this.focusedIndex();
+      this.selectedIds.set(new Set([word.id]));
+      return;
+    }
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+    if (this.words().length === 0) return;
     event.preventDefault();
-    this.clearSelection();
+    const direction = event.key === 'ArrowRight' ? 1 : -1;
+    const current = this.focusedIndex();
+    const next = current < 0
+      ? 0
+      : Math.min(this.words().length - 1, Math.max(0, current + direction));
+    if (event.shiftKey) {
+      this.anchorIndex ??= current < 0 ? next : current;
+      const start = Math.min(this.anchorIndex, next);
+      const end = Math.max(this.anchorIndex, next);
+      this.selectedIds.set(new Set(this.words().slice(start, end + 1).map((word) => word.id)));
+    } else {
+      this.anchorIndex = next;
+    }
+    this.focusedIndex.set(next);
   }
 
   protected polygonPoints(points: OcrPoint[]): string {
@@ -109,6 +142,8 @@ export class OcrTextOverlayComponent implements OnChanges, OnDestroy {
   private clearSelection(): void {
     this.dragStart = undefined;
     this.activePointerId = undefined;
+    this.anchorIndex = undefined;
+    this.focusedIndex.set(-1);
     this.selectedIds.set(new Set());
   }
 

@@ -27,6 +27,11 @@ polygon.selected {
   stroke: rgb(29 78 216 / 90%);
 }
 
+polygon.focused {
+  stroke: rgb(30 64 175);
+  stroke-dasharray: .008 .006;
+}
+
 .selection-summary {
   position: absolute;
   z-index: 2;

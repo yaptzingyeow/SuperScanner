@@ -85,6 +85,42 @@ describe('OcrTextOverlayComponent', () => {
     expect(selectedIds()).toEqual([]);
   });
 
+  it('extends and contracts a keyboard selection in reading order', () => {
+    key('ArrowRight');
+    expect(selectedIds()).toEqual([]);
+    key('ArrowRight', true);
+    expect(selectedIds()).toEqual(['w1', 'w2']);
+    key('ArrowRight', true);
+    expect(selectedIds()).toEqual(['w1', 'w2', 'w3']);
+    key('ArrowLeft', true);
+    expect(selectedIds()).toEqual(['w1', 'w2']);
+  });
+
+  it('selects the focused word with Enter and exposes accessible selected state', () => {
+    key('ArrowRight');
+    key('ArrowRight');
+    key('Enter');
+
+    expect(selectedIds()).toEqual(['w2']);
+    expect(fixture.nativeElement.querySelector('[data-word-id="w2"]').getAttribute('aria-selected'))
+      .toBe('true');
+    expect(fixture.nativeElement.querySelector('[data-word-id="w1"]').getAttribute('aria-selected'))
+      .toBe('false');
+  });
+
+  it('keeps keyboard focus within the first and last OCR words', () => {
+    key('ArrowLeft');
+    key('Enter');
+    expect(selectedIds()).toEqual(['w1']);
+
+    key('ArrowRight');
+    key('ArrowRight');
+    key('ArrowRight');
+    key('ArrowRight');
+    key('Enter');
+    expect(selectedIds()).toEqual(['w3']);
+  });
+
   it('finishes safely when pointer capture is cancelled or lost', () => {
     pointer('pointerdown', 145, 95);
     pointer('pointermove', 350, 150);
@@ -144,6 +180,16 @@ describe('OcrTextOverlayComponent', () => {
       clientX: { value: clientX }, clientY: { value: clientY }, pointerId: { value: 7 },
     });
     svg().dispatchEvent(event);
+    fixture.detectChanges();
+  }
+
+  function key(value: string, shiftKey = false): void {
+    svg().dispatchEvent(new KeyboardEvent('keydown', {
+      key: value,
+      shiftKey,
+      bubbles: true,
+      cancelable: true,
+    }));
     fixture.detectChanges();
   }
 });

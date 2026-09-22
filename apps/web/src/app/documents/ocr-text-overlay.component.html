@@ -7,7 +7,10 @@
       viewBox="0 0 1 1"
       preserveAspectRatio="none"
       tabindex="0"
+      role="listbox"
+      aria-multiselectable="true"
       aria-describedby="ocr-selection-help"
+      [attr.aria-activedescendant]="activeWordDomId()"
       (pointerdown)="beginSelection($event)"
       (pointermove)="updateSelection($event)"
       (pointerup)="finishSelection($event)"
@@ -17,8 +20,13 @@
     >
       @for (word of words(); track word.id) {
         <polygon
+          [id]="'ocr-word-' + word.id"
+          role="option"
           [attr.points]="polygonPoints(word.polygon)"
           [attr.data-word-id]="word.id"
+          [attr.aria-label]="word.text"
+          [attr.aria-selected]="selectedIds().has(word.id)"
+          [class.focused]="activeWordDomId() === 'ocr-word-' + word.id"
           [class.selected]="selectedIds().has(word.id)"
         />
       }
