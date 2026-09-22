@@ -1,12 +1,13 @@
 using System.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using SuperScanner.Application.Abstractions;
 using SuperScanner.Domain.Processing;
 using SuperScanner.Infrastructure.Persistence;
 
 namespace SuperScanner.Infrastructure.Processing;
 
-public sealed class PostgresJobQueue(AppDbContext db, IClock clock) : IProcessingJobQueue
+public sealed class PostgresJobQueue(AppDbContext db, IClock clock, IOptions<DocumentImportOptions>? importOptions = null) : IProcessingJobQueue
 {
     private static readonly TimeSpan[] RetryDelays =
     [
@@ -17,6 +18,8 @@ public sealed class PostgresJobQueue(AppDbContext db, IClock clock) : IProcessin
         TimeSpan.FromMinutes(30)
     ];
 
+    public const int DefaultMaxAttempts = 6;
+
     public async Task EnqueueAsync(
         string type,
         string payload,
@@ -26,9 +29,10 @@ public sealed class PostgresJobQueue(AppDbContext db, IClock clock) : IProcessin
         var id = Guid.NewGuid();
         var now = clock.UtcNow;
         var queued = ProcessingJobStatus.Queued.ToString();
-        await using var transaction = await db.Database.BeginTransactionAsync(
-            IsolationLevel.ReadCommitted,
-            cancellationToken);
+        // Commands may own the transaction so their mutation, audit, and job commit atomically.
+        await using var transaction = db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken)
+            : null;
         await db.Database.ExecuteSqlInterpolatedAsync($"""
             INSERT INTO processing_jobs
                 ("Id", "Type", "Payload", "IdempotencyKey", "Status", "CreatedAt",
@@ -38,8 +42,11 @@ public sealed class PostgresJobQueue(AppDbContext db, IClock clock) : IProcessin
                  {now}, {now}, {0}, {null}, {null}, {null})
             ON CONFLICT ("IdempotencyKey") DO NOTHING
             """, cancellationToken);
-        await db.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
+        if (transaction is not null)
+        {
+            await db.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
     }
 
     public async Task<ProcessingJobLease?> TryLeaseAsync(
@@ -122,8 +129,41 @@ public sealed class PostgresJobQueue(AppDbContext db, IClock clock) : IProcessin
         MutateOwnedLeaseAsync(
             jobId,
             workerId,
-            job => job.Reschedule(workerId, clock.UtcNow, errorCode, RetryDelays),
+            job => job.Reschedule(workerId, clock.UtcNow, errorCode, job.Type is "ExpandDocumentImport" or "ProcessDocument"
+                ? Enumerable.Range(0, Math.Max(0, (importOptions?.Value.MaxAttempts ?? 6) - 1))
+                    .Select(index => RetryDelays[Math.Min(index, RetryDelays.Length - 1)]).ToArray()
+                : RetryDelays),
             cancellationToken);
+
+    public Task FailAsync(
+        Guid jobId,
+        string workerId,
+        string errorCode,
+        CancellationToken cancellationToken) =>
+        MutateOwnedLeaseAsync(
+            jobId,
+            workerId,
+            job => job.Fail(workerId, clock.UtcNow, errorCode),
+            cancellationToken);
+
+    public async Task RetryFailedAsync(
+        string idempotencyKey,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
+        if (db.Database.CurrentTransaction is null)
+            throw new InvalidOperationException("Retrying an OCR job requires a transaction.");
+
+        var job = await db.ProcessingJobs.SingleOrDefaultAsync(
+            candidate => candidate.IdempotencyKey == idempotencyKey &&
+                         candidate.Status == ProcessingJobStatus.Failed,
+            cancellationToken);
+        if (job is null)
+            throw new InvalidOperationException("The failed processing job was not found.");
+
+        job.Retry(clock.UtcNow);
+        await db.SaveChangesAsync(cancellationToken);
+    }
 
     private async Task MutateOwnedLeaseAsync(
         Guid jobId,

@@ -5,12 +5,14 @@ using SuperScanner.Api.Auth;
 using SuperScanner.Api.Endpoints;
 using SuperScanner.Application.Abstractions;
 using SuperScanner.Application.Documents;
+using SuperScanner.Application.Ocr;
 using SuperScanner.Application.Uploads;
 using SuperScanner.Infrastructure.Auth;
 using SuperScanner.Infrastructure.Persistence;
 using SuperScanner.Infrastructure.Processing;
 using SuperScanner.Infrastructure.ObjectStorage;
 using SuperScanner.Infrastructure.Auditing;
+using SuperScanner.Infrastructure.Ocr;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -59,13 +61,31 @@ builder.Services.AddHealthChecks();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("PostgreSql") ?? string.Empty));
 builder.Services.AddScoped<IDocumentRepository, EfDocumentRepository>();
+builder.Services.AddScoped<IDocumentExportRepository, EfDocumentExportRepository>();
+builder.Services.AddSingleton(new DocumentExportPolicy(builder.Configuration.GetValue("DocumentExport:RetentionDays", 7)));
+builder.Services.AddScoped<CreateDocumentExport>();
+builder.Services.AddScoped<GetDocumentExport>();
 builder.Services.AddSingleton<IClock, SuperScanner.Infrastructure.Time.SystemClock>();
 builder.Services.AddScoped<CreateDocument>();
 builder.Services.AddScoped<ListDocuments>();
+builder.Services.AddScoped<ReorderPages>();
+builder.Services.AddScoped<RemovePage>();
 builder.Services.AddScoped<IUploadIntentRepository, EfUploadIntentRepository>();
 builder.Services.AddSingleton(new UploadPolicy(50, 25 * 1024 * 1024));
 builder.Services.AddScoped<CreateUploadIntent>();
 builder.Services.AddScoped<IProcessingJobQueue, PostgresJobQueue>();
+builder.Services.AddScoped<IOcrRepository, EfOcrRepository>();
+builder.Services.AddScoped<RequestPageOcr>();
+builder.Services.AddScoped<GetPageOcr>();
+builder.Services.AddOptions<OcrOptions>()
+    .BindConfiguration(OcrOptions.SectionName)
+    .Validate(options => options.IsValid(builder.Environment.EnvironmentName),
+        "OCR configuration is invalid.")
+    .ValidateOnStart();
+builder.Services.AddOptions<DocumentImportOptions>()
+    .BindConfiguration(DocumentImportOptions.SectionName)
+    .Validate(options => options.IsValid(), "Document import configuration is invalid.")
+    .ValidateOnStart();
 builder.Services.AddScoped<CompleteUpload>();
 builder.Services.AddScoped<GetUploadStatus>();
 builder.Services.Configure<R2Options>(builder.Configuration.GetSection(R2Options.SectionName));
@@ -101,8 +121,11 @@ app.MapGet("/api/me", (ICurrentUser currentUser) =>
         Results.Ok(new { firebaseUid = currentUser.FirebaseUid }))
     .RequireAuthorization();
 DocumentsEndpoints.Map(app);
+PageManagementEndpoints.Map(app);
+DocumentExportEndpoints.Map(app);
 DocumentPreviewEndpoints.Map(app);
 CropEndpoints.Map(app);
+OcrEndpoints.Map(app);
 UploadsEndpoints.Map(app);
 app.MapHealthChecks("/health");
 if (e2eIdentityEnabled)

@@ -41,8 +41,7 @@ public static class CropEndpoints
                 ["points"] = ["Choose four clockwise corners that form a convex shape covering at least 1% of the image."]
             });
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
-        var page = await db.Pages.FromSqlInterpolated($"SELECT * FROM pages WHERE \"Id\" = {pageId} AND \"DocumentId\" = {documentId} FOR UPDATE")
-            .SingleOrDefaultAsync(ct);
+        var page = await CropDocumentStatus.LockSubmissionPageAsync(db, documentId, pageId, ct);
         if (page?.CropSourceObjectKey is null) return Results.NotFound();
         if (request.Revision != page.CropRevision) return Results.Conflict(new { message = "This crop changed. Reload before editing." });
         page.BeginCrop(detect, detect ? null : JsonSerializer.Serialize(request.Points, Json));

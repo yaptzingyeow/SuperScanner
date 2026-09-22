@@ -1,0 +1,46 @@
+<section class="ocr-card" aria-live="polite" aria-label="Text recognition status">
+  <div class="heading">
+    <span class="icon" aria-hidden="true">Aa</span>
+    <strong>Text recognition</strong>
+  </div>
+  @if (status(); as item) {
+    @switch (item.state) {
+      @case ('NotRequested') {
+        <p>Make this page searchable and ready for future text editing.</p>
+        <button type="button" [disabled]="busy()" (click)="recognize(false)">
+          {{ busy() ? 'Starting…' : 'Recognize text' }}
+        </button>
+      }
+      @case ('Queued') {
+        <p><span class="pulse" aria-hidden="true"></span> Waiting for text recognition…</p>
+      }
+      @case ('Processing') {
+        <p><span class="pulse" aria-hidden="true"></span> Recognizing printed and handwritten text…</p>
+      }
+      @case ('Ready') {
+        <p class="ready"><strong>{{ item.elementCount }} text elements recognized</strong></p>
+        <div class="facts">
+          @if (item.aggregateConfidence !== null && item.aggregateConfidence !== undefined) {
+            <span>{{ item.aggregateConfidence * 100 | number: '1.0-0' }}% confidence</span>
+          }
+          @if (item.completedAt) {
+            <span>Completed {{ item.completedAt | date: 'medium' }}</span>
+          }
+        </div>
+      }
+      @case ('Failed') {
+        <p>Text recognition did not finish. Your scan is unchanged.</p>
+        @if (item.canRetry) {
+          <button type="button" [disabled]="busy()" (click)="recognize(true)">
+            {{ busy() ? 'Retrying…' : 'Retry text recognition' }}
+          </button>
+        }
+      }
+    }
+  } @else if (!error()) {
+    <p>Checking text recognition…</p>
+  }
+  @if (error()) {
+    <p class="error" role="alert">{{ error() }}</p>
+  }
+</section>

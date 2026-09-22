@@ -12,8 +12,9 @@ public sealed class R2ObjectStore : IObjectStore, IDisposable
     private readonly IAmazonS3 _client;
     private readonly string _bucketName;
     private readonly Protocol _presignedUrlProtocol;
+    private readonly bool _disablePayloadSigning;
 
-    public R2ObjectStore(IOptions<R2Options> options)
+    public R2ObjectStore(IOptions<R2Options> options, IAmazonS3? client = null)
     {
         ArgumentNullException.ThrowIfNull(options);
         var value = options.Value;
@@ -31,7 +32,8 @@ public sealed class R2ObjectStore : IObjectStore, IDisposable
         _presignedUrlProtocol = customEndpoint?.Scheme == Uri.UriSchemeHttp
             ? Protocol.HTTP
             : Protocol.HTTPS;
-        _client = new AmazonS3Client(
+        _disablePayloadSigning = _presignedUrlProtocol == Protocol.HTTPS;
+        _client = client ?? new AmazonS3Client(
             new BasicAWSCredentials(value.AccessKeyId, value.SecretAccessKey),
             new AmazonS3Config
             {
@@ -88,10 +90,17 @@ public sealed class R2ObjectStore : IObjectStore, IDisposable
         string objectKey,
         CancellationToken cancellationToken)
     {
-        var response = await _client.GetObjectAsync(
-            new GetObjectRequest { BucketName = _bucketName, Key = objectKey },
-            cancellationToken);
-        return new ResponseOwnedStream(response);
+        try
+        {
+            var response = await _client.GetObjectAsync(
+                new GetObjectRequest { BucketName = _bucketName, Key = objectKey },
+                cancellationToken);
+            return new ResponseOwnedStream(response);
+        }
+        catch (AmazonS3Exception exception) when (exception.StatusCode == HttpStatusCode.NotFound)
+        {
+            throw new FileNotFoundException("The requested private object was not found.", exception);
+        }
     }
 
     public async Task PromoteAsync(
@@ -118,15 +127,40 @@ public sealed class R2ObjectStore : IObjectStore, IDisposable
 
     public void Dispose() => _client.Dispose();
 
-    public async Task WriteImageAsync(string key, Stream content, CancellationToken cancellationToken)
+    public async Task WriteAsync(string objectKey, string mediaType, Stream content, CancellationToken cancellationToken)
     {
         await _client.PutObjectAsync(new Amazon.S3.Model.PutObjectRequest
         {
-            BucketName = _bucketName, Key = key, InputStream = content,
-            ContentType = "image/jpeg", DisablePayloadSigning = true,
+            BucketName = _bucketName, Key = objectKey, InputStream = content,
+            ContentType = mediaType, DisablePayloadSigning = _disablePayloadSigning,
             DisableDefaultChecksumValidation = true, AutoCloseStream = false
         }, cancellationToken);
     }
+
+    public async Task<ObjectCreationResult> WriteIfAbsentAsync(
+        string objectKey, string mediaType, Stream content, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _client.PutObjectAsync(new Amazon.S3.Model.PutObjectRequest
+            {
+                BucketName = _bucketName, Key = objectKey, InputStream = content,
+                ContentType = mediaType, DisablePayloadSigning = _disablePayloadSigning,
+                DisableDefaultChecksumValidation = true, AutoCloseStream = false,
+                IfNoneMatch = "*"
+            }, cancellationToken);
+            return ObjectCreationResult.Created;
+        }
+        catch (AmazonS3Exception exception) when (
+            exception.StatusCode == HttpStatusCode.PreconditionFailed && exception.ErrorCode == "PreconditionFailed")
+        {
+            return ObjectCreationResult.AlreadyExists;
+        }
+    }
+
+    // Kept for callers not yet migrated to the media-type-aware write contract.
+    public Task WriteImageAsync(string key, Stream content, CancellationToken cancellationToken) =>
+        WriteAsync(key, "image/jpeg", content, cancellationToken);
 
     private sealed class ResponseOwnedStream(GetObjectResponse response) : Stream
     {

@@ -155,6 +155,24 @@ public sealed class JobLeaseTests : IAsyncLifetime
         Assert.Equal("scanner_unavailable", failedJob.ErrorCode);
     }
 
+    [Fact]
+    public async Task FailAsync_TerminalizesOwnedLeaseWithSafeCode()
+    {
+        var clock = new MutableClock(Start);
+        await using var db = CreateDb();
+        var queue = new PostgresJobQueue(db, clock);
+        await queue.EnqueueAsync("RecognizePageText", Guid.NewGuid().ToString(), "ocr:terminal", default);
+        var lease = await queue.TryLeaseAsync("worker-a", TimeSpan.FromMinutes(2), default);
+
+        await queue.FailAsync(lease!.Id, "worker-a", "ocr_invalid_response", default);
+
+        var job = await db.ProcessingJobs.AsNoTracking().SingleAsync();
+        Assert.Equal(ProcessingJobStatus.Failed, job.Status);
+        Assert.Equal("ocr_invalid_response", job.ErrorCode);
+        Assert.Null(job.WorkerId);
+        Assert.Null(job.LeaseExpiresAt);
+    }
+
     public async Task InitializeAsync()
     {
         await _postgres.StartAsync();

@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('../dist/web/browser/', import.meta.url));
 const host = '127.0.0.1';
 const port = 4300;
+const apiUpstream = new URL(process.env['E2E_API_UPSTREAM'] ?? 'http://127.0.0.1:5080');
 const types = new Map([
   ['.css', 'text/css; charset=utf-8'],
   ['.html', 'text/html; charset=utf-8'],
@@ -23,8 +24,8 @@ const server = createServer((incoming, outgoing) => {
   if (requestUrl.pathname.startsWith('/api/')) {
     const proxy = proxyRequest(
       {
-        hostname: '127.0.0.1',
-        port: 5080,
+        hostname: apiUpstream.hostname,
+        port: apiUpstream.port,
         path: `${requestUrl.pathname}${requestUrl.search}`,
         method: incoming.method,
         headers: incoming.headers,

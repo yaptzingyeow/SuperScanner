@@ -1,0 +1,85 @@
+.export-panel {
+  display: grid;
+  gap: 14px;
+  margin-top: 30px;
+  padding: 22px;
+  border: 1px solid #d9e3de;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 8px 24px #244b3c0d;
+}
+.eyebrow {
+  margin: 0 0 4px;
+  color: #657970;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+h2 {
+  margin: 0;
+  font-size: 22px;
+}
+p {
+  margin: 0;
+  color: #5d7168;
+}
+.export-state {
+  display: grid;
+  gap: 8px;
+  padding: 13px;
+  border-radius: 12px;
+  background: #f3f7f5;
+}
+.export-state span {
+  width: fit-content;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #e4f2eb;
+  color: #205c44;
+  font-size: 12px;
+  font-weight: 800;
+}
+.export-state span[data-state='Failed'] {
+  background: #ffebe8;
+  color: #963627;
+}
+.actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+button {
+  width: fit-content;
+  border: 1px solid #155d46;
+  border-radius: 11px;
+  padding: 10px 15px;
+  background: #155d46;
+  color: #fff;
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+button.secondary {
+  background: #fff;
+  color: #155d46;
+}
+button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+.hint {
+  font-size: 12px;
+}
+.error {
+  color: #9b3325;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}

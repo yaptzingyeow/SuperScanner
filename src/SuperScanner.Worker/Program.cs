@@ -7,6 +7,8 @@ using SuperScanner.Infrastructure.Persistence;
 using SuperScanner.Infrastructure.Processing;
 using SuperScanner.Infrastructure.Security;
 using SuperScanner.Infrastructure.Auditing;
+using SuperScanner.Infrastructure.Ocr;
+using SuperScanner.Application.Ocr;
 
 var builder = WebApplication.CreateBuilder(args);
 if (builder.Environment.IsEnvironment("E2E"))
@@ -18,6 +20,19 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("PostgreSql") ?? string.Empty));
 builder.Services.AddSingleton<IClock, SuperScanner.Infrastructure.Time.SystemClock>();
 builder.Services.AddScoped<IProcessingJobQueue, PostgresJobQueue>();
+builder.Services.AddScoped<IOcrRepository, EfOcrRepository>();
+builder.Services.AddOptions<OcrOptions>()
+    .BindConfiguration(OcrOptions.SectionName)
+    .Validate(options => options.IsValid(builder.Environment.EnvironmentName),
+        "OCR configuration is invalid.")
+    .ValidateOnStart();
+if (string.Equals(builder.Configuration["Ocr:Provider"], "Fake", StringComparison.Ordinal))
+    builder.Services.AddSingleton<IOcrProvider, FakeOcrProvider>();
+else
+    builder.Services.AddSingleton<IOcrProvider, DisabledOcrProvider>();
+builder.Services.AddSingleton<OcrMetrics>();
+builder.Services.AddScoped<OcrProcessor>();
+builder.Services.AddScoped<OcrJobScheduler>();
 builder.Services.AddScoped<IUploadValidationRepository, EfUploadValidationRepository>();
 builder.Services.AddSingleton(new UploadValidationPolicy(25 * 1024 * 1024));
 builder.Services.AddScoped<ValidateUpload>();
@@ -25,6 +40,17 @@ builder.Services.Configure<R2Options>(builder.Configuration.GetSection(R2Options
 builder.Services.AddSingleton<R2ObjectStore>();
 builder.Services.AddSingleton<IObjectStore>(sp => sp.GetRequiredService<R2ObjectStore>());
 builder.Services.AddScoped<DocumentPreviewProcessor>();
+builder.Services.AddOptions<DocumentImportOptions>()
+    .BindConfiguration(DocumentImportOptions.SectionName)
+    .Validate(options => options.IsValid(), "Document import configuration is invalid.")
+    .ValidateOnStart();
+builder.Services.AddScoped<IPdfImportTool, PopplerPdfImportTool>();
+builder.Services.AddScoped<DocumentImportProcessor>();
+builder.Services.AddSingleton(new DocumentPdfLimits
+{
+    MaxPdfBytes = builder.Configuration.GetValue("DocumentExport:MaxOutputBytes", 104_857_600L)
+});
+builder.Services.AddScoped<DocumentPdfBuilder>();
 builder.Services.AddOptions<DocumentBoundaryOptions>()
     .BindConfiguration(DocumentBoundaryOptions.SectionName)
     .Validate(options => options.IsValid(), "Document boundary configuration is invalid.")

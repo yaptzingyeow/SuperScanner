@@ -1,5 +1,20 @@
 name: superscanner
 
+# Apply this environment block to API/Worker containers when they are added to
+# the local compose stack. The current stack intentionally hosts dependencies only.
+x-superscanner-document-processing: &superscanner-document-processing
+  DocumentImport__MaxUploadBytes: ${DOCUMENTIMPORT__MAXUPLOADBYTES:-26214400}
+  DocumentImport__MaxPagesPerImport: ${DOCUMENTIMPORT__MAXPAGESPERIMPORT:-50}
+  DocumentImport__MaxPagesPerDocument: ${DOCUMENTIMPORT__MAXPAGESPERDOCUMENT:-50}
+  DocumentImport__MaxDecodedPixels: ${DOCUMENTIMPORT__MAXDECODEDPIXELS:-250000000}
+  DocumentImport__MaxRenderedBytes: ${DOCUMENTIMPORT__MAXRENDEREDBYTES:-524288000}
+  DocumentImport__InspectTimeoutSeconds: ${DOCUMENTIMPORT__INSPECTTIMEOUTSECONDS:-15}
+  DocumentImport__PageRenderTimeoutSeconds: ${DOCUMENTIMPORT__PAGERENDERTIMEOUTSECONDS:-45}
+  DocumentImport__MaxAttempts: ${DOCUMENTIMPORT__MAXATTEMPTS:-6}
+  DocumentExport__MaxOutputBytes: ${DOCUMENTEXPORT__MAXOUTPUTBYTES:-104857600}
+  DocumentExport__RetentionDays: ${DOCUMENTEXPORT__RETENTIONDAYS:-7}
+  Pages__SoftDeleteRetentionDays: ${PAGES__SOFTDELETERETENTIONDAYS:-30}
+
 services:
   postgres:
     image: postgres:17-alpine

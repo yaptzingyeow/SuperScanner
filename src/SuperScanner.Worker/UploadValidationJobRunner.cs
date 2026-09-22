@@ -1,7 +1,12 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using SuperScanner.Application.Abstractions;
 using SuperScanner.Application.Uploads;
 using SuperScanner.Infrastructure.Processing;
+using SuperScanner.Infrastructure.Persistence;
+using SuperScanner.Infrastructure.Ocr;
+using SuperScanner.Application.Ocr;
 
 namespace SuperScanner.Worker;
 
@@ -32,37 +37,64 @@ public sealed class UploadValidationJobRunner(
         try
         {
             var cropJob = lease.Type is "DetectDocumentEdges" or "ApplyPerspectiveCrop";
+            var importJob = lease.Type is "ExpandDocumentImport" or "ProcessDocument";
+            var exportJob = lease.Type == "BuildDocumentPdf";
+            var ocrJob = lease.Type == "RecognizePageText";
             var parts = lease.Payload.Split(':');
             var revision = 0;
-            if ((!cropJob && lease.Type != "ValidateUpload" && lease.Type != "ProcessDocument") ||
-                !Guid.TryParse(parts[0], out var uploadId) ||
+            var hasParsedId = Guid.TryParse(parts[0], out var uploadId);
+            if ((!cropJob && lease.Type != "ValidateUpload" && !importJob && !exportJob && !ocrJob) ||
+                !hasParsedId ||
+                (!cropJob && parts.Length != 1) ||
                 (cropJob && (parts.Length != 2 || !int.TryParse(parts[1], out revision) || revision < 1)))
             {
-                await queue.RescheduleAsync(lease.Id, workerId, "invalid_job", cancellationToken);
+                if (ocrJob)
+                {
+                    if (hasParsedId)
+                        await FailOcrJobAsync(lease.Id, workerId, uploadId,
+                            "invalid_job", false, cancellationToken);
+                    else
+                        await queue.FailAsync(lease.Id, workerId, "invalid_job", cancellationToken);
+                }
+                else
+                    await queue.RescheduleAsync(lease.Id, workerId, "invalid_job", cancellationToken);
                 return true;
             }
 
-            var validator = scope.ServiceProvider.GetRequiredService<ValidateUpload>();
-            var scanner = scope.ServiceProvider.GetRequiredService<IMalwareScanner>();
             try
             {
-                if (cropJob)
+                if (ocrJob)
+                {
+                    await scope.ServiceProvider.GetRequiredService<OcrProcessor>()
+                        .RunAsync(uploadId, lease.AttemptCount, workCancellation.Token);
+                }
+                else if (exportJob)
+                {
+                    await scope.ServiceProvider.GetRequiredService<DocumentPdfBuilder>()
+                        .BuildAsync(uploadId, workCancellation.Token);
+                }
+                else if (cropJob)
                 {
                     await scope.ServiceProvider.GetRequiredService<CropProcessor>()
                         .RunAsync(uploadId, revision, lease.Type == "DetectDocumentEdges", workCancellation.Token);
                 }
-                else if (lease.Type == "ProcessDocument")
+                else if (importJob)
                 {
-                    await scope.ServiceProvider.GetRequiredService<DocumentPreviewProcessor>()
+                    await scope.ServiceProvider.GetRequiredService<DocumentImportProcessor>()
                         .ProcessAsync(uploadId, workCancellation.Token);
-                    await scope.ServiceProvider.GetRequiredService<CropProcessor>()
-                        .EnsureDetectionAsync(uploadId, workCancellation.Token);
+                    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                    var upload = await db.UploadIntents.AsNoTracking().SingleAsync(x => x.Id == uploadId, workCancellation.Token);
+                    await CropDocumentStatus.RefreshAsync(db, upload.DocumentId, workCancellation.Token);
+                    if (upload.ExpansionErrorCode is "pdf_render_failed" or "pdf_timeout" or "pdf_tool_unavailable")
+                        throw new InvalidOperationException("Import processing requires a retry.");
                 }
                 else
                 {
+                    var validator = scope.ServiceProvider.GetRequiredService<ValidateUpload>();
+                    var scanner = scope.ServiceProvider.GetRequiredService<IMalwareScanner>();
                     var result = await validator.ValidateAsync(uploadId, scanner, workCancellation.Token);
                     if (result.Outcome == UploadValidationOutcome.Accepted)
-                        await queue.EnqueueAsync("ProcessDocument", uploadId.ToString(), $"upload:{uploadId}:preview:v1", workCancellation.Token);
+                        await queue.EnqueueAsync("ExpandDocumentImport", uploadId.ToString(), $"upload:{uploadId}:expand:v1", workCancellation.Token);
                 }
                 await queue.CompleteAsync(lease.Id, workerId, cancellationToken);
                 logger.LogInformation(
@@ -84,6 +116,23 @@ public sealed class UploadValidationJobRunner(
                     uploadId,
                     "scanner_unavailable");
             }
+            catch (OcrProviderException failure) when (ocrJob)
+            {
+                var ocrOptions = scope.ServiceProvider.GetRequiredService<IOptions<OcrOptions>>().Value;
+                if (failure.Retryable && lease.AttemptCount < ocrOptions.MaxAttempts)
+                {
+                    await RescheduleOcrJobAsync(
+                        lease.Id, workerId, failure.SafeCode, cancellationToken);
+                }
+                else
+                {
+                    await FailOcrJobAsync(lease.Id, workerId, uploadId,
+                        failure.SafeCode, failure.Retryable, cancellationToken);
+                }
+                logger.LogWarning(
+                    "OCR job did not complete. JobId={JobId} ResultId={ResultId} ErrorCode={ErrorCode}",
+                    lease.Id, uploadId, failure.SafeCode);
+            }
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
                 logger.LogWarning(
@@ -92,20 +141,53 @@ public sealed class UploadValidationJobRunner(
                     uploadId,
                     "lease_lost");
             }
-            catch (Exception) when (!cancellationToken.IsCancellationRequested)
+            catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
             {
+                if (ocrJob)
+                {
+                    var ocrOptions = scope.ServiceProvider.GetRequiredService<IOptions<OcrOptions>>().Value;
+                    const string safeCode = "ocr_failed";
+                    if (lease.AttemptCount < ocrOptions.MaxAttempts)
+                        await RescheduleOcrJobAsync(
+                            lease.Id, workerId, safeCode, cancellationToken);
+                    else
+                    {
+                        await FailOcrJobAsync(lease.Id, workerId, uploadId,
+                            safeCode, true, cancellationToken);
+                    }
+                    logger.LogWarning(
+                        "OCR job failed safely. JobId={JobId} ResultId={ResultId} ErrorCode={ErrorCode}",
+                        lease.Id, uploadId, safeCode);
+                    return true;
+                }
                 if (cropJob && lease.AttemptCount >= 6)
                     await scope.ServiceProvider.GetRequiredService<CropProcessor>().FailAsync(uploadId, revision, cancellationToken);
-                await queue.RescheduleAsync(
-                    lease.Id,
-                    workerId,
-                    cropJob ? "crop_failed" : lease.Type == "ProcessDocument" ? "preview_failed" : "validation_failed",
-                    cancellationToken);
+                if (importJob && lease.AttemptCount >= scope.ServiceProvider.GetRequiredService<IOptions<DocumentImportOptions>>().Value.MaxAttempts)
+                    await scope.ServiceProvider.GetRequiredService<DocumentImportProcessor>().FailAsync(uploadId, cancellationToken);
+                var errorCode = exportJob ? "export_build_failed" : cropJob ? "crop_failed" : importJob ? "import_failed" : "validation_failed";
+                if (exportJob)
+                {
+                    // A failed transaction can leave stale Ready mutations in its tracker or a
+                    // broken connection. Never reschedule through that build's database scope.
+                    await using var recoveryScope = scopeFactory.CreateAsyncScope();
+                    if (lease.AttemptCount >= PostgresJobQueue.DefaultMaxAttempts)
+                        await recoveryScope.ServiceProvider.GetRequiredService<DocumentPdfBuilder>()
+                            .FailAsync(uploadId, cancellationToken);
+                    // If reconciliation is unavailable, leave the lease reclaimable instead of
+                    // terminalizing its job while the export is still pending.
+                    await recoveryScope.ServiceProvider.GetRequiredService<IProcessingJobQueue>()
+                        .RescheduleAsync(lease.Id, workerId, errorCode, cancellationToken);
+                }
+                else
+                {
+                    await queue.RescheduleAsync(lease.Id, workerId, errorCode, cancellationToken);
+                }
                 logger.LogWarning(
+                    exception,
                     "Upload validation job rescheduled. JobId={JobId} UploadId={UploadId} ErrorCode={ErrorCode}",
                     lease.Id,
                     uploadId,
-                    "validation_failed");
+                    errorCode);
             }
 
             return true;
@@ -115,6 +197,37 @@ public sealed class UploadValidationJobRunner(
             workCancellation.Cancel();
             await heartbeat;
         }
+    }
+
+    private async Task FailOcrJobAsync(
+        Guid jobId,
+        string workerId,
+        Guid resultId,
+        string safeCode,
+        bool retryable,
+        CancellationToken cancellationToken)
+    {
+        // Processing may have left a failed or stale EF tracker. Reconcile the OCR result and
+        // its queue job in a fresh scope and one transaction so they cannot diverge on a crash.
+        await using var recoveryScope = scopeFactory.CreateAsyncScope();
+        var db = recoveryScope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await recoveryScope.ServiceProvider.GetRequiredService<OcrProcessor>()
+            .FailAsync(resultId, safeCode, retryable, cancellationToken);
+        await recoveryScope.ServiceProvider.GetRequiredService<IProcessingJobQueue>()
+            .FailAsync(jobId, workerId, safeCode, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    private async Task RescheduleOcrJobAsync(
+        Guid jobId,
+        string workerId,
+        string safeCode,
+        CancellationToken cancellationToken)
+    {
+        await using var recoveryScope = scopeFactory.CreateAsyncScope();
+        await recoveryScope.ServiceProvider.GetRequiredService<IProcessingJobQueue>()
+            .RescheduleAsync(jobId, workerId, safeCode, cancellationToken);
     }
 
     private async Task RunHeartbeatAsync(

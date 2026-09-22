@@ -17,12 +17,8 @@ public sealed class EfUploadIntentRepository(AppDbContext db) : IUploadIntentRep
                 document => document.Id == documentId && document.OwnerFirebaseUid == ownerFirebaseUid,
                 cancellationToken);
 
-    public async Task AddAsync(
-        UploadIntent uploadIntent,
-        Page page,
-        CancellationToken cancellationToken)
+    public async Task AddAsync(UploadIntent uploadIntent, CancellationToken cancellationToken)
     {
-        db.Pages.Add(page);
         await db.UploadIntents.AddAsync(uploadIntent, cancellationToken);
     }
 

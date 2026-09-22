@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -31,8 +32,13 @@ public sealed class UploadOwnershipTests : IAsyncLifetime
         var ownerResponse = await userA.PostAsJsonAsync(
             $"/api/documents/{document!.Id}/uploads",
             ValidUploadRequest());
-        var ownerError = await ownerResponse.Content.ReadAsStringAsync();
-        Assert.True(ownerResponse.IsSuccessStatusCode, ownerError);
+        var ownerPayload = await ownerResponse.Content.ReadAsStringAsync();
+        Assert.True(ownerResponse.IsSuccessStatusCode, ownerPayload);
+        Assert.DoesNotContain("\"pageId\"", ownerPayload, StringComparison.OrdinalIgnoreCase);
+        var ownerUpload = JsonSerializer.Deserialize<UploadIntentDto>(
+            ownerPayload,
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        Assert.NotNull(ownerUpload);
 
         var response = await userB.PostAsJsonAsync(
             $"/api/documents/{document.Id}/uploads",
@@ -86,6 +92,9 @@ public sealed class UploadOwnershipTests : IAsyncLifetime
 
         Assert.Equal(upload.UploadId, status!.UploadId);
         Assert.Equal("AwaitingUpload", status.State);
+        Assert.Equal(0, status.DiscoveredPageCount);
+        Assert.Equal(0, status.CreatedPageCount);
+        Assert.Equal(0, status.FailedPageCount);
         Assert.Null(status.ErrorCode);
     }
 
@@ -167,8 +176,14 @@ public sealed class UploadOwnershipTests : IAsyncLifetime
     };
 
     private sealed record DocumentSummary(Guid Id);
-    private sealed record UploadIntentDto(Guid UploadId);
-    private sealed record UploadStatusDto(Guid UploadId, string State, string? ErrorCode);
+    private sealed record UploadIntentDto(Guid UploadId, Uri PutUrl, DateTimeOffset ExpiresAt);
+    private sealed record UploadStatusDto(
+        Guid UploadId,
+        string State,
+        int DiscoveredPageCount,
+        int CreatedPageCount,
+        int FailedPageCount,
+        string? ErrorCode);
 
     private sealed class FakeRequestIdentityVerifier : IRequestIdentityVerifier
     {
@@ -183,6 +198,8 @@ public sealed class UploadOwnershipTests : IAsyncLifetime
 
     private sealed class FakeObjectStore : IObjectStore
     {
+        public Task<ObjectCreationResult> WriteIfAbsentAsync(string key, string mediaType, Stream content, CancellationToken ct) =>
+            throw new NotSupportedException();
         public Task<Uri> CreatePutUrlAsync(PutObjectRequest request, CancellationToken cancellationToken) =>
             Task.FromResult(new Uri("https://uploads.example.test/opaque"));
 

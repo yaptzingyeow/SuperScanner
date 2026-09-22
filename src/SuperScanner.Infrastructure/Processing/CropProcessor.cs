@@ -7,28 +7,26 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SuperScanner.Domain.Documents;
 using SuperScanner.Domain.Processing;
-using SuperScanner.Infrastructure.ObjectStorage;
+using SuperScanner.Application.Abstractions;
 using SuperScanner.Infrastructure.Persistence;
+using SuperScanner.Infrastructure.Ocr;
 
 namespace SuperScanner.Infrastructure.Processing;
 
 public sealed class CropProcessor(
     AppDbContext db,
-    R2ObjectStore store,
+    IObjectStore store,
     IConfiguration configuration,
     IOptions<DocumentBoundaryOptions> boundaryOptions,
     DocumentBoundaryHealth boundaryHealth,
-    ILogger<CropProcessor> logger)
+    ILogger<CropProcessor> logger,
+    OcrJobScheduler? ocrScheduler = null)
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
-    public async Task EnsureDetectionAsync(Guid uploadId, CancellationToken ct)
+    public async Task EnsureDetectionForPageAsync(Guid pageId, CancellationToken ct)
     {
-        var upload = await db.UploadIntents.AsNoTracking().SingleAsync(x => x.Id == uploadId, ct);
-        if (upload.DeclaredMediaType is not ("image/jpeg" or "image/png")) return;
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
-        // Lock and reload: concurrent retries must not enqueue two initial revisions.
-        var page = await db.Pages.FromSqlInterpolated($"SELECT * FROM pages WHERE \"Id\" = {upload.PageId} FOR UPDATE").SingleAsync(ct);
-        await db.Entry(page).ReloadAsync(ct);
+        var page = (await CropDocumentStatus.LockWorkerPageAsync(db, pageId, ct)).Page;
         if (page.CropSourceObjectKey is null && page.PreviewObjectKey is not null)
         {
             page.InitializeCrop();
@@ -118,7 +116,6 @@ public sealed class CropProcessor(
             await errors;
             var result = await output;
             if (process.ExitCode != 0 || result.Length > 8192) throw new InvalidDataException("Crop processing failed.");
-            var current = db.Pages.Where(x => x.Id == pageId && x.CropRevision == revision && x.CropStatus == expectedStatus);
             if (detect)
             {
                 var detection = JsonSerializer.Deserialize<CropDetectionResult>(result, Json)
@@ -130,14 +127,7 @@ public sealed class CropProcessor(
                 {
                     boundaryHealth.MarkUnhealthy(detection.DiagnosticsCode);
                 }
-                var pointsJson = JsonSerializer.Serialize(detection.Points, Json);
-                await current.ExecuteUpdateAsync(set => set
-                    .SetProperty(x => x.CropPointsJson, pointsJson)
-                    .SetProperty(x => x.CropConfidence, detection.Confidence)
-                    .SetProperty(x => x.CropSource, detection.Source)
-                    .SetProperty(x => x.CropModelVersion, detection.ModelVersion)
-                    .SetProperty(x => x.CropDiagnosticsCode, detection.DiagnosticsCode)
-                    .SetProperty(x => x.CropStatus, "NeedsCrop"), ct);
+                await CompleteDetectionAsync(pageId, revision, detection, ct);
                 logger.LogInformation(
                     "Document boundary completed for page {PageId} revision {Revision}: source {Source}, confidence {Confidence}, model {ModelVersion}, diagnostics {DiagnosticsCode}, elapsed {ElapsedMilliseconds}ms",
                     pageId, revision, detection.Source, detection.Confidence, detection.ModelVersion,
@@ -151,25 +141,73 @@ public sealed class CropProcessor(
                 {
                     if (new FileInfo(file).Length > 12 * 1024 * 1024) throw new InvalidDataException("Output too large.");
                     await using var stream = File.OpenRead(file);
-                    await store.WriteImageAsync(key, stream, ct);
+                    await store.WriteAsync(key, "image/jpeg", stream, ct);
                 }
-                await current.ExecuteUpdateAsync(set => set
-                    .SetProperty(x => x.PreviewObjectKey, previewKey)
-                    .SetProperty(x => x.ThumbnailObjectKey, thumbnailKey)
-                    .SetProperty(x => x.AppliedCropRevision, revision)
-                    .SetProperty(x => x.AppliedFilter, page.Filter)
-                    .SetProperty(x => x.CropStatus, "Ready"), ct);
+                await CompletePerspectiveCropAsync(pageId, revision, previewKey, thumbnailKey, ct);
             }
             await CropDocumentStatus.RefreshAsync(db, page.DocumentId, ct);
         }
         finally { directory.Delete(true); }
     }
 
+    public async Task<bool> CompletePerspectiveCropAsync(
+        Guid pageId,
+        int revision,
+        string previewKey,
+        string thumbnailKey,
+        CancellationToken ct)
+    {
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        var locked = await CropDocumentStatus.LockWorkerPageAsync(db, pageId, ct);
+        var updated = await db.Pages.Where(x => x.Id == pageId && x.CropRevision == revision && x.CropStatus == "Processing")
+            .ExecuteUpdateAsync(set => set
+                .SetProperty(x => x.PreviewObjectKey, previewKey)
+                .SetProperty(x => x.ThumbnailObjectKey, thumbnailKey)
+                .SetProperty(x => x.AppliedCropRevision, revision)
+                .SetProperty(x => x.AppliedFilter, locked.Page.Filter)
+                .SetProperty(x => x.CropStatus, "Ready")
+                .SetProperty(x => x.State, PageState.Ready)
+                .SetProperty(x => x.FailureCode, (string?)null), ct);
+        if (updated == 1)
+        {
+            locked.Document.MarkContentChanged(DateTimeOffset.UtcNow);
+            await db.SaveChangesAsync(ct);
+            if (ocrScheduler is not null)
+                await ocrScheduler.EnsureQueuedAsync(pageId, previewKey, "image/jpeg", ct);
+        }
+        await transaction.CommitAsync(ct);
+        return updated == 1;
+    }
+
+    public async Task CompleteDetectionAsync(
+        Guid pageId,
+        int revision,
+        CropDetectionResult detection,
+        CancellationToken ct)
+    {
+        var pointsJson = JsonSerializer.Serialize(detection.Points, Json);
+        var documentId = await db.Pages.Where(x => x.Id == pageId).Select(x => x.DocumentId).SingleAsync(ct);
+        await db.Pages.Where(x => x.Id == pageId && x.CropRevision == revision && x.CropStatus == "Detecting")
+            .ExecuteUpdateAsync(set => set
+                .SetProperty(x => x.CropPointsJson, pointsJson)
+                .SetProperty(x => x.CropConfidence, detection.Confidence)
+                .SetProperty(x => x.CropSource, detection.Source)
+                .SetProperty(x => x.CropModelVersion, detection.ModelVersion)
+                .SetProperty(x => x.CropDiagnosticsCode, detection.DiagnosticsCode)
+                .SetProperty(x => x.CropStatus, "NeedsCrop")
+                .SetProperty(x => x.State, PageState.NeedsCrop)
+                .SetProperty(x => x.FailureCode, (string?)null), ct);
+        await CropDocumentStatus.RefreshAsync(db, documentId, ct);
+    }
+
     public async Task FailAsync(Guid pageId, int revision, CancellationToken ct)
     {
         await db.Pages.Where(p => p.Id == pageId && p.CropRevision == revision &&
             (p.CropStatus == "Detecting" || p.CropStatus == "Processing"))
-            .ExecuteUpdateAsync(set => set.SetProperty(p => p.CropStatus, "Failed"), ct);
+            .ExecuteUpdateAsync(set => set
+                .SetProperty(p => p.CropStatus, "Failed")
+                .SetProperty(p => p.State, PageState.Failed)
+                .SetProperty(p => p.FailureCode, "crop_failed"), ct);
         var documentId = await db.Pages.Where(p => p.Id == pageId).Select(p => p.DocumentId).SingleAsync(ct);
         await CropDocumentStatus.RefreshAsync(db, documentId, ct);
     }

@@ -13,7 +13,11 @@ describe('AppShellComponent', () => {
         provideRouter([]),
         {
           provide: AuthService,
-          useValue: { user$: of({ email: 'user@example.com' }), signOut: vi.fn() },
+          useValue: {
+            user$: of({ email: 'user@example.com' }),
+            signOut: vi.fn(),
+            ensureGuest: vi.fn(),
+          },
         },
       ],
     });
@@ -22,10 +26,8 @@ describe('AppShellComponent', () => {
     const root = fixture.nativeElement as HTMLElement;
 
     expect(root.querySelector('[data-brand]')?.textContent).toContain('SuperScanner');
-    expect(root.querySelector('nav[aria-label="Primary"]')?.textContent).toContain('Home');
     expect(root.querySelector('nav[aria-label="Primary"]')?.textContent).toContain('Scan');
-    expect(root.querySelector('nav[aria-label="Primary"]')?.textContent).toContain('Edit');
-    expect(root.querySelector('nav[aria-label="Primary"]')?.textContent).toContain('Export');
+    expect(root.querySelector('nav[aria-label="Primary"]')?.textContent).toContain('My documents');
     expect(root.querySelector('main')).not.toBeNull();
     expect(root.querySelector('main router-outlet')).not.toBeNull();
     expect(root.querySelector('button[aria-label="Open account menu"]')).not.toBeNull();
@@ -35,6 +37,7 @@ describe('AppShellComponent', () => {
     const auth = {
       user$: of({ email: 'user@example.com' }),
       signOut: vi.fn().mockResolvedValue(undefined),
+      ensureGuest: vi.fn().mockResolvedValue(undefined),
     };
     TestBed.configureTestingModule({
       imports: [AppShellComponent],
@@ -53,6 +56,7 @@ describe('AppShellComponent', () => {
     await fixture.whenStable();
 
     expect(auth.signOut).toHaveBeenCalledOnce();
-    expect(TestBed.inject(Router).url).toBe('/login');
+    expect(auth.ensureGuest).toHaveBeenCalledOnce();
+    expect(TestBed.inject(Router).url).toBe('/');
   });
 });

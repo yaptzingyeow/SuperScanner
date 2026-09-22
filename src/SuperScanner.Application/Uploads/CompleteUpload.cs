@@ -60,7 +60,10 @@ public sealed class CompleteUpload(
                 "upload.completed",
                 "document",
                 documentId,
-                JsonSerializer.Serialize(new { uploadId = upload.Id, pageId = upload.PageId }),
+                JsonSerializer.Serialize<object>(
+                    upload.PageId is null
+                        ? new { uploadId = upload.Id }
+                        : new { uploadId = upload.Id, pageId = upload.PageId }),
                 clock.UtcNow),
             cancellationToken);
 

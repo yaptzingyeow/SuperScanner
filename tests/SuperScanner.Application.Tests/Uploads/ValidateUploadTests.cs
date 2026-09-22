@@ -35,7 +35,7 @@ public sealed class ValidateUploadTests
     }
 
     [Fact]
-    public async Task CleanUpload_IsPromotedToContentAddressedOriginal()
+    public async Task CleanUpload_IsPromotedToImmutableDocumentImport()
     {
         var fixture = CreateFixture(PdfBytes);
 
@@ -44,16 +44,18 @@ public sealed class ValidateUploadTests
             new FixedMalwareScanner(MalwareScanResult.Clean()),
             CancellationToken.None);
 
-        var expectedKey = $"originals/{fixture.Document.Id:N}/{fixture.Page.Id:N}/{Sha256(PdfBytes)}";
+        var expectedKey = $"imports/{fixture.Document.Id:N}/{fixture.Upload.Id:N}/{Sha256(PdfBytes)}";
         Assert.Equal(UploadValidationOutcome.Accepted, result.Outcome);
         Assert.Equal(UploadIntentState.Accepted, fixture.Upload.State);
         Assert.Equal(DocumentStatus.Processing, fixture.Document.Status);
-        Assert.Equal(expectedKey, fixture.Page.OriginalObjectKey);
+        Assert.Equal(expectedKey, fixture.Upload.AcceptedObjectKey);
+        Assert.Equal(Now, fixture.Upload.AcceptedAt);
         Assert.Equal((fixture.Upload.QuarantineObjectKey, expectedKey), Assert.Single(fixture.Store.Promotions));
         var auditRequest = Assert.Single(fixture.Audit.Requests);
         Assert.Equal("upload.accepted", auditRequest.Action);
         Assert.Equal(fixture.Document.Id, auditRequest.TargetId);
         Assert.Contains(fixture.Upload.Id.ToString(), auditRequest.RegionJson, StringComparison.Ordinal);
+        Assert.DoesNotContain("pageId", auditRequest.RegionJson, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain(fixture.Upload.DeclaredSha256Hex, auditRequest.RegionJson, StringComparison.Ordinal);
     }
 
@@ -76,7 +78,8 @@ public sealed class ValidateUploadTests
         var auditRequest = Assert.Single(fixture.Audit.Requests);
         Assert.Equal("upload.rejected", auditRequest.Action);
         Assert.Equal(fixture.Document.Id, auditRequest.TargetId);
-        Assert.Contains(fixture.Page.Id.ToString(), auditRequest.RegionJson, StringComparison.Ordinal);
+        Assert.Contains(fixture.Upload.Id.ToString(), auditRequest.RegionJson, StringComparison.Ordinal);
+        Assert.DoesNotContain("pageId", auditRequest.RegionJson, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -185,15 +188,15 @@ public sealed class ValidateUploadTests
             Guid.NewGuid(),
             "user-a",
             document.Id,
-            page.Id,
             $"quarantine/{document.Id:N}/{Guid.NewGuid():N}",
+            "scan.pdf",
             declaredMediaType,
             declaredSizeBytes ?? bytes.LongLength,
             declaredSha256 ?? Sha256(bytes),
             expiresAt ?? Now.AddMinutes(5));
         upload.TryMarkPendingValidation(Now.AddSeconds(-1));
 
-        var repository = new InMemoryUploadValidationRepository(upload, page, document);
+        var repository = new InMemoryUploadValidationRepository(upload, document);
         var store = new RecordingObjectStore(bytes);
         var audit = new RecordingAuditWriter();
         var handler = new ValidateUpload(
@@ -221,18 +224,20 @@ public sealed class ValidateUploadTests
         public DateTimeOffset UtcNow { get; } = utcNow;
     }
 
-    private sealed class InMemoryUploadValidationRepository(UploadIntent upload, Page page, Document document)
+    private sealed class InMemoryUploadValidationRepository(UploadIntent upload, Document document)
         : IUploadValidationRepository
     {
         public Task<UploadValidationTarget?> FindAsync(Guid uploadId, CancellationToken cancellationToken) =>
             Task.FromResult<UploadValidationTarget?>(
-                upload.Id == uploadId ? new UploadValidationTarget(upload, page, document) : null);
+                upload.Id == uploadId ? new UploadValidationTarget(upload, document) : null);
 
         public Task SaveChangesAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
     private sealed class RecordingObjectStore(byte[] bytes) : IObjectStore
     {
+        public Task<ObjectCreationResult> WriteIfAbsentAsync(string key, string mediaType, Stream content, CancellationToken ct) =>
+            throw new NotSupportedException();
         public int OpenReadCalls { get; private set; }
         public List<string> DeletedKeys { get; } = [];
         public List<(string QuarantineKey, string AcceptedKey)> Promotions { get; } = [];

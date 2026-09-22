@@ -17,11 +17,18 @@ public sealed class UploadIntent
     public Guid Id { get; private set; }
     public string OwnerFirebaseUid { get; private set; } = string.Empty;
     public Guid DocumentId { get; private set; }
-    public Guid PageId { get; private set; }
+    public Guid? PageId { get; private set; }
     public string QuarantineObjectKey { get; private set; } = string.Empty;
+    public string? OriginalFileName { get; private set; }
     public string DeclaredMediaType { get; private set; } = string.Empty;
     public long DeclaredSizeBytes { get; private set; }
     public string DeclaredSha256Hex { get; private set; } = string.Empty;
+    public string? AcceptedObjectKey { get; private set; }
+    public DateTimeOffset? AcceptedAt { get; private set; }
+    public int DiscoveredPageCount { get; private set; }
+    public int CreatedPageCount { get; private set; }
+    public int FailedPageCount { get; private set; }
+    public string? ExpansionErrorCode { get; private set; }
     public DateTimeOffset ExpiresAt { get; private set; }
     public UploadIntentState State { get; private set; }
     public string IdempotencyKey { get; private set; } = string.Empty;
@@ -31,8 +38,8 @@ public sealed class UploadIntent
         Guid id,
         string ownerFirebaseUid,
         Guid documentId,
-        Guid pageId,
         string quarantineObjectKey,
+        string originalFileName,
         string declaredMediaType,
         long declaredSizeBytes,
         string declaredSha256Hex,
@@ -42,8 +49,8 @@ public sealed class UploadIntent
             Id = id,
             OwnerFirebaseUid = ownerFirebaseUid,
             DocumentId = documentId,
-            PageId = pageId,
             QuarantineObjectKey = quarantineObjectKey,
+            OriginalFileName = originalFileName,
             DeclaredMediaType = declaredMediaType,
             DeclaredSizeBytes = declaredSizeBytes,
             DeclaredSha256Hex = declaredSha256Hex,
@@ -59,6 +66,11 @@ public sealed class UploadIntent
             return false;
         }
 
+        if (State != UploadIntentState.AwaitingUpload)
+        {
+            throw new InvalidOperationException("Only an awaiting upload can be marked pending validation.");
+        }
+
         if (now >= ExpiresAt)
         {
             throw new InvalidOperationException("The upload intent has expired.");
@@ -68,15 +80,73 @@ public sealed class UploadIntent
         return true;
     }
 
-    public void Accept()
+    public void Accept(string acceptedObjectKey, DateTimeOffset acceptedAt)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(acceptedObjectKey);
+        if (AcceptedObjectKey is not null || AcceptedAt is not null)
+        {
+            throw new InvalidOperationException("Accepted upload metadata cannot be overwritten.");
+        }
+
         if (State != UploadIntentState.PendingValidation)
         {
             throw new InvalidOperationException("Only a pending upload can be accepted.");
         }
 
         State = UploadIntentState.Accepted;
+        AcceptedObjectKey = acceptedObjectKey;
+        AcceptedAt = acceptedAt;
         ValidationErrorCode = null;
+    }
+
+    public void BeginExpansion(int discoveredPageCount)
+    {
+        if (State != UploadIntentState.Accepted || AcceptedObjectKey is null)
+        {
+            throw new InvalidOperationException("Only an accepted upload can begin expansion.");
+        }
+
+        if (discoveredPageCount < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(discoveredPageCount));
+        }
+
+        DiscoveredPageCount = discoveredPageCount;
+        CreatedPageCount = 0;
+        FailedPageCount = 0;
+        ExpansionErrorCode = null;
+    }
+
+    public void RecordExpansion(int createdPages, int failedPages, string? failureCode)
+    {
+        if (State != UploadIntentState.Accepted || AcceptedObjectKey is null)
+        {
+            throw new InvalidOperationException("Only an accepted upload can record expansion.");
+        }
+
+        if (createdPages < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(createdPages));
+        }
+
+        if (failedPages < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(failedPages));
+        }
+
+        if (createdPages + failedPages > DiscoveredPageCount)
+        {
+            throw new ArgumentOutOfRangeException(nameof(createdPages));
+        }
+
+        if (failureCode is not null && string.IsNullOrWhiteSpace(failureCode))
+        {
+            throw new ArgumentException("The failure code must not be whitespace.", nameof(failureCode));
+        }
+
+        CreatedPageCount = createdPages;
+        FailedPageCount = failedPages;
+        ExpansionErrorCode = failureCode;
     }
 
     public void Reject(string errorCode)

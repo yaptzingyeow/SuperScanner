@@ -78,6 +78,17 @@ public sealed class ProcessingJob
         ErrorCode = null;
     }
 
+    public void Fail(string workerId, DateTimeOffset now, string errorCode)
+    {
+        EnsureOwnedLease(workerId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(errorCode);
+        Status = ProcessingJobStatus.Failed;
+        WorkerId = null;
+        LeaseExpiresAt = null;
+        UpdatedAt = now;
+        ErrorCode = errorCode;
+    }
+
     public void Reschedule(
         string workerId,
         DateTimeOffset now,

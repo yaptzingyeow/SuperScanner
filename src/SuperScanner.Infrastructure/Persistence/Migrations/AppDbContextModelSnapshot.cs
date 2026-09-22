@@ -98,6 +98,14 @@ namespace SuperScanner.Infrastructure.Persistence.Migrations
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
 
+                    b.Property<long>("PageOrderRevision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(32)
@@ -116,6 +124,64 @@ namespace SuperScanner.Infrastructure.Persistence.Migrations
                     b.HasIndex("OwnerFirebaseUid", "UpdatedAt");
 
                     b.ToTable("documents", (string)null);
+                });
+
+            modelBuilder.Entity("SuperScanner.Domain.Documents.DocumentExport", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("DocumentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("DocumentRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("ExcludedPageCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FailureCode")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("OutputObjectKey")
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.Property<string>("OwnerFirebaseUid")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<int>("ReadyPageCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DocumentId");
+
+                    b.HasIndex("OwnerFirebaseUid", "DocumentId", "CreatedAt");
+
+                    b.ToTable("document_exports", (string)null);
                 });
 
             modelBuilder.Entity("SuperScanner.Domain.Documents.Page", b =>
@@ -164,9 +230,18 @@ namespace SuperScanner.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("DocumentId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("FailureCode")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<string>("Filter")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<string>("OriginalMediaType")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
 
                     b.Property<string>("OriginalObjectKey")
                         .HasMaxLength(1024)
@@ -175,18 +250,165 @@ namespace SuperScanner.Infrastructure.Persistence.Migrations
                     b.Property<int>("PageNumber")
                         .HasColumnType("integer");
 
+                    b.Property<int>("Position")
+                        .HasColumnType("integer");
+
                     b.Property<string>("PreviewObjectKey")
                         .HasColumnType("text");
+
+                    b.Property<DateTimeOffset?>("RemovedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RemovedByFirebaseUid")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<int>("SourcePageIndex")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("SourceUploadId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
 
                     b.Property<string>("ThumbnailObjectKey")
                         .HasColumnType("text");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("DocumentId", "PageNumber")
+                    b.HasIndex("DocumentId", "Position")
+                        .IsUnique()
+                        .HasFilter("\"RemovedAt\" IS NULL");
+
+                    b.HasIndex("SourceUploadId", "SourcePageIndex")
                         .IsUnique();
 
                     b.ToTable("pages", (string)null);
+                });
+
+            modelBuilder.Entity("SuperScanner.Domain.Ocr.OcrElement", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<double>("Confidence")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("PageOcrResultId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ParentElementId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PolygonJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<int>("ReadingOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("TextType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ParentElementId");
+
+                    b.HasIndex("PageOcrResultId", "ParentElementId", "ReadingOrder");
+
+                    b.ToTable("ocr_elements", (string)null);
+                });
+
+            modelBuilder.Entity("SuperScanner.Domain.Ocr.PageOcrResult", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<double?>("AggregateConfidence")
+                        .HasColumnType("double precision");
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ElementCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("FailureCode")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<bool>("FailureRetryable")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("FullText")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Language")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)");
+
+                    b.Property<Guid>("PageId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ProviderModelVersion")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("ProviderName")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset>("QueuedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("SourceFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<string>("SourceObjectKey")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.Property<DateTimeOffset?>("StartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PageId", "SourceFingerprint")
+                        .IsUnique();
+
+                    b.HasIndex("PageId", "State", "QueuedAt");
+
+                    b.ToTable("page_ocr_results", (string)null);
                 });
 
             modelBuilder.Entity("SuperScanner.Domain.Processing.ProcessingJob", b =>
@@ -254,6 +476,16 @@ namespace SuperScanner.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("AcceptedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("AcceptedObjectKey")
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.Property<int>("CreatedPageCount")
+                        .HasColumnType("integer");
+
                     b.Property<string>("DeclaredMediaType")
                         .IsRequired()
                         .HasMaxLength(128)
@@ -267,23 +499,37 @@ namespace SuperScanner.Infrastructure.Persistence.Migrations
                     b.Property<long>("DeclaredSizeBytes")
                         .HasColumnType("bigint");
 
+                    b.Property<int>("DiscoveredPageCount")
+                        .HasColumnType("integer");
+
                     b.Property<Guid>("DocumentId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("ExpansionErrorCode")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<DateTimeOffset>("ExpiresAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("FailedPageCount")
+                        .HasColumnType("integer");
 
                     b.Property<string>("IdempotencyKey")
                         .IsRequired()
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
 
+                    b.Property<string>("OriginalFileName")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
                     b.Property<string>("OwnerFirebaseUid")
                         .IsRequired()
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
 
-                    b.Property<Guid>("PageId")
+                    b.Property<Guid?>("PageId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("QuarantineObjectKey")
@@ -314,11 +560,43 @@ namespace SuperScanner.Infrastructure.Persistence.Migrations
                     b.ToTable("upload_intents", (string)null);
                 });
 
+            modelBuilder.Entity("SuperScanner.Domain.Documents.DocumentExport", b =>
+                {
+                    b.HasOne("SuperScanner.Domain.Documents.Document", null)
+                        .WithMany()
+                        .HasForeignKey("DocumentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("SuperScanner.Domain.Documents.Page", b =>
                 {
                     b.HasOne("SuperScanner.Domain.Documents.Document", null)
                         .WithMany("Pages")
                         .HasForeignKey("DocumentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("SuperScanner.Domain.Ocr.OcrElement", b =>
+                {
+                    b.HasOne("SuperScanner.Domain.Ocr.PageOcrResult", null)
+                        .WithMany("Elements")
+                        .HasForeignKey("PageOcrResultId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SuperScanner.Domain.Ocr.OcrElement", null)
+                        .WithMany()
+                        .HasForeignKey("ParentElementId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("SuperScanner.Domain.Ocr.PageOcrResult", b =>
+                {
+                    b.HasOne("SuperScanner.Domain.Documents.Page", null)
+                        .WithMany()
+                        .HasForeignKey("PageId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
@@ -334,13 +612,17 @@ namespace SuperScanner.Infrastructure.Persistence.Migrations
                     b.HasOne("SuperScanner.Domain.Documents.Page", null)
                         .WithMany()
                         .HasForeignKey("PageId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("SuperScanner.Domain.Documents.Document", b =>
                 {
                     b.Navigation("Pages");
+                });
+
+            modelBuilder.Entity("SuperScanner.Domain.Ocr.PageOcrResult", b =>
+                {
+                    b.Navigation("Elements");
                 });
 #pragma warning restore 612, 618
         }
