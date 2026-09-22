@@ -5,12 +5,14 @@ using SuperScanner.Api.Auth;
 using SuperScanner.Api.Endpoints;
 using SuperScanner.Application.Abstractions;
 using SuperScanner.Application.Documents;
+using SuperScanner.Application.Ocr;
 using SuperScanner.Application.Uploads;
 using SuperScanner.Infrastructure.Auth;
 using SuperScanner.Infrastructure.Persistence;
 using SuperScanner.Infrastructure.Processing;
 using SuperScanner.Infrastructure.ObjectStorage;
 using SuperScanner.Infrastructure.Auditing;
+using SuperScanner.Infrastructure.Ocr;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -72,6 +74,14 @@ builder.Services.AddScoped<IUploadIntentRepository, EfUploadIntentRepository>();
 builder.Services.AddSingleton(new UploadPolicy(50, 25 * 1024 * 1024));
 builder.Services.AddScoped<CreateUploadIntent>();
 builder.Services.AddScoped<IProcessingJobQueue, PostgresJobQueue>();
+builder.Services.AddScoped<IOcrRepository, EfOcrRepository>();
+builder.Services.AddScoped<RequestPageOcr>();
+builder.Services.AddScoped<GetPageOcr>();
+builder.Services.AddOptions<OcrOptions>()
+    .BindConfiguration(OcrOptions.SectionName)
+    .Validate(options => options.IsValid(builder.Environment.EnvironmentName),
+        "OCR configuration is invalid.")
+    .ValidateOnStart();
 builder.Services.AddOptions<DocumentImportOptions>()
     .BindConfiguration(DocumentImportOptions.SectionName)
     .Validate(options => options.IsValid(), "Document import configuration is invalid.")
@@ -115,6 +125,7 @@ PageManagementEndpoints.Map(app);
 DocumentExportEndpoints.Map(app);
 DocumentPreviewEndpoints.Map(app);
 CropEndpoints.Map(app);
+OcrEndpoints.Map(app);
 UploadsEndpoints.Map(app);
 app.MapHealthChecks("/health");
 if (e2eIdentityEnabled)
