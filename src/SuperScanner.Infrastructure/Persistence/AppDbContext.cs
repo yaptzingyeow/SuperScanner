@@ -3,6 +3,7 @@ using SuperScanner.Domain.Documents;
 using SuperScanner.Domain.Uploads;
 using SuperScanner.Domain.Processing;
 using SuperScanner.Domain.Auditing;
+using SuperScanner.Domain.Ocr;
 
 namespace SuperScanner.Infrastructure.Persistence;
 
@@ -19,6 +20,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<ProcessingJob> ProcessingJobs => Set<ProcessingJob>();
 
     public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
+
+    public DbSet<PageOcrResult> PageOcrResults => Set<PageOcrResult>();
+
+    public DbSet<OcrElement> OcrElements => Set<OcrElement>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
