@@ -13,6 +13,7 @@ public sealed class OcrOptions
     public int TimeoutSeconds { get; init; } = 30;
     public int MaxElements { get; init; } = 10_000;
     public int MaxRecognizedCharacters { get; init; } = 1_000_000;
+    public GoogleDocumentAiOptions Google { get; init; } = new();
 
     public bool IsValid(string environmentName)
     {
@@ -26,8 +27,13 @@ public sealed class OcrOptions
             return false;
         }
 
-        if (!Enabled) return string.Equals(Provider, "Disabled", StringComparison.Ordinal);
+        if (!Enabled)
+            return string.Equals(Provider, OcrProviderNames.Disabled, StringComparison.Ordinal);
+
+        if (string.Equals(Provider, OcrProviderNames.GoogleDocumentAi, StringComparison.Ordinal))
+            return Google.IsValid();
+
         return !string.Equals(environmentName, "Production", StringComparison.OrdinalIgnoreCase) &&
-            string.Equals(Provider, "Fake", StringComparison.Ordinal);
+            string.Equals(Provider, OcrProviderNames.Fake, StringComparison.Ordinal);
     }
 }
