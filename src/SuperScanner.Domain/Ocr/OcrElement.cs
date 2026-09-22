@@ -4,7 +4,7 @@ namespace SuperScanner.Domain.Ocr;
 
 public sealed class OcrElement
 {
-    private const int MaxTextLength = 100_000;
+    public const int MaximumTextLength = 100_000;
 
     private OcrElement()
     {
@@ -40,7 +40,7 @@ public sealed class OcrElement
             throw new ArgumentException("An OCR element cannot parent itself.", nameof(parentElementId));
         if (!Enum.IsDefined(kind)) throw new ArgumentOutOfRangeException(nameof(kind));
         ArgumentNullException.ThrowIfNull(text);
-        if (text.Length > MaxTextLength) throw new ArgumentException("OCR element text is too long.", nameof(text));
+        if (text.Length > MaximumTextLength) throw new ArgumentException("OCR element text is too long.", nameof(text));
         if (!double.IsFinite(confidence) || confidence is < 0 or > 1)
             throw new ArgumentOutOfRangeException(nameof(confidence));
         if (!Enum.IsDefined(textType)) throw new ArgumentOutOfRangeException(nameof(textType));

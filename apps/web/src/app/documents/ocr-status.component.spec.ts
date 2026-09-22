@@ -55,11 +55,29 @@ describe('OcrStatusComponent', () => {
     await vi.advanceTimersByTimeAsync(3000);
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.textContent).toContain('12 words recognized');
+    expect(fixture.nativeElement.textContent).toContain('12 text elements recognized');
     expect(fixture.nativeElement.textContent).toContain('94% confidence');
     expect(api.getPageOcr).toHaveBeenCalledTimes(2);
     await vi.advanceTimersByTimeAsync(3000);
     expect(api.getPageOcr).toHaveBeenCalledTimes(2);
+  });
+
+  it('continues polling after a transient refresh failure while OCR is pending', async () => {
+    api.getPageOcr
+      .mockResolvedValueOnce(queued)
+      .mockRejectedValueOnce(new Error('temporary'))
+      .mockResolvedValueOnce(ready);
+    fixture.detectChanges();
+    await vi.advanceTimersByTimeAsync(0);
+
+    await vi.advanceTimersByTimeAsync(3000);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('could not refresh');
+
+    await vi.advanceTimersByTimeAsync(3000);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('12 text elements recognized');
+    expect(api.getPageOcr).toHaveBeenCalledTimes(3);
   });
 
   it('starts recognition and exposes no fabricated progress percentage', async () => {

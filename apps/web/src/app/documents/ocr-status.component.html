@@ -18,7 +18,7 @@
         <p><span class="pulse" aria-hidden="true"></span> Recognizing printed and handwritten text…</p>
       }
       @case ('Ready') {
-        <p class="ready"><strong>{{ item.elementCount }} words recognized</strong></p>
+        <p class="ready"><strong>{{ item.elementCount }} text elements recognized</strong></p>
         <div class="facts">
           @if (item.aggregateConfidence !== null && item.aggregateConfidence !== undefined) {
             <span>{{ item.aggregateConfidence * 100 | number: '1.0-0' }}% confidence</span>

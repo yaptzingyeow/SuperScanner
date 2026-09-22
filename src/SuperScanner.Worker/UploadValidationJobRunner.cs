@@ -42,13 +42,20 @@ public sealed class UploadValidationJobRunner(
             var ocrJob = lease.Type == "RecognizePageText";
             var parts = lease.Payload.Split(':');
             var revision = 0;
+            var hasParsedId = Guid.TryParse(parts[0], out var uploadId);
             if ((!cropJob && lease.Type != "ValidateUpload" && !importJob && !exportJob && !ocrJob) ||
-                !Guid.TryParse(parts[0], out var uploadId) ||
+                !hasParsedId ||
                 (!cropJob && parts.Length != 1) ||
                 (cropJob && (parts.Length != 2 || !int.TryParse(parts[1], out revision) || revision < 1)))
             {
                 if (ocrJob)
-                    await queue.FailAsync(lease.Id, workerId, "invalid_job", cancellationToken);
+                {
+                    if (hasParsedId)
+                        await FailOcrJobAsync(lease.Id, workerId, uploadId,
+                            "invalid_job", false, cancellationToken);
+                    else
+                        await queue.FailAsync(lease.Id, workerId, "invalid_job", cancellationToken);
+                }
                 else
                     await queue.RescheduleAsync(lease.Id, workerId, "invalid_job", cancellationToken);
                 return true;
@@ -114,14 +121,13 @@ public sealed class UploadValidationJobRunner(
                 var ocrOptions = scope.ServiceProvider.GetRequiredService<IOptions<OcrOptions>>().Value;
                 if (failure.Retryable && lease.AttemptCount < ocrOptions.MaxAttempts)
                 {
-                    await queue.RescheduleAsync(
+                    await RescheduleOcrJobAsync(
                         lease.Id, workerId, failure.SafeCode, cancellationToken);
                 }
                 else
                 {
-                    await scope.ServiceProvider.GetRequiredService<OcrProcessor>()
-                        .FailAsync(uploadId, failure.SafeCode, failure.Retryable, cancellationToken);
-                    await queue.FailAsync(lease.Id, workerId, failure.SafeCode, cancellationToken);
+                    await FailOcrJobAsync(lease.Id, workerId, uploadId,
+                        failure.SafeCode, failure.Retryable, cancellationToken);
                 }
                 logger.LogWarning(
                     "OCR job did not complete. JobId={JobId} ResultId={ResultId} ErrorCode={ErrorCode}",
@@ -142,12 +148,12 @@ public sealed class UploadValidationJobRunner(
                     var ocrOptions = scope.ServiceProvider.GetRequiredService<IOptions<OcrOptions>>().Value;
                     const string safeCode = "ocr_failed";
                     if (lease.AttemptCount < ocrOptions.MaxAttempts)
-                        await queue.RescheduleAsync(lease.Id, workerId, safeCode, cancellationToken);
+                        await RescheduleOcrJobAsync(
+                            lease.Id, workerId, safeCode, cancellationToken);
                     else
                     {
-                        await scope.ServiceProvider.GetRequiredService<OcrProcessor>()
-                            .FailAsync(uploadId, safeCode, true, cancellationToken);
-                        await queue.FailAsync(lease.Id, workerId, safeCode, cancellationToken);
+                        await FailOcrJobAsync(lease.Id, workerId, uploadId,
+                            safeCode, true, cancellationToken);
                     }
                     logger.LogWarning(
                         "OCR job failed safely. JobId={JobId} ResultId={ResultId} ErrorCode={ErrorCode}",
@@ -191,6 +197,37 @@ public sealed class UploadValidationJobRunner(
             workCancellation.Cancel();
             await heartbeat;
         }
+    }
+
+    private async Task FailOcrJobAsync(
+        Guid jobId,
+        string workerId,
+        Guid resultId,
+        string safeCode,
+        bool retryable,
+        CancellationToken cancellationToken)
+    {
+        // Processing may have left a failed or stale EF tracker. Reconcile the OCR result and
+        // its queue job in a fresh scope and one transaction so they cannot diverge on a crash.
+        await using var recoveryScope = scopeFactory.CreateAsyncScope();
+        var db = recoveryScope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await recoveryScope.ServiceProvider.GetRequiredService<OcrProcessor>()
+            .FailAsync(resultId, safeCode, retryable, cancellationToken);
+        await recoveryScope.ServiceProvider.GetRequiredService<IProcessingJobQueue>()
+            .FailAsync(jobId, workerId, safeCode, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    private async Task RescheduleOcrJobAsync(
+        Guid jobId,
+        string workerId,
+        string safeCode,
+        CancellationToken cancellationToken)
+    {
+        await using var recoveryScope = scopeFactory.CreateAsyncScope();
+        await recoveryScope.ServiceProvider.GetRequiredService<IProcessingJobQueue>()
+            .RescheduleAsync(jobId, workerId, safeCode, cancellationToken);
     }
 
     private async Task RunHeartbeatAsync(

@@ -13,7 +13,9 @@ public static class OcrResultValidator
         if (limits.MaxElements < 1 || limits.MaxRecognizedCharacters < 1)
             throw Invalid();
         if (string.IsNullOrWhiteSpace(document.ProviderName) ||
+            document.ProviderName.Length > 128 ||
             string.IsNullOrWhiteSpace(document.ModelVersion) ||
+            document.ModelVersion.Length > 128 ||
             document.FullText is null ||
             document.Elements is null ||
             document.Elements.Count > limits.MaxElements)
@@ -28,6 +30,7 @@ public static class OcrResultValidator
             if (string.IsNullOrWhiteSpace(element.ClientId) ||
                 !byId.TryAdd(element.ClientId, element) ||
                 element.Text is null ||
+                element.Text.Length > OcrElement.MaximumTextLength ||
                 !Enum.IsDefined(element.Kind) ||
                 !Enum.IsDefined(element.TextType) ||
                 !double.IsFinite(element.Confidence) ||

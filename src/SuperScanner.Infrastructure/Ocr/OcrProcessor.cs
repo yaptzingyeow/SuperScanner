@@ -28,7 +28,7 @@ public sealed class OcrProcessor(
         metrics.Started(Math.Max(0, (clock.UtcNow - result.QueuedAt).TotalMilliseconds),
             Math.Max(0, attemptNumber - 1));
 
-        await using var content = await store.OpenReadAsync(result.SourceObjectKey, ct);
+        await using var content = await OpenSourceAsync(result.SourceObjectKey, ct);
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeout.CancelAfter(TimeSpan.FromSeconds(options.Value.TimeoutSeconds));
         var stopwatch = Stopwatch.StartNew();
@@ -70,6 +70,18 @@ public sealed class OcrProcessor(
         metrics.Completed(normalized.ProviderName, stopwatch.Elapsed.TotalMilliseconds,
             elements.Length, result.AggregateConfidence,
             !string.Equals(currentKey, result.SourceObjectKey, StringComparison.Ordinal));
+    }
+
+    private async Task<Stream> OpenSourceAsync(string objectKey, CancellationToken ct)
+    {
+        try
+        {
+            return await store.OpenReadAsync(objectKey, ct);
+        }
+        catch (FileNotFoundException)
+        {
+            throw new OcrProviderException("ocr_source_missing", false);
+        }
     }
 
     public async Task FailAsync(

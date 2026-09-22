@@ -90,10 +90,17 @@ public sealed class R2ObjectStore : IObjectStore, IDisposable
         string objectKey,
         CancellationToken cancellationToken)
     {
-        var response = await _client.GetObjectAsync(
-            new GetObjectRequest { BucketName = _bucketName, Key = objectKey },
-            cancellationToken);
-        return new ResponseOwnedStream(response);
+        try
+        {
+            var response = await _client.GetObjectAsync(
+                new GetObjectRequest { BucketName = _bucketName, Key = objectKey },
+                cancellationToken);
+            return new ResponseOwnedStream(response);
+        }
+        catch (AmazonS3Exception exception) when (exception.StatusCode == HttpStatusCode.NotFound)
+        {
+            throw new FileNotFoundException("The requested private object was not found.", exception);
+        }
     }
 
     public async Task PromoteAsync(

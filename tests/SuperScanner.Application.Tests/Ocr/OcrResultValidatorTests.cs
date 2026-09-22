@@ -5,6 +5,32 @@ namespace SuperScanner.Application.Tests.Ocr;
 
 public sealed class OcrResultValidatorTests
 {
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public void Validate_RejectsProviderLabelsThatExceedPersistenceLimits(
+        bool oversizedProvider,
+        bool oversizedModel)
+    {
+        var document = new NormalizedOcrDocument(
+            "", oversizedProvider ? new string('p', 129) : "Fake",
+            oversizedModel ? new string('m', 129) : "v1", []);
+
+        AssertInvalid(document);
+    }
+
+    [Fact]
+    public void Validate_RejectsElementTextThatExceedsDomainLimit()
+    {
+        var document = new NormalizedOcrDocument("", "Fake", "v1",
+        [
+            Element("block", null, OcrElementKind.Block,
+                new string('x', OcrElement.MaximumTextLength + 1), 0)
+        ]);
+
+        AssertInvalid(document, new(10, OcrElement.MaximumTextLength + 1));
+    }
+
     [Fact]
     public void Validate_RejectsMoreThanConfiguredElements()
     {

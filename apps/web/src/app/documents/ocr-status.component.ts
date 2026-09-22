@@ -51,8 +51,11 @@ export class OcrStatusComponent implements OnInit, OnDestroy {
       this.error.set('');
       this.schedule(next);
     } catch {
-      if (!this.destroyed)
+      if (!this.destroyed) {
         this.error.set('We could not refresh text recognition. Please try again.');
+        const current = this.status();
+        if (current) this.schedule(current);
+      }
     }
   }
 

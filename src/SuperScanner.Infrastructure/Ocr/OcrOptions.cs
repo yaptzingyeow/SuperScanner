@@ -1,3 +1,5 @@
+using SuperScanner.Infrastructure.Processing;
+
 namespace SuperScanner.Infrastructure.Ocr;
 
 public sealed class OcrOptions
@@ -16,7 +18,7 @@ public sealed class OcrOptions
     {
         if (string.IsNullOrWhiteSpace(environmentName) ||
             !string.Equals(Language, "en", StringComparison.Ordinal) ||
-            MaxAttempts < 1 ||
+            MaxAttempts is < 1 or > PostgresJobQueue.DefaultMaxAttempts ||
             TimeoutSeconds < 1 ||
             MaxElements < 1 ||
             MaxRecognizedCharacters < 1)

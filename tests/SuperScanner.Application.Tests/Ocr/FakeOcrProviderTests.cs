@@ -6,6 +6,19 @@ namespace SuperScanner.Application.Tests.Ocr;
 public sealed class FakeOcrProviderTests
 {
     [Fact]
+    public async Task DisabledProvider_ReturnsPermanentSafeFailure()
+    {
+        var provider = new DisabledOcrProvider();
+        await using var content = new MemoryStream([1]);
+
+        var error = await Assert.ThrowsAsync<OcrProviderException>(() =>
+            provider.RecognizeAsync(new(content, "image/jpeg", "en"), default));
+
+        Assert.Equal("ocr_disabled", error.SafeCode);
+        Assert.False(error.Retryable);
+    }
+
+    [Fact]
     public async Task Provider_ReturnsSameHierarchyForAnySupportedImage()
     {
         var provider = new FakeOcrProvider();
@@ -72,13 +85,21 @@ public sealed class FakeOcrProviderTests
     [InlineData(true, "Disabled", "Development", false)]
     [InlineData(false, "Fake", "Development", false)]
     [InlineData(true, "GoogleDocumentAi", "Development", false)]
+    [InlineData(true, "Fake", "Development", true, 6)]
+    [InlineData(true, "Fake", "Development", false, 7)]
     public void Options_ValidateProviderAndEnvironment(
         bool enabled,
         string provider,
         string environment,
-        bool expected)
+        bool expected,
+        int maxAttempts = 3)
     {
-        var options = new OcrOptions { Enabled = enabled, Provider = provider };
+        var options = new OcrOptions
+        {
+            Enabled = enabled,
+            Provider = provider,
+            MaxAttempts = maxAttempts
+        };
 
         Assert.Equal(expected, options.IsValid(environment));
     }

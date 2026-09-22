@@ -28,6 +28,8 @@ builder.Services.AddOptions<OcrOptions>()
     .ValidateOnStart();
 if (string.Equals(builder.Configuration["Ocr:Provider"], "Fake", StringComparison.Ordinal))
     builder.Services.AddSingleton<IOcrProvider, FakeOcrProvider>();
+else
+    builder.Services.AddSingleton<IOcrProvider, DisabledOcrProvider>();
 builder.Services.AddSingleton<OcrMetrics>();
 builder.Services.AddScoped<OcrProcessor>();
 builder.Services.AddScoped<OcrJobScheduler>();
