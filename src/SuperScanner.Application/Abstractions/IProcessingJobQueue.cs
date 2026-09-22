@@ -33,4 +33,7 @@ public interface IProcessingJobQueue
         string workerId,
         string errorCode,
         CancellationToken cancellationToken);
+
+    Task RetryFailedAsync(string idempotencyKey, CancellationToken cancellationToken) =>
+        throw new NotSupportedException("Retrying failed jobs is not supported by this queue.");
 }

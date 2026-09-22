@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SuperScanner.Application.Abstractions;
+using SuperScanner.Application.Ocr;
 using SuperScanner.Domain.Documents;
 using SuperScanner.Domain.Ocr;
 using SuperScanner.Infrastructure.Persistence;
@@ -105,23 +106,23 @@ public sealed class OcrPersistenceTests : IAsyncLifetime
         OcrPageSource? source;
         await using (var transaction = await repository.BeginTransactionAsync(default))
         {
-            source = await repository.FindOwnedReadySourceAsync(
-                "owner-a", document.Id, page.Id, default);
+            source = await repository.FindOwnedSourceAsync(
+                "owner-a", document.Id, page.Id, true, default);
             await transaction.CommitAsync(default);
         }
-        var current = await repository.FindCurrentOwnedAsync(
-            "owner-a", document.Id, page.Id, default);
-        var unowned = await repository.FindCurrentOwnedAsync(
-            "owner-b", document.Id, page.Id, default);
+        var current = await repository.FindBySourceAsync(
+            page.Id, result.SourceFingerprint, false, default);
+        var unowned = await repository.FindOwnedSourceAsync(
+            "owner-b", document.Id, page.Id, false, default);
 
-        Assert.Equal(new(page.Id, page.PreviewObjectKey!, "image/jpeg"), source);
+        Assert.Equal(new(page.Id, PageState.Ready, page.PreviewObjectKey!, "image/jpeg"), source);
         Assert.Equal(result.Id, current?.Id);
         Assert.Null(unowned);
 
         document.RemovePage(page.Id, "owner-a", Now.AddMinutes(1));
         await db.SaveChangesAsync();
-        Assert.Null(await repository.FindCurrentOwnedAsync(
-            "owner-a", document.Id, page.Id, default));
+        Assert.Null(await repository.FindOwnedSourceAsync(
+            "owner-a", document.Id, page.Id, false, default));
     }
 
     [Fact]
@@ -138,8 +139,11 @@ public sealed class OcrPersistenceTests : IAsyncLifetime
 
         var repository = new EfOcrRepository(db);
 
-        Assert.Null(await repository.FindCurrentOwnedAsync(
-            "owner-a", document.Id, page.Id, default));
+        var currentSource = await repository.FindOwnedSourceAsync(
+            "owner-a", document.Id, page.Id, false, default);
+        Assert.NotNull(currentSource?.SourceObjectKey);
+        Assert.Null(await repository.FindBySourceAsync(page.Id,
+            OcrSourceFingerprint.Create(currentSource.SourceObjectKey), false, default));
     }
 
     private AppDbContext CreateDbContext() => new(

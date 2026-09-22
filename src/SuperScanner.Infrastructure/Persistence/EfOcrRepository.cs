@@ -11,34 +11,47 @@ public sealed class EfOcrRepository(AppDbContext db) : IOcrRepository
     public async Task<IOcrTransaction> BeginTransactionAsync(CancellationToken ct) =>
         new OcrTransaction(await db.Database.BeginTransactionAsync(ct));
 
-    public async Task<OcrPageSource?> FindOwnedReadySourceAsync(
+    public async Task<OcrPageSource?> FindOwnedSourceAsync(
         string ownerUid,
         Guid documentId,
         Guid pageId,
+        bool forUpdate,
         CancellationToken ct)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(ownerUid);
-        if (db.Database.CurrentTransaction is null)
+        if (forUpdate && db.Database.CurrentTransaction is null)
             throw new InvalidOperationException("An OCR request requires a transaction.");
 
-        var page = await db.Pages
-            .FromSqlInterpolated($"""
-                SELECT p.*
-                FROM pages AS p
-                INNER JOIN documents AS d ON d."Id" = p."DocumentId"
-                WHERE p."Id" = {pageId}
-                  AND p."DocumentId" = {documentId}
-                  AND d."OwnerFirebaseUid" = {ownerUid}
-                  AND p."RemovedAt" IS NULL
-                  AND p."State" = {PageState.Ready.ToString()}
-                  AND p."PreviewObjectKey" IS NOT NULL
-                FOR UPDATE OF p
-                """)
-            .SingleOrDefaultAsync(ct);
+        Page? page;
+        if (forUpdate)
+        {
+            page = await db.Pages
+                .FromSqlInterpolated($"""
+                    SELECT p.*
+                    FROM pages AS p
+                    INNER JOIN documents AS d ON d."Id" = p."DocumentId"
+                    WHERE p."Id" = {pageId}
+                      AND p."DocumentId" = {documentId}
+                      AND d."OwnerFirebaseUid" = {ownerUid}
+                      AND p."RemovedAt" IS NULL
+                    FOR UPDATE OF p
+                    """)
+                .SingleOrDefaultAsync(ct);
+        }
+        else
+        {
+            page = await db.Pages.AsNoTracking()
+                .Where(candidate => candidate.Id == pageId &&
+                    candidate.DocumentId == documentId &&
+                    candidate.RemovedAt == null)
+                .Where(_ => db.Documents.Any(document =>
+                    document.Id == documentId && document.OwnerFirebaseUid == ownerUid))
+                .SingleOrDefaultAsync(ct);
+        }
 
-        return page?.PreviewObjectKey is null
+        return page is null
             ? null
-            : new OcrPageSource(page.Id, page.PreviewObjectKey, "image/jpeg");
+            : new OcrPageSource(page.Id, page.State, page.PreviewObjectKey, "image/jpeg");
     }
 
     public async Task<PageOcrResult?> FindBySourceAsync(
@@ -69,24 +82,6 @@ public sealed class EfOcrRepository(AppDbContext db) : IOcrRepository
             .Include(result => result.Elements)
             .SingleOrDefaultAsync(ct);
     }
-
-    public Task<PageOcrResult?> FindCurrentOwnedAsync(
-        string ownerUid,
-        Guid documentId,
-        Guid pageId,
-        CancellationToken ct) =>
-        db.PageOcrResults
-            .AsNoTracking()
-            .Include(result => result.Elements)
-            .Where(result => result.PageId == pageId)
-            .Where(result => db.Pages.Any(page =>
-                page.Id == pageId &&
-                page.DocumentId == documentId &&
-                page.RemovedAt == null &&
-                page.PreviewObjectKey == result.SourceObjectKey))
-            .Where(_ => db.Documents.Any(document =>
-                document.Id == documentId && document.OwnerFirebaseUid == ownerUid))
-            .SingleOrDefaultAsync(ct);
 
     public Task AddAsync(PageOcrResult result, CancellationToken ct)
     {

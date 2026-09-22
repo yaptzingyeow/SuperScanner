@@ -135,6 +135,25 @@ public sealed class PostgresJobQueue(AppDbContext db, IClock clock, IOptions<Doc
                 : RetryDelays),
             cancellationToken);
 
+    public async Task RetryFailedAsync(
+        string idempotencyKey,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
+        if (db.Database.CurrentTransaction is null)
+            throw new InvalidOperationException("Retrying an OCR job requires a transaction.");
+
+        var job = await db.ProcessingJobs.SingleOrDefaultAsync(
+            candidate => candidate.IdempotencyKey == idempotencyKey &&
+                         candidate.Status == ProcessingJobStatus.Failed,
+            cancellationToken);
+        if (job is null)
+            throw new InvalidOperationException("The failed processing job was not found.");
+
+        job.Retry(clock.UtcNow);
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
     private async Task MutateOwnedLeaseAsync(
         Guid jobId,
         string workerId,
