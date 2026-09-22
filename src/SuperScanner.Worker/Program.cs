@@ -20,6 +20,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("PostgreSql") ?? string.Empty));
 builder.Services.AddSingleton<IClock, SuperScanner.Infrastructure.Time.SystemClock>();
 builder.Services.AddScoped<IProcessingJobQueue, PostgresJobQueue>();
+builder.Services.AddScoped<IOcrRepository, EfOcrRepository>();
 builder.Services.AddOptions<OcrOptions>()
     .BindConfiguration(OcrOptions.SectionName)
     .Validate(options => options.IsValid(builder.Environment.EnvironmentName),
@@ -29,6 +30,7 @@ if (string.Equals(builder.Configuration["Ocr:Provider"], "Fake", StringCompariso
     builder.Services.AddSingleton<IOcrProvider, FakeOcrProvider>();
 builder.Services.AddSingleton<OcrMetrics>();
 builder.Services.AddScoped<OcrProcessor>();
+builder.Services.AddScoped<OcrJobScheduler>();
 builder.Services.AddScoped<IUploadValidationRepository, EfUploadValidationRepository>();
 builder.Services.AddSingleton(new UploadValidationPolicy(25 * 1024 * 1024));
 builder.Services.AddScoped<ValidateUpload>();

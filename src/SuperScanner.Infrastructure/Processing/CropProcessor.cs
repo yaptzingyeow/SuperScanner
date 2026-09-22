@@ -9,6 +9,7 @@ using SuperScanner.Domain.Documents;
 using SuperScanner.Domain.Processing;
 using SuperScanner.Application.Abstractions;
 using SuperScanner.Infrastructure.Persistence;
+using SuperScanner.Infrastructure.Ocr;
 
 namespace SuperScanner.Infrastructure.Processing;
 
@@ -18,7 +19,8 @@ public sealed class CropProcessor(
     IConfiguration configuration,
     IOptions<DocumentBoundaryOptions> boundaryOptions,
     DocumentBoundaryHealth boundaryHealth,
-    ILogger<CropProcessor> logger)
+    ILogger<CropProcessor> logger,
+    OcrJobScheduler? ocrScheduler = null)
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
     public async Task EnsureDetectionForPageAsync(Guid pageId, CancellationToken ct)
@@ -170,6 +172,8 @@ public sealed class CropProcessor(
         {
             locked.Document.MarkContentChanged(DateTimeOffset.UtcNow);
             await db.SaveChangesAsync(ct);
+            if (ocrScheduler is not null)
+                await ocrScheduler.EnsureQueuedAsync(pageId, previewKey, "image/jpeg", ct);
         }
         await transaction.CommitAsync(ct);
         return updated == 1;
