@@ -1,4 +1,7 @@
 import { expect, test } from '@playwright/test';
+import { resolve } from 'node:path';
+
+const photoFixture = resolve(__dirname, 'fixtures/append-photo.jpg');
 
 test('ready page can recognize text and surface a terminal result', async ({ page }) => {
   test.setTimeout(180_000);
@@ -9,7 +12,7 @@ test('ready page can recognize text and surface a terminal result', async ({ pag
 
   await page.goto('/e2e-login?user=user-a');
   await page.getByLabel('Document title').fill('OCR acceptance');
-  await page.getByLabel('Choose file').setInputFiles('e2e/fixtures/append-photo.jpg');
+  await page.getByLabel('Choose file').setInputFiles(photoFixture);
   await page.getByRole('button', { name: 'Upload securely' }).click();
   await page.getByRole('link', { name: 'Open document preview' }).click();
 
