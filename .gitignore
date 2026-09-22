@@ -11,3 +11,9 @@ tools/document-boundary/*-summary.json
 tools/document-boundary/*-mask.npy
 __pycache__/
 *.py[cod]
+
+# Google Cloud credentials must remain outside the repository.
+*service-account*.json
+*application-default-credentials*.json
+*application_default_credentials*.json
+*adc-credentials*.json
