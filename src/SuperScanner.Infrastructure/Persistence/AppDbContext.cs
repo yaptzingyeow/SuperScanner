@@ -4,6 +4,7 @@ using SuperScanner.Domain.Uploads;
 using SuperScanner.Domain.Processing;
 using SuperScanner.Domain.Auditing;
 using SuperScanner.Domain.Ocr;
+using SuperScanner.Domain.TextEditing;
 
 namespace SuperScanner.Infrastructure.Persistence;
 
@@ -24,6 +25,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<PageOcrResult> PageOcrResults => Set<PageOcrResult>();
 
     public DbSet<OcrElement> OcrElements => Set<OcrElement>();
+
+    public DbSet<PageRevision> PageRevisions => Set<PageRevision>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);

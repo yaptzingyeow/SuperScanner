@@ -1,3 +1,5 @@
+using SuperScanner.Domain.TextEditing;
+
 namespace SuperScanner.Domain.Documents;
 
 public sealed class Page
@@ -29,6 +31,8 @@ public sealed class Page
     public int AppliedCropRevision { get; private set; }
     public string Filter { get; private set; } = ScanFilter.Default;
     public string AppliedFilter { get; private set; } = ScanFilter.Default;
+    public Guid? ActiveRevisionId { get; private set; }
+    public PageRevision? ActiveRevision { get; private set; }
     public DateTimeOffset? RemovedAt { get; private set; }
     public string? RemovedByFirebaseUid { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
@@ -124,7 +128,33 @@ public sealed class Page
             throw new InvalidOperationException("Page is not ready for export.");
         }
 
-        return PreviewObjectKey;
+        return GetProcessedObjectKey();
+    }
+
+    public string GetProcessedObjectKey()
+    {
+        if (ActiveRevisionId is null)
+        {
+            return PreviewObjectKey
+                ?? throw new InvalidOperationException("Preview is not available.");
+        }
+
+        if (ActiveRevision is null || ActiveRevision.Id != ActiveRevisionId)
+        {
+            throw new InvalidOperationException("The active page revision is not loaded.");
+        }
+
+        return ActiveRevision.ObjectKey;
+    }
+
+    public void ActivateRevision(PageRevision revision)
+    {
+        ArgumentNullException.ThrowIfNull(revision);
+        if (revision.PageId != Id)
+            throw new ArgumentException("The revision belongs to another page.", nameof(revision));
+
+        ActiveRevisionId = revision.Id;
+        ActiveRevision = revision;
     }
 
     internal static Page Create(

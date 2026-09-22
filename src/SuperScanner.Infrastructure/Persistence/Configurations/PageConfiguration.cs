@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using SuperScanner.Domain.Documents;
+using SuperScanner.Domain.TextEditing;
 
 namespace SuperScanner.Infrastructure.Persistence.Configurations;
 
@@ -21,11 +22,16 @@ public sealed class PageConfiguration : IEntityTypeConfiguration<Page>
         builder.Property(page => page.CropModelVersion).HasMaxLength(100);
         builder.Property(page => page.CropDiagnosticsCode).HasMaxLength(64);
         builder.Property(page => page.CropRevision).IsConcurrencyToken();
+        builder.Property(page => page.ActiveRevisionId).IsConcurrencyToken();
         builder.Property(page => page.CreatedAt).IsRequired();
         builder.Property(page => page.RemovedByFirebaseUid).HasMaxLength(128);
         builder.HasIndex(page => new { page.DocumentId, page.Position })
             .IsUnique()
             .HasFilter("\"RemovedAt\" IS NULL");
         builder.HasIndex(page => new { page.SourceUploadId, page.SourcePageIndex }).IsUnique();
+        builder.HasOne(page => page.ActiveRevision)
+            .WithMany()
+            .HasForeignKey(page => page.ActiveRevisionId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }
