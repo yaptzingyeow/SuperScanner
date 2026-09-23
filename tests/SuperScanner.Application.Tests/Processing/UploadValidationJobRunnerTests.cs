@@ -70,6 +70,20 @@ public sealed class UploadValidationJobRunnerTests
         Assert.True(fixture.Queue.HeartbeatCalls >= 1);
     }
 
+    [Fact]
+    public async Task Text_edit_job_rejects_extra_payload_segments()
+    {
+        using var fixture = CreateFixture(new CleanScanner());
+        fixture.Queue.Type = "RenderTextEdit";
+        fixture.Queue.Payload = $"{Guid.NewGuid()}:extra";
+
+        await fixture.Runner.RunOnceAsync("worker-a", TimeSpan.FromMinutes(2),
+            CancellationToken.None);
+
+        Assert.Equal("text_edit_invalid_job", fixture.Queue.FailedErrorCode);
+        Assert.Null(fixture.Queue.CompletedJobId);
+    }
+
     private static RunnerFixture CreateFixture(IMalwareScanner scanner)
     {
         var document = Document.Create(Guid.NewGuid(), "user-a", "Private scan", Now);
@@ -229,6 +243,7 @@ public sealed class UploadValidationJobRunnerTests
         public Guid JobId { get; } = Guid.NewGuid();
         public Guid? CompletedJobId { get; private set; }
         public string? RescheduledErrorCode { get; private set; }
+        public string? FailedErrorCode { get; private set; }
         public int HeartbeatCalls { get; private set; }
         public string? EnqueuedType { get; private set; }
         public string? EnqueuedPayload { get; private set; }
@@ -258,6 +273,13 @@ public sealed class UploadValidationJobRunnerTests
             CancellationToken cancellationToken)
         {
             RescheduledErrorCode = errorCode;
+            return Task.CompletedTask;
+        }
+
+        public Task FailAsync(Guid jobId, string workerId, string errorCode,
+            CancellationToken cancellationToken)
+        {
+            FailedErrorCode = errorCode;
             return Task.CompletedTask;
         }
 

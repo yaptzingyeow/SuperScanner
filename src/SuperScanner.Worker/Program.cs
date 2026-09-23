@@ -46,6 +46,12 @@ builder.Services.AddSingleton<IFontCatalogue>(services =>
     var options = services.GetRequiredService<IOptions<TextEditingOptions>>().Value;
     return BundledFontCatalogue.Load(Path.Combine(AppContext.BaseDirectory, options.FontManifestPath));
 });
+builder.Services.AddSingleton<ITextGlyphPainter, MagickGlyphPainter>();
+builder.Services.AddScoped<ITextEditRenderer>(services => new TextEditRenderer(
+    services.GetRequiredService<IFontCatalogue>(), AppContext.BaseDirectory,
+    services.GetRequiredService<IOptions<TextEditingOptions>>().Value,
+    services.GetRequiredService<ITextGlyphPainter>()));
+builder.Services.AddScoped<TextEditProcessor>();
 builder.Services.AddScoped<IPdfImportTool, PopplerPdfImportTool>();
 builder.Services.AddScoped<DocumentImportProcessor>();
 builder.Services.AddSingleton(new DocumentPdfLimits

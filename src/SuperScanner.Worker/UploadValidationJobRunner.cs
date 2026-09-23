@@ -7,6 +7,7 @@ using SuperScanner.Infrastructure.Processing;
 using SuperScanner.Infrastructure.Persistence;
 using SuperScanner.Infrastructure.Ocr;
 using SuperScanner.Application.Ocr;
+using SuperScanner.Infrastructure.TextEditing;
 
 namespace SuperScanner.Worker;
 
@@ -40,10 +41,11 @@ public sealed class UploadValidationJobRunner(
             var importJob = lease.Type is "ExpandDocumentImport" or "ProcessDocument";
             var exportJob = lease.Type == "BuildDocumentPdf";
             var ocrJob = lease.Type == "RecognizePageText";
+            var textEditJob = lease.Type == "RenderTextEdit";
             var parts = lease.Payload.Split(':');
             var revision = 0;
             var hasParsedId = Guid.TryParse(parts[0], out var uploadId);
-            if ((!cropJob && lease.Type != "ValidateUpload" && !importJob && !exportJob && !ocrJob) ||
+            if ((!cropJob && lease.Type != "ValidateUpload" && !importJob && !exportJob && !ocrJob && !textEditJob) ||
                 !hasParsedId ||
                 (!cropJob && parts.Length != 1) ||
                 (cropJob && (parts.Length != 2 || !int.TryParse(parts[1], out revision) || revision < 1)))
@@ -56,6 +58,8 @@ public sealed class UploadValidationJobRunner(
                     else
                         await queue.FailAsync(lease.Id, workerId, "invalid_job", cancellationToken);
                 }
+                else if (textEditJob)
+                    await queue.FailAsync(lease.Id, workerId, "text_edit_invalid_job", cancellationToken);
                 else
                     await queue.RescheduleAsync(lease.Id, workerId, "invalid_job", cancellationToken);
                 return true;
@@ -63,7 +67,12 @@ public sealed class UploadValidationJobRunner(
 
             try
             {
-                if (ocrJob)
+                if (textEditJob)
+                {
+                    await scope.ServiceProvider.GetRequiredService<TextEditProcessor>()
+                        .RunAsync(uploadId, workCancellation.Token);
+                }
+                else if (ocrJob)
                 {
                     await scope.ServiceProvider.GetRequiredService<OcrProcessor>()
                         .RunAsync(uploadId, lease.AttemptCount, workCancellation.Token);
@@ -133,6 +142,14 @@ public sealed class UploadValidationJobRunner(
                     "OCR job did not complete. JobId={JobId} ResultId={ResultId} ErrorCode={ErrorCode}",
                     lease.Id, uploadId, failure.SafeCode);
             }
+            catch (TextEditProcessingException failure) when (textEditJob)
+            {
+                await ReconcileTextEditJobAsync(lease.Id, workerId, uploadId,
+                    failure.SafeCode, failure.Retryable, lease.AttemptCount,
+                    cancellationToken);
+                logger.LogWarning("Text edit job failed safely. JobId={JobId} EditId={EditId} ErrorCode={ErrorCode}",
+                    lease.Id, uploadId, failure.SafeCode);
+            }
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
                 logger.LogWarning(
@@ -143,6 +160,14 @@ public sealed class UploadValidationJobRunner(
             }
             catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
             {
+                if (textEditJob)
+                {
+                    await ReconcileTextEditJobAsync(lease.Id, workerId, uploadId,
+                        "text_edit_failed", true, lease.AttemptCount, cancellationToken);
+                    logger.LogWarning("Text edit job failed safely. JobId={JobId} EditId={EditId} ErrorCode={ErrorCode}",
+                        lease.Id, uploadId, "text_edit_failed");
+                    return true;
+                }
                 if (ocrJob)
                 {
                     var ocrOptions = scope.ServiceProvider.GetRequiredService<IOptions<OcrOptions>>().Value;
@@ -197,6 +222,27 @@ public sealed class UploadValidationJobRunner(
             workCancellation.Cancel();
             await heartbeat;
         }
+    }
+
+    private async Task ReconcileTextEditJobAsync(Guid jobId, string workerId,
+        Guid editId, string safeCode, bool retryable, int attemptCount,
+        CancellationToken ct)
+    {
+        await using var recoveryScope = scopeFactory.CreateAsyncScope();
+        var services = recoveryScope.ServiceProvider;
+        var queue = services.GetRequiredService<IProcessingJobQueue>();
+        var options = services.GetRequiredService<IOptions<TextEditingOptions>>().Value;
+        if (retryable && attemptCount < options.MaxAttempts)
+        {
+            await queue.RescheduleAsync(jobId, workerId, safeCode, ct);
+            return;
+        }
+        var db = services.GetRequiredService<AppDbContext>();
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        await services.GetRequiredService<TextEditProcessor>()
+            .FailAsync(editId, safeCode, ct);
+        await queue.FailAsync(jobId, workerId, safeCode, ct);
+        await transaction.CommitAsync(ct);
     }
 
     private async Task FailOcrJobAsync(
