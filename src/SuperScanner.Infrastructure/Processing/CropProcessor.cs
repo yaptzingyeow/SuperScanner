@@ -159,7 +159,8 @@ public sealed class CropProcessor(
     {
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         var locked = await CropDocumentStatus.LockWorkerPageAsync(db, pageId, ct);
-        var updated = await db.Pages.Where(x => x.Id == pageId && x.CropRevision == revision && x.CropStatus == "Processing")
+        var updated = await db.Pages.Where(x => x.Id == pageId && x.CropRevision == revision &&
+                x.CropStatus == "Processing" && x.ActiveRevisionId == null)
             .ExecuteUpdateAsync(set => set
                 .SetProperty(x => x.PreviewObjectKey, previewKey)
                 .SetProperty(x => x.ThumbnailObjectKey, thumbnailKey)

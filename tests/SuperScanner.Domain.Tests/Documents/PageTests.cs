@@ -1,9 +1,25 @@
 using SuperScanner.Domain.Documents;
+using SuperScanner.Domain.TextEditing;
 
 namespace SuperScanner.Domain.Tests.Documents;
 
 public sealed class PageTests
 {
+    [Fact]
+    public void BeginCrop_DoesNotAcceptAnEditThatWouldBeHiddenByTheCrop()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var document = Document.Create(Guid.NewGuid(), "owner", "Scan", now);
+        var page = document.AddPage(Guid.NewGuid(), 50, now);
+        page.SetPreview("preview", "thumbnail");
+        page.InitializeCrop();
+        var revision = PageRevision.CreateBase(Guid.NewGuid(), page.Id, "edited", new string('a', 64), now);
+        page.ActivateRevision(revision);
+
+        Assert.Throws<InvalidOperationException>(() => page.BeginCrop(false, "[]"));
+        Assert.Equal("edited", page.GetProcessedObjectKey());
+    }
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]

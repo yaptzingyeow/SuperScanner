@@ -44,6 +44,8 @@ public static class CropEndpoints
         var page = await CropDocumentStatus.LockSubmissionPageAsync(db, documentId, pageId, ct);
         if (page?.CropSourceObjectKey is null) return Results.NotFound();
         if (request.Revision != page.CropRevision) return Results.Conflict(new { message = "This crop changed. Reload before editing." });
+        if (page.ActiveRevisionId is not null)
+            return Results.Conflict(new { message = "This page has text edits. Restore its unedited version before cropping." });
         page.BeginCrop(detect, detect ? null : JsonSerializer.Serialize(request.Points, Json));
         if (request.Filter is not null) page.SetFilter(request.Filter);
         CropProcessor.Queue(db, page, detect);

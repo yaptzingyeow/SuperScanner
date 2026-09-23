@@ -54,6 +54,8 @@ public sealed class Page
     public void BeginCrop(bool detect, string? pointsJson)
     {
         if (CropSourceObjectKey is null) throw new InvalidOperationException("Crop source is not available.");
+        if (ActiveRevisionId is not null)
+            throw new InvalidOperationException("Crop an edited page only after restoring its unedited version.");
         CropRevision++;
         CropStatus = detect ? "Detecting" : "Processing";
         State = PageState.Processing;

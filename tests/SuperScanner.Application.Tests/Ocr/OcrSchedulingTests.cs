@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using SuperScanner.Application.Abstractions;
 using SuperScanner.Domain.Documents;
+using SuperScanner.Domain.TextEditing;
 using SuperScanner.Infrastructure.Ocr;
 using SuperScanner.Infrastructure.Persistence;
 using SuperScanner.Infrastructure.Processing;
@@ -14,6 +15,30 @@ namespace SuperScanner.Application.Tests.Ocr;
 
 public sealed class OcrSchedulingTests
 {
+    [Fact]
+    public async Task CropCompletion_DoesNotReplacePreviewWhenTextRevisionBecameActive()
+    {
+        await using var fixture = await Fixture.CreateAsync(enabled: false);
+        fixture.Db.ChangeTracker.Clear();
+        var page = await fixture.Db.Pages.SingleAsync();
+        var revision = PageRevision.CreateBase(Guid.NewGuid(), page.Id,
+            "edited.jpg", new string('a', 64), DateTimeOffset.UtcNow);
+        fixture.Db.PageRevisions.Add(revision);
+        await fixture.Db.SaveChangesAsync();
+        fixture.Db.ChangeTracker.Clear();
+        await fixture.Db.Pages.Where(candidate => candidate.Id == page.Id)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(candidate => candidate.ActiveRevisionId, revision.Id));
+
+        var completed = await fixture.Crop.CompletePerspectiveCropAsync(
+            fixture.PageId, fixture.Revision, "new-crop.jpg", "new-thumb.jpg", default);
+
+        Assert.False(completed);
+        fixture.Db.ChangeTracker.Clear();
+        var stored = await fixture.Db.Pages.SingleAsync();
+        Assert.Equal("previews/source.jpg", stored.PreviewObjectKey);
+        Assert.Equal("Processing", stored.CropStatus);
+    }
+
     [Fact]
     public async Task SuccessfulCrop_WhenEnabled_QueuesExactNewPreviewOnce()
     {
