@@ -28,6 +28,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     public DbSet<PageRevision> PageRevisions => Set<PageRevision>();
 
+    public DbSet<TextEditOperation> TextEditOperations => Set<TextEditOperation>();
+
+    public DbSet<FontCatalogueEntry> FontCatalogueEntries => Set<FontCatalogueEntry>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
 }

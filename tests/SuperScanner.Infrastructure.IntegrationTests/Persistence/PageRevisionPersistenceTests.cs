@@ -32,11 +32,22 @@ public sealed class PageRevisionPersistenceTests : IAsyncLifetime
 
             var baseRevision = PageRevision.CreateBase(
                 Guid.NewGuid(), page.Id, page.PreviewObjectKey!, Hash('a'), Now);
+            db.PageRevisions.Add(baseRevision);
+            await db.SaveChangesAsync();
+            var producingEdit = TextEditOperation.Queue(
+                Guid.NewGuid(), document.Id, page.Id, "owner",
+                baseRevision.Id, Guid.NewGuid(), [Guid.NewGuid()],
+                "Before", "After", new NormalizedBox(0.1, 0.1, 0.2, 0.1),
+                new TextEditStyle("noto-sans", "v1", 0.04, 400, "#000000", 0,
+                    0.2, 0, TextAlignment.Left),
+                1, null, "page-revision-test", Hash('c'), "renderer-v1", "layout-v1", Now);
+            db.TextEditOperations.Add(producingEdit);
+            await db.SaveChangesAsync();
             var derived = PageRevision.CreateDerived(
-                Guid.NewGuid(), page.Id, baseRevision.Id, Guid.NewGuid(),
+                Guid.NewGuid(), page.Id, baseRevision.Id, producingEdit.Id,
                 $"page-revisions/{page.Id:N}/derived.jpg", Hash('b'), Now.AddSeconds(1));
             derivedId = derived.Id;
-            db.PageRevisions.AddRange(baseRevision, derived);
+            db.PageRevisions.Add(derived);
             page.ActivateRevision(derived);
             await db.SaveChangesAsync();
         }

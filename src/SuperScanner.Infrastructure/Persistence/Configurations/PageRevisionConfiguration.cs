@@ -26,5 +26,9 @@ public sealed class PageRevisionConfiguration : IEntityTypeConfiguration<PageRev
             .WithMany()
             .HasForeignKey(revision => revision.ParentRevisionId)
             .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<TextEditOperation>()
+            .WithOne()
+            .HasForeignKey<PageRevision>(revision => revision.ProducingTextEditId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }
