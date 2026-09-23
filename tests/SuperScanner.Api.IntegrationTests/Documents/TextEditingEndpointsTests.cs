@@ -82,6 +82,16 @@ public sealed class TextEditingEndpointsTests
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
 
+    [Fact]
+    public async Task Empty_word_selection_returns_safe_validation_error()
+    {
+        await using var factory = Factory(enabled: true);
+        using var client = Client(factory);
+        var response = await client.PostAsJsonAsync(Url(), new { ocrResultId = ResultId, wordIds = Array.Empty<Guid>() });
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        Assert.DoesNotContain("Name", await response.Content.ReadAsStringAsync());
+    }
+
     private static string Url() => $"/api/documents/{DocumentId}/pages/{PageId}/text-edits/style-proposal";
 
     private static WebApplicationFactory<Program> Factory(bool enabled,
