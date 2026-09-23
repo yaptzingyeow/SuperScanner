@@ -6,8 +6,9 @@
     @if (thumbnailUrl) {
       <div class="preview-surface">
         <img [src]="thumbnailUrl" [alt]="'Thumbnail of page ' + page.position" />
-        @if (ocr?.state === 'Ready') {
-          <app-ocr-text-overlay [pageId]="page.id" [ocr]="ocr!" />
+        @if (ocr?.state === 'Ready' && !editing) {
+          <app-ocr-text-overlay [pageId]="page.id" [ocr]="ocr!"
+            (editSelection)="editText.emit($event)" />
         }
       </div>
     } @else {

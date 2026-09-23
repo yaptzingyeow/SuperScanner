@@ -33,15 +33,18 @@
             [cdkDragData]="page"
           >
             <app-page-card
+              [attr.data-page-id]="page.id" tabindex="-1"
               [page]="page"
               [documentId]="doc.id"
               [thumbnailUrl]="images()[page.id]"
               [ocr]="ocrByPage()[page.id]"
+              [editing]="editSelection()?.pageId === page.id"
               [first]="$first"
               [last]="$last"
               (movePage)="move(page.id, $event)"
               (removePage)="remove(page)"
               (downloadOriginal)="download(page.id)"
+              (editText)="beginTextEdit($event)"
             />
             @if (page.state === 'Ready') {
               <app-ocr-status
@@ -83,4 +86,10 @@
     (closed)="closeAddPages()"
     (completed)="pagesAdded()"
   />
+}
+@if (editSelection(); as selection) {
+  <app-text-replacement-editor [documentId]="id" [selection]="selection"
+    [imageUrl]="images()[selection.pageId] || ''"
+    [otherPolygons]="editOtherPolygons()"
+    (closed)="closeTextEdit()" (completed)="textEditCompleted()" />
 }

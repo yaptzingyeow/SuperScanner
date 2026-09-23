@@ -62,6 +62,18 @@ describe('PageCardComponent', () => {
     expect(fixture.nativeElement.querySelector('app-ocr-text-overlay')).toBeNull();
   });
 
+  it('hides OCR selection while its page is being edited', async () => {
+    await TestBed.configureTestingModule({ imports: [PageCardComponent], providers: [provideRouter([])] }).compileComponents();
+    const fixture = TestBed.createComponent(PageCardComponent);
+    fixture.componentRef.setInput('page', { ...page, state: 'Ready' });
+    fixture.componentRef.setInput('documentId', 'doc-1');
+    fixture.componentRef.setInput('thumbnailUrl', 'blob:preview');
+    fixture.componentRef.setInput('ocr', readyOcr());
+    fixture.componentRef.setInput('editing', true);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('app-ocr-text-overlay')).toBeNull();
+  });
+
   it('lets a portrait preview determine its full uncropped height', async () => {
     await TestBed.configureTestingModule({
       imports: [PageCardComponent],

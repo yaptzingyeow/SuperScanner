@@ -1,0 +1,25 @@
+<div class="overlay" data-testid="replacement-overlay"
+  (pointermove)="move($event)" (pointerup)="end($event)" (pointercancel)="end($event)">
+  <div class="source-mask" data-testid="source-mask" aria-hidden="true"
+    [style.left.%]="sourceArea().left" [style.top.%]="sourceArea().top"
+    [style.width.%]="sourceArea().width" [style.height.%]="sourceArea().height"></div>
+  <div class="replacement" data-testid="replacement-box" tabindex="0"
+    role="group" aria-label="Replacement preview box. Arrow keys move, Shift and arrow keys resize."
+    [style.left.%]="current().x * 100" [style.top.%]="current().y * 100"
+    [style.width.%]="current().width * 100" [style.height.%]="current().height * 100"
+    (pointerdown)="begin($event, 'move')" (keydown)="keydown($event)">
+    <span class="replacement-text" [style.font-family]="fontFamily()"
+      [style.color]="style().colorHex" [style.font-weight]="style().weight"
+      [style.font-size]="'calc(' + (style().fontSize * 100) + 'cqh)'"
+      [style.letter-spacing.em]="style().letterSpacing"
+      [style.text-align]="style().alignment === 1 ? 'center' : style().alignment === 2 ? 'right' : 'left'">
+      {{ text() }}
+    </span>
+    @for (handle of handles; track handle) {
+      <span class="handle" [class]="'handle ' + handle" [attr.data-handle]="handle"
+        [attr.aria-label]="'Resize ' + handle" (pointerdown)="begin($event, handle)"></span>
+    }
+  </div>
+  <span class="preview-label">Preview</span>
+  @if (collision()) { <span class="collision" role="status">Other text overlaps this box</span> }
+</div>

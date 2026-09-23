@@ -38,6 +38,13 @@
         <span>{{ selection.wordCount }} {{ selection.wordCount === 1 ? 'word' : 'words' }}</span>
         <span>{{ selection.averageConfidence * 100 | number: '1.0-0' }}% confidence</span>
         <span>{{ selection.textType }}</span>
+        @if (selection.textType === 'Printed') {
+          <button type="button" data-testid="edit-selection" (click)="requestEdit()">
+            Edit selected text
+          </button>
+        } @else {
+          <span>Handwritten text editing is not available yet.</span>
+        }
       </aside>
     }
   } @else {

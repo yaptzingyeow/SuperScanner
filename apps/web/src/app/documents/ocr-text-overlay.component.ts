@@ -6,6 +6,7 @@ import {
   SimpleChanges,
   computed,
   input,
+  output,
   signal,
 } from '@angular/core';
 import { OcrPoint, PageOcr } from './document.models';
@@ -15,6 +16,15 @@ import {
   selectWordsInRegion,
   summarizeSelection,
 } from './ocr-selection';
+
+export interface OcrEditSelection {
+  pageId: string;
+  ocrResultId: string;
+  wordIds: string[];
+  phrase: string;
+  textType: 'Printed';
+  polygon: OcrPoint[];
+}
 
 @Component({
   selector: 'app-ocr-text-overlay',
@@ -26,6 +36,7 @@ import {
 export class OcrTextOverlayComponent implements OnChanges, OnDestroy {
   readonly pageId = input.required<string>();
   readonly ocr = input.required<PageOcr>();
+  readonly editSelection = output<OcrEditSelection>();
 
   protected readonly selectedIds = signal<ReadonlySet<string>>(new Set());
   protected readonly words = computed(() => flattenSelectableWords(this.ocr().elements));
@@ -136,6 +147,29 @@ export class OcrTextOverlayComponent implements OnChanges, OnDestroy {
 
   protected polygonPoints(points: OcrPoint[]): string {
     return points.map((point) => `${point.x},${point.y}`).join(' ');
+  }
+
+  protected requestEdit(): void {
+    const selected = this.selectedWords();
+    const summary = this.summary();
+    const ocrResultId = this.ocr().resultId;
+    if (!summary || summary.textType !== 'Printed' || selected.length === 0 || !ocrResultId) return;
+    const points = selected.flatMap((word) => word.polygon);
+    const left = Math.min(...points.map((point) => point.x));
+    const right = Math.max(...points.map((point) => point.x));
+    const top = Math.min(...points.map((point) => point.y));
+    const bottom = Math.max(...points.map((point) => point.y));
+    this.editSelection.emit({
+      pageId: this.pageId(),
+      ocrResultId,
+      wordIds: selected.map((word) => word.id),
+      phrase: summary.phrase,
+      textType: 'Printed',
+      polygon: [
+        { x: left, y: top }, { x: right, y: top },
+        { x: right, y: bottom }, { x: left, y: bottom },
+      ],
+    });
   }
 
   ngOnDestroy(): void {

@@ -108,6 +108,33 @@ describe('DocumentDetailComponent organizer', () => {
     );
   });
 
+  it('opens an edit draft for a printed selection and restores the page on close', async () => {
+    const { fixture, component } = setup();
+    await fixture.whenStable();
+    document.body.appendChild(fixture.nativeElement);
+    component.beginTextEdit({ pageId: 'p1', ocrResultId: 'ocr-1', wordIds: ['word-1'],
+      phrase: 'Yap', textType: 'Printed', polygon: [] });
+    fixture.detectChanges();
+    expect(component.editSelection()?.pageId).toBe('p1');
+    component.closeTextEdit();
+    expect(component.editSelection()).toBeNull();
+    fixture.detectChanges();
+    await Promise.resolve();
+    expect(document.activeElement).toBe(
+      fixture.nativeElement.querySelector('app-page-card[data-page-id="p1"]'));
+    fixture.nativeElement.remove();
+  });
+
+  it('blocks navigation until an unapplied editor draft is confirmed for discard', async () => {
+    const { component } = setup();
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+    confirm.mockClear();
+    component.editor = { isDirty: () => true };
+    expect(component.canLeave()).toBe(false);
+    expect(component.canLeave()).toBe(true);
+    expect(confirm).toHaveBeenCalledTimes(2);
+  });
+
   it('keeps OCR snapshots page-local and removes them when a page disappears', async () => {
     const { component, api } = setup();
     await component.load();

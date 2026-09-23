@@ -1,6 +1,6 @@
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit, ViewChild, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { API_BASE_URL } from '../core/api/security.interceptor';
@@ -10,6 +10,10 @@ import { DocumentsApiService } from './documents-api.service';
 import { ExportStatusComponent } from './export-status.component';
 import { PageCardComponent } from './page-card.component';
 import { OcrStatusComponent } from './ocr-status.component';
+import { TextEditSelection } from './text-edit.models';
+import { TextReplacementEditorComponent } from './text-replacement-editor.component';
+import { flattenSelectableWords } from './ocr-selection';
+import { OcrPoint } from './document.models';
 
 @Component({
   selector: 'app-document-detail',
@@ -21,11 +25,13 @@ import { OcrStatusComponent } from './ocr-status.component';
     AddPagesDialogComponent,
     ExportStatusComponent,
     OcrStatusComponent,
+    TextReplacementEditorComponent,
   ],
   templateUrl: './document-detail.component.html',
   styleUrl: './document-detail.component.scss',
 })
 export class DocumentDetailComponent implements OnInit, OnDestroy {
+  @ViewChild(TextReplacementEditorComponent) editor?: TextReplacementEditorComponent;
   private readonly http = inject(HttpClient);
   private readonly documentsApi = inject(DocumentsApiService);
   private readonly route = inject(ActivatedRoute);
@@ -39,9 +45,24 @@ export class DocumentDetailComponent implements OnInit, OnDestroy {
   protected readonly retrying = signal(false);
   protected readonly reordering = signal(false);
   protected readonly showAddPages = signal(false);
+  protected readonly editSelection = signal<TextEditSelection | null>(null);
+  protected readonly editOtherPolygons = signal<OcrPoint[][]>([]);
+  private returnFocus?: HTMLElement;
   private timer?: ReturnType<typeof setTimeout>;
   private destroyed = false;
   private readonly loadedRevisions: Record<string, number> = {};
+
+  canLeave(): boolean {
+    return !this.editor?.isDirty() || window.confirm('Discard your unapplied text changes?');
+  }
+
+  @HostListener('window:beforeunload', ['$event'])
+  beforeUnload(event: BeforeUnloadEvent): void {
+    if (this.editor?.isDirty()) {
+      event.preventDefault();
+      event.returnValue = '';
+    }
+  }
 
   ngOnInit(): void {
     void this.load();
@@ -103,6 +124,42 @@ export class DocumentDetailComponent implements OnInit, OnDestroy {
 
   protected ocrUpdated(pageId: string, ocr: PageOcr): void {
     this.ocrByPage.update((current) => ({ ...current, [pageId]: ocr }));
+  }
+
+  protected beginTextEdit(selection: TextEditSelection): void {
+    this.returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
+    this.editSelection.set({ ...selection, wordIds: [...selection.wordIds],
+      polygon: selection.polygon.map((point) => ({ ...point })) });
+    const selected = new Set(selection.wordIds);
+    this.editOtherPolygons.set(flattenSelectableWords(this.ocrByPage()[selection.pageId]?.elements ?? [])
+      .filter((word) => !selected.has(word.id))
+      .map((word) => word.polygon.map((point) => ({ ...point }))));
+  }
+
+  protected closeTextEdit(): void {
+    const pageId = this.editSelection()?.pageId;
+    this.editSelection.set(null);
+    this.editOtherPolygons.set([]);
+    queueMicrotask(() => {
+      const card = [...document.querySelectorAll<HTMLElement>('app-page-card[data-page-id]')]
+        .find((element) => element.dataset['pageId'] === pageId);
+      if (card) card.focus();
+      else if (this.returnFocus?.isConnected) this.returnFocus.focus();
+    });
+  }
+
+  protected async textEditCompleted(): Promise<void> {
+    const pageId = this.editSelection()?.pageId;
+    this.closeTextEdit();
+    if (!pageId) return;
+    this.ocrByPage.update((current) => {
+      const next = { ...current };
+      delete next[pageId];
+      return next;
+    });
+    delete this.loadedRevisions[pageId];
+    await this.load();
+    this.announcement.set('Text change applied. The latest page preview was loaded.');
   }
 
   private async persistOrder(pages: DocumentPage[]): Promise<void> {

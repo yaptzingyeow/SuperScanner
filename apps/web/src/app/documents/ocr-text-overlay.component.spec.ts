@@ -191,6 +191,33 @@ describe('OcrTextOverlayComponent', () => {
     expect(fixture.nativeElement.querySelector('svg')).toBeNull();
   });
 
+  it('emits a copied printed selection with page, OCR, words and union polygon', () => {
+    const printed = ocr();
+    printed.elements[0].children[0].children[1].textType = 'Printed';
+    fixture.componentRef.setInput('ocr', printed);
+    fixture.detectChanges();
+    const emitted: unknown[] = [];
+    fixture.componentInstance.editSelection.subscribe((selection) => emitted.push(selection));
+    drag(145, 95, 500, 165);
+    fixture.nativeElement.querySelector('[data-testid="edit-selection"]').click();
+    expect(emitted).toEqual([{
+      pageId: 'p1', ocrResultId: 'r1', wordIds: ['w1', 'w2', 'w3'],
+      phrase: 'Yap Tzing Yeow', textType: 'Printed',
+      polygon: [
+        { x: .1, y: .2 }, { x: .75, y: .2 },
+        { x: .75, y: .4 }, { x: .1, y: .4 },
+      ],
+    }]);
+    drag(590, 280, 590, 280);
+    expect((emitted[0] as { wordIds: string[] }).wordIds).toEqual(['w1', 'w2', 'w3']);
+  });
+
+  it('does not offer editing for handwriting and states why', () => {
+    drag(275, 125, 277, 126);
+    expect(fixture.nativeElement.querySelector('[data-testid="edit-selection"]')).toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Handwritten text editing is not available yet.');
+  });
+
   function svg(): SVGSVGElement {
     return fixture.nativeElement.querySelector('svg');
   }

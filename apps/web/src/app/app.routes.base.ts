@@ -17,7 +17,8 @@ export const foundationRoutes: Routes = [
     children: [
       { path: '', component: NewDocumentComponent },
       { path: 'documents', component: DocumentListComponent },
-      { path: 'documents/:documentId', component: DocumentDetailComponent },
+      { path: 'documents/:documentId', component: DocumentDetailComponent,
+        canDeactivate: [(component: DocumentDetailComponent) => component.canLeave()] },
       { path: 'documents/:documentId/pages/:pageId/crop', component: CropEditorComponent },
       {
         path: 'documents/:documentId/uploads/:uploadId',
