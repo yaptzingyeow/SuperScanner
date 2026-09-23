@@ -23,7 +23,9 @@ public sealed class EfDocumentRepository(AppDbContext db) : IDocumentRepository
         lockedDocument = documents.SingleOrDefault();
         if (lockedDocument is not null)
             await db.Entry(lockedDocument).Collection(d => d.Pages).Query()
-                .Where(p => p.RemovedAt == null).LoadAsync(cancellationToken);
+                .Where(p => p.RemovedAt == null)
+                .Include(p => p.ActiveRevision)
+                .LoadAsync(cancellationToken);
         return lockedDocument;
     }
 

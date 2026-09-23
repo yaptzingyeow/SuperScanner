@@ -22,7 +22,7 @@ describe('DocumentDetailComponent organizer', () => {
     cropStatus: 'Ready',
     cropRevision: 1,
     appliedCropRevision: 1,
-    previewRevision: 0,
+    previewRevision: 'crop-0',
   });
   const detail = (
     pages = [page('p1', 1), page('p2', 2), page('p3', 3), page('p4', 4)],

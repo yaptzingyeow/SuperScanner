@@ -17,7 +17,7 @@ describe('PageCardComponent', () => {
     cropStatus: 'NeedsCrop',
     cropRevision: 1,
     appliedCropRevision: 0,
-    previewRevision: 1,
+    previewRevision: 'crop-1',
     filter: 'Document',
     appliedFilter: 'BlackAndWhite',
   };

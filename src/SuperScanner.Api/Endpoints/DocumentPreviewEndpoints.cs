@@ -17,6 +17,7 @@ public static class DocumentPreviewEndpoints
         group.MapGet("/{id:guid}", async (Guid id, ICurrentUser user, AppDbContext db, CancellationToken ct) =>
         {
             var document = await db.Documents.AsNoTracking().Include(x => x.Pages)
+                .ThenInclude(page => page.ActiveRevision)
                 .SingleOrDefaultAsync(x => x.Id == id && x.OwnerFirebaseUid == user.FirebaseUid, ct);
             if (document is null) return Results.NotFound();
             var imports = await db.UploadIntents.AsNoTracking().Where(x => x.DocumentId == id)
@@ -31,10 +32,12 @@ public static class DocumentPreviewEndpoints
             IObjectStore store, HttpContext context, CancellationToken ct) =>
         {
             var document = await db.Documents.AsNoTracking().Include(x => x.Pages)
+                .ThenInclude(page => page.ActiveRevision)
                 .SingleOrDefaultAsync(x => x.Id == id && x.OwnerFirebaseUid == user.FirebaseUid, ct);
             var page = document?.ActivePages.SingleOrDefault(x => x.Id == pageId);
             var key = asset switch {
-                "preview" => page?.PreviewObjectKey, "thumbnail" => page?.ThumbnailObjectKey,
+                "preview" => page?.PreviewObjectKey is null ? null : page.GetProcessedObjectKey(),
+                "thumbnail" => page?.ThumbnailObjectKey,
                 "original" => page?.OriginalObjectKey, "crop-source" => page?.CropSourceObjectKey, _ => null
             };
             if (key is null) return Results.NotFound();
@@ -71,7 +74,8 @@ public static class DocumentPreviewEndpoints
             state = page.State.ToString(), failureCode = SafeCode(page.FailureCode, "page_failed"),
             hasPreview = page.PreviewObjectKey != null, hasOriginal = page.OriginalObjectKey != null,
             canCrop = page.CropSourceObjectKey != null, cropStatus = page.CropStatus,
-            page.CropRevision, page.AppliedCropRevision, previewRevision = page.AppliedCropRevision,
+            page.CropRevision, page.AppliedCropRevision,
+            previewRevision = page.ActiveRevisionId?.ToString("N") ?? $"crop-{page.AppliedCropRevision}",
             page.Filter, page.AppliedFilter
         }).ToArray(),
         imports = imports.Select(upload => new

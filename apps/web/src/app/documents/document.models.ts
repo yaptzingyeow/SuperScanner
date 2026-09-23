@@ -20,7 +20,7 @@ export interface DocumentPage {
   cropStatus: string;
   cropRevision: number;
   appliedCropRevision: number;
-  previewRevision: number;
+  previewRevision: string;
   filter?: string | null;
   appliedFilter?: string | null;
 }

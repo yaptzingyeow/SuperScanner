@@ -97,6 +97,33 @@ public sealed class PageRevisionPersistenceTests : IAsyncLifetime
         await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => second.SaveChangesAsync());
     }
 
+    [Fact]
+    public async Task Export_repository_loads_active_revision_for_snapshot()
+    {
+        var options = Options();
+        var document = ReadyDocument();
+        var page = document.ActivePages.Single();
+        await using (var seed = new AppDbContext(options))
+        {
+            await seed.Database.MigrateAsync();
+            seed.Documents.Add(document);
+            await seed.SaveChangesAsync();
+            var revision = PageRevision.CreateBase(Guid.NewGuid(), page.Id,
+                "page-revisions/edited.jpg", Hash('a'), Now);
+            seed.PageRevisions.Add(revision);
+            page.ActivateRevision(revision);
+            await seed.SaveChangesAsync();
+        }
+
+        await using var reader = new AppDbContext(options);
+        var repository = new EfDocumentRepository(reader);
+        await using var transaction = await repository.BeginTransactionAsync(default);
+        var loaded = await repository.FindOwnedForUpdateAsync("owner", document.Id, default);
+        var export = DocumentExport.Create(Guid.NewGuid(), loaded!, "owner", Now,
+            TimeSpan.FromDays(1));
+        Assert.Contains("page-revisions/edited.jpg", export.SnapshotJson);
+    }
+
     private DbContextOptions<AppDbContext> Options() =>
         new DbContextOptionsBuilder<AppDbContext>()
             .UseNpgsql(postgres.GetConnectionString())

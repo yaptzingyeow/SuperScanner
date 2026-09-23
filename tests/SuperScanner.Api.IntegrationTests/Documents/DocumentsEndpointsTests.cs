@@ -14,6 +14,7 @@ using Testcontainers.PostgreSql;
 using System.Text.Json;
 using SuperScanner.Api.Endpoints;
 using SuperScanner.Domain.Documents;
+using SuperScanner.Domain.TextEditing;
 using SuperScanner.Domain.Uploads;
 
 namespace SuperScanner.Api.IntegrationTests.Documents;
@@ -22,6 +23,7 @@ public sealed class DocumentsEndpointsTests : IAsyncLifetime
 {
     private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:17-alpine").Build();
     private WebApplicationFactory<Program>? _factory;
+    private readonly PreviewStore previewStore = new();
 
     public static TheoryData<string?> InvalidTitles => new()
     {
@@ -47,6 +49,48 @@ public sealed class DocumentsEndpointsTests : IAsyncLifetime
         var detail = await owner.GetFromJsonAsync<JsonElement>($"/api/documents/{fixture.Document.Id}");
         OrganizerFixture.AssertDetail(fixture, detail);
     }
+
+    [Fact]
+    public async Task Preview_serves_active_revision_and_undo_restores_original()
+    {
+        var document = Document.Create(Guid.NewGuid(), "user-a", "Form", DateTimeOffset.UtcNow);
+        var page = document.AddPage(Guid.NewGuid(), 10, DateTimeOffset.UtcNow);
+        page.MarkImportReady("source.jpg", "image/jpeg");
+        page.SetPreview("previews/original.jpg", "thumbnail.jpg");
+        page.MarkReady();
+        var original = PageRevision.CreateBase(Guid.NewGuid(), page.Id,
+            "previews/original.jpg", new string('a', 64), DateTimeOffset.UtcNow);
+        var edited = PageRevision.CreateBase(Guid.NewGuid(), page.Id,
+            "page-revisions/edited.jpg", new string('b', 64), DateTimeOffset.UtcNow);
+        await using (var scope = _factory!.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.Documents.Add(document);
+            await db.SaveChangesAsync();
+            db.PageRevisions.AddRange(original, edited);
+            page.ActivateRevision(edited);
+            await db.SaveChangesAsync();
+        }
+
+        using var client = CreateAuthenticatedClient("user-a");
+        var url = $"/api/documents/{document.Id}/pages/{page.Id}/preview";
+        var editedResponse = await client.GetAsync(url);
+        Assert.Equal(HttpStatusCode.OK, editedResponse.StatusCode);
+        Assert.Equal("page-revisions/edited.jpg", Assert.Single(previewStore.Reads));
+        Assert.Equal("edited", await editedResponse.Content.ReadAsStringAsync());
+        Assert.True(editedResponse.Headers.CacheControl!.NoStore);
+
+        await using (var scope = _factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var saved = await db.Pages.SingleAsync(candidate => candidate.Id == page.Id);
+            saved.ActivateRevision(await db.PageRevisions.SingleAsync(candidate => candidate.Id == original.Id));
+            await db.SaveChangesAsync();
+        }
+        var restored = await client.GetAsync(url);
+        Assert.Equal("original", await restored.Content.ReadAsStringAsync());
+    }
+
 
     [Fact]
     public async Task List_ReturnsOnlyCurrentUsersDocuments()
@@ -119,6 +163,8 @@ public sealed class DocumentsEndpointsTests : IAsyncLifetime
                     services.RemoveAll<DbContextOptions<AppDbContext>>();
                     services.RemoveAll<AppDbContext>();
                     services.AddDbContext<AppDbContext>(dbOptions => dbOptions.UseNpgsql(connectionString));
+                    services.RemoveAll<IObjectStore>();
+                    services.AddSingleton<IObjectStore>(previewStore);
                 });
             });
     }
@@ -152,6 +198,22 @@ public sealed class DocumentsEndpointsTests : IAsyncLifetime
             appCheckToken == "valid-app" && !string.IsNullOrWhiteSpace(idToken)
                 ? Task.FromResult(new VerifiedRequestIdentity(idToken, $"{idToken}@example.test"))
                 : Task.FromException<VerifiedRequestIdentity>(new UnauthorizedAccessException());
+    }
+
+    private sealed class PreviewStore : IObjectStore
+    {
+        public List<string> Reads { get; } = [];
+        public Task<Stream> OpenReadAsync(string key, CancellationToken ct)
+        {
+            Reads.Add(key);
+            return Task.FromResult<Stream>(new MemoryStream(System.Text.Encoding.UTF8.GetBytes(
+                key == "page-revisions/edited.jpg" ? "edited" : "original")));
+        }
+        public Task<ObjectCreationResult> WriteIfAbsentAsync(string key, string mediaType, Stream content, CancellationToken ct) => throw new NotSupportedException();
+        public Task<Uri> CreatePutUrlAsync(PutObjectRequest request, CancellationToken ct) => throw new NotSupportedException();
+        public Task<StoredObjectInfo?> HeadAsync(string key, CancellationToken ct) => throw new NotSupportedException();
+        public Task PromoteAsync(string from, string to, CancellationToken ct) => throw new NotSupportedException();
+        public Task DeleteAsync(string key, CancellationToken ct) => throw new NotSupportedException();
     }
 }
 

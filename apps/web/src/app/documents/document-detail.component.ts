@@ -50,7 +50,7 @@ export class DocumentDetailComponent implements OnInit, OnDestroy {
   private returnFocus?: HTMLElement;
   private timer?: ReturnType<typeof setTimeout>;
   private destroyed = false;
-  private readonly loadedRevisions: Record<string, number> = {};
+  private readonly loadedRevisions: Record<string, string> = {};
 
   canLeave(): boolean {
     return !this.editor?.isDirty() || window.confirm('Discard your unapplied text changes?');

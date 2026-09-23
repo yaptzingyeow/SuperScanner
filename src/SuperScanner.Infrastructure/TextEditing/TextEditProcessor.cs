@@ -139,6 +139,9 @@ public sealed class TextEditProcessor(
             clock.UtcNow);
         db.PageRevisions.Add(revision);
         currentPage.ActivateRevision(revision);
+        var document = await db.Documents.SingleAsync(candidate =>
+            candidate.Id == currentPage.DocumentId, ct);
+        document.MarkContentChanged(clock.UtcNow);
         currentEdit.Complete(revision.Id, clock.UtcNow);
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);

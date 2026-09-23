@@ -18,7 +18,7 @@ describe('ExportStatusComponent', () => {
     cropStatus: state,
     cropRevision: 1,
     appliedCropRevision: 1,
-    previewRevision: 0,
+    previewRevision: 'crop-0',
   });
   const exported = (state: string, isOutdated = false): DocumentExport => ({
     id: 'export-1',

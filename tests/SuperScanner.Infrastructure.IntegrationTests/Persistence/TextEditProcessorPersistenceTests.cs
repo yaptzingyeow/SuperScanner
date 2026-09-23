@@ -22,6 +22,8 @@ public sealed class TextEditProcessorPersistenceTests : IAsyncLifetime
     {
         var fixture = await SeedAsync();
         await using var db = new AppDbContext(fixture.Options);
+        var originalDocumentRevision = await db.Documents.Where(candidate =>
+            candidate.Id == fixture.DocumentId).Select(candidate => candidate.Revision).SingleAsync();
         var processor = new TextEditProcessor(db, fixture.Store,
             new Renderer(), new Clock());
         await processor.RunAsync(fixture.EditId, default);
@@ -37,6 +39,8 @@ public sealed class TextEditProcessorPersistenceTests : IAsyncLifetime
         Assert.Single(await verify.PageRevisions.Where(revision =>
             revision.ProducingTextEditId == fixture.EditId).ToListAsync());
         Assert.Single(fixture.Store.CreatedKeys);
+        Assert.Equal(originalDocumentRevision + 1, (await verify.Documents.SingleAsync(candidate =>
+            candidate.Id == fixture.DocumentId)).Revision);
     }
 
     [Fact]

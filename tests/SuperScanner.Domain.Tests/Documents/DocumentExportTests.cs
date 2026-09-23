@@ -1,5 +1,6 @@
 using System.Text.Json;
 using SuperScanner.Domain.Documents;
+using SuperScanner.Domain.TextEditing;
 
 namespace SuperScanner.Domain.Tests.Documents;
 
@@ -30,6 +31,26 @@ public sealed class DocumentExportTests
         Assert.Equal("previews/third.png", entries[0].GetProperty("ProcessedObjectKey").GetString());
         Assert.Equal(pages[0].Id, entries[1].GetProperty("PageId").GetGuid());
         Assert.Equal("previews/first.png", entries[1].GetProperty("ProcessedObjectKey").GetString());
+    }
+
+    [Fact]
+    public void Create_SnapshotsActiveEditAndLaterUndoDoesNotChangeTheSnapshot()
+    {
+        var document = Document.Create(Guid.NewGuid(), "firebase-user-1", "Form", Now);
+        var page = document.AppendImportedPages(Guid.NewGuid(), [1], 10, Now).Single();
+        PrepareReadyPage(page, "previews/original.jpg");
+        var original = PageRevision.CreateBase(Guid.NewGuid(), page.Id,
+            "previews/original.jpg", new string('a', 64), Now);
+        var edited = PageRevision.CreateDerived(Guid.NewGuid(), page.Id, original.Id,
+            Guid.NewGuid(), "page-revisions/edited.jpg", new string('b', 64), Now.AddMinutes(1));
+        page.ActivateRevision(edited);
+
+        var export = DocumentExport.Create(Guid.NewGuid(), document, "firebase-user-1",
+            Now, TimeSpan.FromDays(1));
+        page.ActivateRevision(original);
+
+        var snapshot = Assert.Single(JsonSerializer.Deserialize<DocumentExportSnapshotEntry[]>(export.SnapshotJson)!);
+        Assert.Equal("page-revisions/edited.jpg", snapshot.ProcessedObjectKey);
     }
 
     [Fact]
