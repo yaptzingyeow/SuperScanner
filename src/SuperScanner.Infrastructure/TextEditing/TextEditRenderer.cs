@@ -115,6 +115,8 @@ public sealed class TextEditRenderer(
         FontCatalogueEntry font;
         try { font = catalogue.Get(request.Style.FontId, request.Style.FontVersion); }
         catch (KeyNotFoundException) { return Task.FromResult(Fail("text_edit_font_unavailable")); }
+        if (!font.SupportsWeight(request.Style.Weight))
+            return Task.FromResult(Fail("text_edit_font_unavailable"));
         var fontPath = Path.GetFullPath(Path.Combine(fontRoot, font.RendererAssetPath));
         var expectedRoot = Path.GetFullPath(Path.Combine(fontRoot, "assets/fonts")) +
             Path.DirectorySeparatorChar;

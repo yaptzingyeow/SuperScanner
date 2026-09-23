@@ -17,6 +17,7 @@ public sealed class TextEditPreparation(
         NormalizedBox box, TextEditStyle style, CancellationToken ct)
     {
         var font = fonts.Get(style.FontId, style.FontVersion);
+        if (!font.SupportsWeight(style.Weight)) return new PreparedTextEdit(string.Empty, false);
         var fontPath = Path.GetFullPath(Path.Combine(fontRoot, font.RendererAssetPath));
         var expectedRoot = Path.GetFullPath(Path.Combine(fontRoot, "assets/fonts")) +
             Path.DirectorySeparatorChar;

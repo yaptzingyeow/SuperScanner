@@ -58,6 +58,16 @@ public sealed class TextEditRendererTests
     }
 
     [Fact]
+    public async Task Weight_that_disagrees_with_the_pinned_font_face_fails_without_output()
+    {
+        var style = new TextEditStyle("noto-sans", "archive-main-regular", .05,
+            700, "#142435", 0, .5, 0, TextAlignment.Center);
+        var result = await CreateRenderer().RenderAsync(Request() with { Style = style }, default);
+        Assert.Equal("text_edit_font_unavailable", result.FailureCode);
+        Assert.Null(result.Output);
+    }
+
+    [Fact]
     public async Task Unselected_dark_content_outside_box_survives_jpeg_encoding()
     {
         var renderer = CreateRenderer();

@@ -17,6 +17,9 @@ public sealed class FontCatalogueEntry
     public string RendererAssetPath { get; private set; } = string.Empty;
     public bool Enabled { get; private set; }
 
+    public bool SupportsWeight(int weight) =>
+        weight == (Version.Contains("bold", StringComparison.OrdinalIgnoreCase) ? 700 : 400);
+
     public static FontCatalogueEntry Create(
         Guid id,
         string catalogueId,
