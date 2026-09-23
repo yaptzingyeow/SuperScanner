@@ -15,6 +15,7 @@ using SuperScanner.Infrastructure.Auditing;
 using SuperScanner.Infrastructure.Ocr;
 using SuperScanner.Infrastructure.TextEditing;
 using Microsoft.Extensions.Options;
+using SuperScanner.Application.TextEditing;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -97,6 +98,15 @@ builder.Services.AddSingleton<IFontCatalogue>(services =>
     var options = services.GetRequiredService<IOptions<TextEditingOptions>>().Value;
     return BundledFontCatalogue.Load(Path.Combine(AppContext.BaseDirectory, options.FontManifestPath));
 });
+builder.Services.AddScoped<ITextSelectionRepository, EfTextEditRepository>();
+builder.Services.AddScoped<ITextStyleEstimator>(services => new TextStyleEstimator(
+    services.GetRequiredService<IObjectStore>(),
+    services.GetRequiredService<IFontCatalogue>(),
+    AppContext.BaseDirectory));
+builder.Services.AddScoped<ProposeTextStyle>(services => new ProposeTextStyle(
+    services.GetRequiredService<ITextSelectionRepository>(),
+    services.GetRequiredService<ITextStyleEstimator>(),
+    services.GetRequiredService<IOptions<TextEditingOptions>>().Value.MaxSelectionWords));
 builder.Services.AddScoped<CompleteUpload>();
 builder.Services.AddScoped<GetUploadStatus>();
 builder.Services.Configure<R2Options>(builder.Configuration.GetSection(R2Options.SectionName));
