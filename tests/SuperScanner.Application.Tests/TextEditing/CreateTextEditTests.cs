@@ -136,13 +136,26 @@ public sealed class CreateTextEditTests
         Assert.Empty(fixture.Queue.Jobs);
     }
 
+    [Fact]
+    public async Task Edit_from_derived_revision_links_to_producing_edit()
+    {
+        var fixture = Fixture(derivedSource: true);
+        var parentEditId = fixture.Repository.Page.ActiveRevision!.ProducingTextEditId;
+        await fixture.Service.HandleAsync(Command() with
+        {
+            ExpectedRevisionId = fixture.Repository.Page.ActiveRevisionId
+        }, default);
+        Assert.Equal(parentEditId, fixture.Repository.Edits.Single().BranchParentEditId);
+    }
+
     private CreateTextEditRequest Command() => new("owner", documentId, pageId, ocrId,
         null, [wordId], "Secret", new NormalizedBox(0.1, 0.2, 0.3, 0.1),
         new TextEditStyle("noto-sans", "archive-main-regular", 0.04, 400,
             "#000000", 0, 0.25, 0, TextAlignment.Left), "test-key");
 
     private FixtureData Fixture(OcrTextType textType = OcrTextType.Printed,
-        bool enabled = true, bool overlap = false, bool existingRevision = false)
+        bool enabled = true, bool overlap = false, bool existingRevision = false,
+        bool derivedSource = false)
     {
         var document = Document.Create(documentId, "owner", "Document", DateTimeOffset.UtcNow);
         var page = document.AddPage(pageId, 10, DateTimeOffset.UtcNow);
@@ -152,6 +165,10 @@ public sealed class CreateTextEditTests
         if (existingRevision)
             page.ActivateRevision(PageRevision.CreateBase(Guid.NewGuid(), pageId,
                 "derived.jpg", new string('a', 64), DateTimeOffset.UtcNow));
+        if (derivedSource)
+            page.ActivateRevision(PageRevision.CreateDerived(Guid.NewGuid(), pageId,
+                Guid.NewGuid(), Guid.NewGuid(), "derived.jpg", new string('b', 64),
+                DateTimeOffset.UtcNow));
         var result = PageOcrResult.Queue(ocrId, pageId, page.GetProcessedObjectKey(), new string('a', 64),
             "en", DateTimeOffset.UtcNow);
         result.BeginAttempt(1, DateTimeOffset.UtcNow);

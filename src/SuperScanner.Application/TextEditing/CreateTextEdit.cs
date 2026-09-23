@@ -143,7 +143,8 @@ public sealed class CreateTextEdit(
             request.PageId, request.OwnerUid, sourceRevisionId.Value,
             request.OcrResultId, selected.WordIds, selected.OriginalText,
             request.ReplacementText, request.ReplacementBox, request.Style,
-            await repository.NextSequenceAsync(request.PageId, ct), null,
+            await repository.NextSequenceAsync(request.PageId, ct),
+            page.ActiveRevision?.ProducingTextEditId,
             request.IdempotencyKey, hash, "renderer-v1", "layout-v1", clock.UtcNow);
         await repository.AddEditAsync(edit, ct);
         await audit.AppendAsync(new AuditWriteRequest(request.OwnerUid,

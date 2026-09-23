@@ -33,8 +33,34 @@ public sealed class GetTextEditTests
         var repository = new FakeReadRepository { Edit = edit };
         var history = await new GetPageEditHistory(repository).HandleAsync("owner",
             edit.DocumentId, edit.PageId, default);
-        Assert.Single(history);
-        Assert.Equal(edit.Id, history[0].Id);
+        Assert.Single(history.Entries);
+        Assert.Equal(edit.Id, history.Entries[0].Id);
+        Assert.False(history.CanUndo);
+        Assert.False(history.CanRedo);
+    }
+
+    [Fact]
+    public async Task History_exposes_undo_and_redo_for_active_branch()
+    {
+        var edit = Edit();
+        var baseId = edit.SourceRevisionId;
+        var childId = Guid.NewGuid();
+        edit.Start(DateTimeOffset.UtcNow);
+        edit.Complete(childId, DateTimeOffset.UtcNow);
+        var repository = new FakeReadRepository
+        {
+            Edit = edit,
+            RevisionState = new PageEditRevisionState(childId,
+                [new(baseId, null), new(childId, baseId)])
+        };
+        var query = new GetPageEditHistory(repository);
+        var atChild = await query.HandleAsync("owner", edit.DocumentId, edit.PageId, default);
+        Assert.True(atChild.CanUndo);
+        Assert.False(atChild.CanRedo);
+        repository.RevisionState = repository.RevisionState with { ActiveRevisionId = baseId };
+        var atBase = await query.HandleAsync("owner", edit.DocumentId, edit.PageId, default);
+        Assert.False(atBase.CanUndo);
+        Assert.True(atBase.CanRedo);
     }
 
     private static TextEditOperation Edit() => TextEditOperation.Queue(Guid.NewGuid(),
@@ -48,6 +74,7 @@ public sealed class GetTextEditTests
     {
         public bool Owned { get; set; } = true;
         public TextEditOperation? Edit { get; set; }
+        public PageEditRevisionState RevisionState { get; set; } = new(null, []);
         public int ReadCount { get; private set; }
         public Task<bool> IsOwnedPageAsync(string ownerUid, Guid documentId,
             Guid pageId, CancellationToken ct) => Task.FromResult(Owned);
@@ -61,5 +88,7 @@ public sealed class GetTextEditTests
             ReadCount++;
             return Task.FromResult<IReadOnlyList<TextEditOperation>>(Edit?.PageId == pageId ? [Edit] : []);
         }
+        public Task<PageEditRevisionState> GetRevisionStateAsync(Guid pageId,
+            CancellationToken ct) => Task.FromResult(RevisionState);
     }
 }

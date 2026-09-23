@@ -16,6 +16,18 @@ public static class TextEditingEndpoints
         group.MapPost("/style-proposal", ProposeAsync);
         group.MapPost("", ApplyAsync);
         group.MapGet("/history", HistoryAsync);
+        group.MapPost("/undo", (Guid documentId, Guid pageId,
+            SwitchRevisionRequest request, ICurrentUser user, SwitchPageRevision command,
+            GetPageEditHistory history,
+            IOptions<TextEditingOptions> options, HttpContext context, CancellationToken ct) =>
+            SwitchAsync(documentId, pageId, request, RevisionSwitchDirection.Undo,
+                user, command, history, options, context, ct));
+        group.MapPost("/redo", (Guid documentId, Guid pageId,
+            SwitchRevisionRequest request, ICurrentUser user, SwitchPageRevision command,
+            GetPageEditHistory history,
+            IOptions<TextEditingOptions> options, HttpContext context, CancellationToken ct) =>
+            SwitchAsync(documentId, pageId, request, RevisionSwitchDirection.Redo,
+                user, command, history, options, context, ct));
         group.MapGet("/{editId:guid}", GetAsync);
     }
 
@@ -61,6 +73,35 @@ public static class TextEditingEndpoints
     }
 
     public sealed record StyleProposalRequest(Guid OcrResultId, Guid[]? WordIds);
+    public sealed record SwitchRevisionRequest(Guid? ExpectedRevisionId);
+
+    private static async Task<IResult> SwitchAsync(Guid documentId, Guid pageId,
+        SwitchRevisionRequest request, RevisionSwitchDirection direction,
+        ICurrentUser user, SwitchPageRevision command, GetPageEditHistory history,
+        IOptions<TextEditingOptions> options, HttpContext context, CancellationToken ct)
+    {
+        context.Response.Headers.CacheControl = "private, no-store";
+        if (!options.Value.Enabled)
+            return Results.Json(new { code = "text_edit_disabled" },
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        try
+        {
+            await command.HandleAsync(new SwitchPageRevisionRequest(
+                user.FirebaseUid, documentId, pageId, request.ExpectedRevisionId,
+                direction), ct);
+            return Results.Ok(await history.HandleAsync(user.FirebaseUid,
+                documentId, pageId, ct));
+        }
+        catch (TextSelectionNotFoundException) { return Results.NotFound(); }
+        catch (TextRevisionConflictException)
+        {
+            return Results.Conflict(new { code = "text_revision_conflict" });
+        }
+        catch (TextRevisionBoundaryException)
+        {
+            return Results.UnprocessableEntity(new { code = "text_revision_boundary" });
+        }
+    }
 
     public sealed record ApplyTextEditRequest(Guid OcrResultId,
         Guid? ExpectedRevisionId, Guid[]? WordIds, string? ReplacementText,

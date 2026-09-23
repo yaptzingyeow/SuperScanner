@@ -8,7 +8,14 @@ public interface ITextEditReadRepository
         Guid pageId, CancellationToken ct);
     Task<TextEditOperation?> FindAsync(Guid pageId, Guid editId, CancellationToken ct);
     Task<IReadOnlyList<TextEditOperation>> ListAsync(Guid pageId, CancellationToken ct);
+    Task<PageEditRevisionState> GetRevisionStateAsync(Guid pageId, CancellationToken ct);
 }
+
+public sealed record PageEditRevision(Guid Id, Guid? ParentRevisionId);
+public sealed record PageEditRevisionState(Guid? ActiveRevisionId,
+    IReadOnlyList<PageEditRevision> Revisions);
+public sealed record PageEditHistoryDto(bool CanUndo, bool CanRedo,
+    Guid? ActiveRevisionId, IReadOnlyList<TextEditDto> Entries);
 
 public sealed record TextEditDto(
     Guid Id,

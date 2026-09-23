@@ -9,7 +9,7 @@ using SuperScanner.Infrastructure.Persistence;
 namespace SuperScanner.Infrastructure.TextEditing;
 
 public sealed class EfTextEditRepository(AppDbContext db) : ITextSelectionRepository,
-    ITextEditCommandRepository, ITextEditReadRepository
+    ITextEditCommandRepository, ITextEditReadRepository, ITextRevisionSwitchRepository
 {
     public Task<bool> IsOwnedPageAsync(string ownerUid, Guid documentId,
         Guid pageId, CancellationToken ct) =>
@@ -27,6 +27,19 @@ public sealed class EfTextEditRepository(AppDbContext db) : ITextSelectionReposi
             .Where(edit => edit.PageId == pageId)
             .OrderBy(edit => edit.Sequence)
             .ToArrayAsync(ct);
+
+    public async Task<PageEditRevisionState> GetRevisionStateAsync(Guid pageId,
+        CancellationToken ct)
+    {
+        var active = await db.Pages.AsNoTracking()
+            .Where(page => page.Id == pageId)
+            .Select(page => page.ActiveRevisionId).SingleAsync(ct);
+        var revisions = await db.PageRevisions.AsNoTracking()
+            .Where(revision => revision.PageId == pageId)
+            .Select(revision => new PageEditRevision(revision.Id, revision.ParentRevisionId))
+            .ToArrayAsync(ct);
+        return new PageEditRevisionState(active, revisions);
+    }
 
     public async Task<ITextEditTransaction> BeginAsync(CancellationToken ct) =>
         new Transaction(await db.Database.BeginTransactionAsync(ct));
@@ -55,6 +68,36 @@ public sealed class EfTextEditRepository(AppDbContext db) : ITextSelectionReposi
             .FirstOrDefaultAsync(ct);
         return new LockedTextEditPage(page, ocr);
     }
+
+    public async Task<LockedRevisionSwitchPage?> FindOwnedRevisionForUpdateAsync(
+        string ownerUid, Guid documentId, Guid pageId, CancellationToken ct)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(ownerUid);
+        if (db.Database.CurrentTransaction is null)
+            throw new InvalidOperationException("A revision switch requires a transaction.");
+        var page = await db.Pages.FromSqlInterpolated($"""
+                SELECT p.* FROM pages AS p
+                INNER JOIN documents AS d ON d."Id" = p."DocumentId"
+                WHERE p."Id" = {pageId} AND p."DocumentId" = {documentId}
+                  AND d."OwnerFirebaseUid" = {ownerUid}
+                  AND p."RemovedAt" IS NULL
+                FOR UPDATE OF p
+                """)
+            .Include(candidate => candidate.ActiveRevision)
+            .SingleOrDefaultAsync(ct);
+        if (page is null) return null;
+        var document = await db.Documents.SingleAsync(candidate =>
+            candidate.Id == documentId && candidate.OwnerFirebaseUid == ownerUid, ct);
+        return new LockedRevisionSwitchPage(page, document);
+    }
+
+    public async Task<IReadOnlyList<PageRevision>> ListRevisionsAsync(Guid pageId,
+        CancellationToken ct) => await db.PageRevisions
+            .Where(revision => revision.PageId == pageId).ToArrayAsync(ct);
+
+    public async Task<IReadOnlyList<TextEditOperation>> ListEditsAsync(Guid pageId,
+        CancellationToken ct) => await db.TextEditOperations
+            .Where(edit => edit.PageId == pageId).ToArrayAsync(ct);
 
     public Task<TextEditOperation?> FindByIdempotencyAsync(Guid pageId,
         string key, CancellationToken ct) =>

@@ -101,6 +101,8 @@ builder.Services.AddSingleton<IFontCatalogue>(services =>
 builder.Services.AddScoped<ITextSelectionRepository, EfTextEditRepository>();
 builder.Services.AddScoped<ITextEditCommandRepository, EfTextEditRepository>();
 builder.Services.AddScoped<ITextEditReadRepository, EfTextEditRepository>();
+builder.Services.AddScoped<ITextRevisionSwitchRepository, EfTextEditRepository>();
+builder.Services.AddScoped<SwitchPageRevision>();
 builder.Services.AddScoped<ITextEditPreparation>(services => new TextEditPreparation(
     services.GetRequiredService<IObjectStore>(),
     services.GetRequiredService<IFontCatalogue>(), AppContext.BaseDirectory,
