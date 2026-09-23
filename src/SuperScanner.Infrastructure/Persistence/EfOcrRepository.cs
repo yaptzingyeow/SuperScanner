@@ -36,11 +36,13 @@ public sealed class EfOcrRepository(AppDbContext db) : IOcrRepository
                       AND p."RemovedAt" IS NULL
                     FOR UPDATE OF p
                     """)
+                .Include(candidate => candidate.ActiveRevision)
                 .SingleOrDefaultAsync(ct);
         }
         else
         {
             page = await db.Pages.AsNoTracking()
+                .Include(candidate => candidate.ActiveRevision)
                 .Where(candidate => candidate.Id == pageId &&
                     candidate.DocumentId == documentId &&
                     candidate.RemovedAt == null)
@@ -51,7 +53,9 @@ public sealed class EfOcrRepository(AppDbContext db) : IOcrRepository
 
         return page is null
             ? null
-            : new OcrPageSource(page.Id, page.State, page.PreviewObjectKey, "image/jpeg");
+            : new OcrPageSource(page.Id, page.State,
+                page.ActiveRevisionId is null && page.PreviewObjectKey is null
+                    ? null : page.GetProcessedObjectKey(), "image/jpeg");
     }
 
     public async Task<PageOcrResult?> FindBySourceAsync(

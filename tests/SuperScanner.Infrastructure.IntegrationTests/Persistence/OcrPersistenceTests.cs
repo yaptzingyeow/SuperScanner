@@ -3,6 +3,7 @@ using SuperScanner.Application.Abstractions;
 using SuperScanner.Application.Ocr;
 using SuperScanner.Domain.Documents;
 using SuperScanner.Domain.Ocr;
+using SuperScanner.Domain.TextEditing;
 using SuperScanner.Infrastructure.Persistence;
 using Testcontainers.PostgreSql;
 
@@ -144,6 +145,49 @@ public sealed class OcrPersistenceTests : IAsyncLifetime
         Assert.NotNull(currentSource?.SourceObjectKey);
         Assert.Null(await repository.FindBySourceAsync(page.Id,
             OcrSourceFingerprint.Create(currentSource.SourceObjectKey), false, default));
+    }
+
+    [Fact]
+    public async Task Repository_UsesActiveEditedRevisionAsTheNextOcrSource()
+    {
+        await using var db = CreateDbContext();
+        await db.Database.MigrateAsync();
+        var (document, page) = CreateReadyDocument();
+        db.Documents.Add(document);
+        await db.SaveChangesAsync();
+        var revision = PageRevision.CreateBase(Guid.NewGuid(), page.Id,
+            "page-revisions/edited.jpg", new string('a', 64), Now);
+        db.PageRevisions.Add(revision);
+        page.ActivateRevision(revision);
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        var repository = new EfOcrRepository(db);
+        var source = await repository.FindOwnedSourceAsync(
+            "owner-a", document.Id, page.Id, false, default);
+        await using var transaction = await repository.BeginTransactionAsync(default);
+        var lockedSource = await repository.FindOwnedSourceAsync(
+            "owner-a", document.Id, page.Id, true, default);
+
+        Assert.Equal("page-revisions/edited.jpg", source?.SourceObjectKey);
+        Assert.Equal("page-revisions/edited.jpg", lockedSource?.SourceObjectKey);
+    }
+
+    [Fact]
+    public async Task Repository_ReturnsUnavailableSourceForUnprocessedPage()
+    {
+        await using var db = CreateDbContext();
+        await db.Database.MigrateAsync();
+        var document = Document.Create(Guid.NewGuid(), "owner-a", "New form", Now);
+        var page = document.AppendImportedPages(Guid.NewGuid(), [1], 50, Now).Single();
+        db.Documents.Add(document);
+        await db.SaveChangesAsync();
+
+        var source = await new EfOcrRepository(db).FindOwnedSourceAsync(
+            "owner-a", document.Id, page.Id, false, default);
+
+        Assert.NotNull(source);
+        Assert.Null(source.SourceObjectKey);
     }
 
     private AppDbContext CreateDbContext() => new(
