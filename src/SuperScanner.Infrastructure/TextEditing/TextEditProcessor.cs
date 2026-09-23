@@ -30,7 +30,8 @@ public sealed class TextEditProcessor(
         var page = await db.Pages.Include(candidate => candidate.ActiveRevision)
             .SingleOrDefaultAsync(candidate => candidate.Id == edit.PageId, ct)
             ?? throw new TextEditProcessingException("text_edit_stale_revision", false);
-        if (page.ActiveRevisionId != edit.SourceRevisionId ||
+        if (page.RemovedAt is not null ||
+            page.ActiveRevisionId != edit.SourceRevisionId ||
             page.ActiveRevision is null || page.ActiveRevision.Id != edit.SourceRevisionId)
             throw new TextEditProcessingException("text_edit_stale_revision", false);
         var sourceRevision = page.ActiveRevision;
@@ -122,7 +123,8 @@ public sealed class TextEditProcessor(
             await transaction.CommitAsync(ct);
             return;
         }
-        if (currentPage.ActiveRevisionId != currentEdit.SourceRevisionId ||
+        if (currentPage.RemovedAt is not null ||
+            currentPage.ActiveRevisionId != currentEdit.SourceRevisionId ||
             currentEdit.State == TextEditState.Failed)
             throw new TextEditProcessingException("text_edit_stale_revision", false);
         var revision = PageRevision.CreateDerived(Guid.NewGuid(), currentPage.Id,

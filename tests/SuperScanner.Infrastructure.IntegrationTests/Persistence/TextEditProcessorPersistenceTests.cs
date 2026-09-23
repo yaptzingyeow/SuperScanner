@@ -62,6 +62,24 @@ public sealed class TextEditProcessorPersistenceTests : IAsyncLifetime
         Assert.False(error.Retryable);
     }
 
+    [Fact]
+    public async Task Removed_page_is_not_reactivated_by_pending_text_edit()
+    {
+        var fixture = await SeedAsync();
+        await using (var change = new AppDbContext(fixture.Options))
+        {
+            var page = await change.Pages.SingleAsync(candidate => candidate.Id == fixture.PageId);
+            page.SoftRemove("owner", Now.AddMinutes(1));
+            await change.SaveChangesAsync();
+        }
+        await using var db = new AppDbContext(fixture.Options);
+        var processor = new TextEditProcessor(db, fixture.Store, new Renderer(), new Clock());
+        var error = await Assert.ThrowsAsync<TextEditProcessingException>(() =>
+            processor.RunAsync(fixture.EditId, default));
+        Assert.Equal("text_edit_stale_revision", error.SafeCode);
+        Assert.Empty(fixture.Store.CreatedKeys);
+    }
+
     private async Task<Fixture> SeedAsync()
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()
