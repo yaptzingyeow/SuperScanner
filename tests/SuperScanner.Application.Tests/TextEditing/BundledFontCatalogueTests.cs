@@ -18,6 +18,9 @@ public sealed class BundledFontCatalogueTests
         {
             var bytes = File.ReadAllBytes(Path.Combine(root, entry.RendererAssetPath));
             Assert.Equal(entry.AssetSha256Hex, Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant());
+            var webBytes = File.ReadAllBytes(Path.Combine(root, "apps", "web", "public", entry.WebAssetPath));
+            Assert.Equal(entry.AssetSha256Hex,
+                Convert.ToHexString(SHA256.HashData(webBytes)).ToLowerInvariant());
             Assert.Equal("OFL-1.1", entry.LicenseIdentifier);
             Assert.Same(entry, catalogue.Get(entry.CatalogueId, entry.Version));
         }

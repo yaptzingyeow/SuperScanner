@@ -1,0 +1,31 @@
+@font-face {
+  font-family: 'SuperScanner Noto Sans v1';
+  src: url('/assets/fonts/NotoSans-Regular.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'SuperScanner Noto Sans v1';
+  src: url('/assets/fonts/NotoSans-Bold.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'SuperScanner Noto Serif v1';
+  src: url('/assets/fonts/NotoSerif-Regular.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'SuperScanner Noto Serif v1';
+  src: url('/assets/fonts/NotoSerif-Bold.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
