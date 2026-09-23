@@ -148,6 +148,7 @@ DocumentExportEndpoints.Map(app);
 DocumentPreviewEndpoints.Map(app);
 CropEndpoints.Map(app);
 OcrEndpoints.Map(app);
+TextEditingEndpoints.Map(app);
 UploadsEndpoints.Map(app);
 app.MapHealthChecks("/health");
 if (e2eIdentityEnabled)
