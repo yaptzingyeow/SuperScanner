@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging;
 using SuperScanner.Application.Abstractions;
 using SuperScanner.Application.Uploads;
 using SuperScanner.Domain.Documents;
@@ -13,6 +14,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using SuperScanner.Infrastructure.Persistence;
 using SuperScanner.Infrastructure.Processing;
+using SuperScanner.Infrastructure.TextEditing;
 
 namespace SuperScanner.Application.Tests.Processing;
 
@@ -82,6 +84,68 @@ public sealed class UploadValidationJobRunnerTests
 
         Assert.Equal("text_edit_invalid_job", fixture.Queue.FailedErrorCode);
         Assert.Null(fixture.Queue.CompletedJobId);
+    }
+
+    [Theory]
+    [InlineData(1, true, "text_edit_failed", null)]
+    [InlineData(3, true, null, "text_edit_failed")]
+    [InlineData(1, false, null, "text_edit_failed")]
+    public async Task Text_edit_retry_stops_at_configured_attempt_limit(
+        int attempt, bool retryable, string? rescheduled, string? failed)
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
+            .UseSqlite(connection).Options);
+        await db.Database.EnsureCreatedAsync();
+        var editId = Guid.NewGuid();
+        var queue = new RecordingQueue(editId)
+        {
+            Type = "RenderTextEdit",
+            AttemptCount = attempt
+        };
+        var processor = new FailingTextEditProcessor(
+            new TextEditProcessingException("text_edit_failed", retryable));
+        var services = new ServiceCollection();
+        services.AddSingleton<IProcessingJobQueue>(queue);
+        services.AddSingleton(db);
+        services.AddSingleton<ITextEditProcessor>(processor);
+        services.AddSingleton<IOptions<TextEditingOptions>>(
+            Options.Create(new TextEditingOptions { MaxAttempts = 3 }));
+        await using var provider = services.BuildServiceProvider();
+        var runner = new UploadValidationJobRunner(
+            provider.GetRequiredService<IServiceScopeFactory>(),
+            NullLogger<UploadValidationJobRunner>.Instance);
+
+        await runner.RunOnceAsync("worker-a", TimeSpan.FromMinutes(2), CancellationToken.None);
+
+        Assert.Equal(rescheduled, queue.RescheduledErrorCode);
+        Assert.Equal(failed, queue.FailedErrorCode);
+        Assert.Equal(failed is null ? 0 : 1, processor.FailedCalls);
+    }
+
+    [Fact]
+    public async Task Text_edit_failure_log_never_contains_document_text()
+    {
+        var editId = Guid.NewGuid();
+        var queue = new RecordingQueue(editId) { Type = "RenderTextEdit" };
+        var processor = new FailingTextEditProcessor(
+            new IOException("Private replacement: Tan BB"));
+        var logger = new CapturingRunnerLogger();
+        var services = new ServiceCollection();
+        services.AddSingleton<IProcessingJobQueue>(queue);
+        services.AddSingleton<ITextEditProcessor>(processor);
+        services.AddSingleton<IOptions<TextEditingOptions>>(
+            Options.Create(new TextEditingOptions { MaxAttempts = 3 }));
+        await using var provider = services.BuildServiceProvider();
+        var runner = new UploadValidationJobRunner(
+            provider.GetRequiredService<IServiceScopeFactory>(), logger);
+
+        await runner.RunOnceAsync("worker-a", TimeSpan.FromMinutes(2), CancellationToken.None);
+
+        Assert.Equal("text_edit_failed", queue.RescheduledErrorCode);
+        Assert.NotEmpty(logger.Messages);
+        Assert.DoesNotContain("Tan BB", string.Join('\n', logger.Messages));
     }
 
     private static RunnerFixture CreateFixture(IMalwareScanner scanner)
@@ -303,6 +367,31 @@ public sealed class UploadValidationJobRunnerTests
             EnqueuedPayload = payload;
             EnqueuedKey = idempotencyKey;
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FailingTextEditProcessor(Exception? failure = null) : ITextEditProcessor
+    {
+        public int FailedCalls { get; private set; }
+        public Task RunAsync(Guid editId, CancellationToken ct) =>
+            throw failure ?? new TextEditProcessingException("text_edit_failed", true);
+        public Task FailAsync(Guid editId, string safeCode, CancellationToken ct)
+        {
+            FailedCalls++;
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class CapturingRunnerLogger : ILogger<UploadValidationJobRunner>
+    {
+        public List<string> Messages { get; } = [];
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(LogLevel logLevel) => true;
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state,
+            Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            Messages.Add(formatter(state, exception));
+            if (exception is not null) Messages.Add(exception.ToString());
         }
     }
 

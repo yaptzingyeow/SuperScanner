@@ -51,7 +51,7 @@ builder.Services.AddScoped<ITextEditRenderer>(services => new TextEditRenderer(
     services.GetRequiredService<IFontCatalogue>(), AppContext.BaseDirectory,
     services.GetRequiredService<IOptions<TextEditingOptions>>().Value,
     services.GetRequiredService<ITextGlyphPainter>()));
-builder.Services.AddScoped<TextEditProcessor>();
+builder.Services.AddScoped<ITextEditProcessor, TextEditProcessor>();
 builder.Services.AddScoped<IPdfImportTool, PopplerPdfImportTool>();
 builder.Services.AddScoped<DocumentImportProcessor>();
 builder.Services.AddSingleton(new DocumentPdfLimits

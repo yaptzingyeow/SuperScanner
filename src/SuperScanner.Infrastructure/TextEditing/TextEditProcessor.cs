@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore;
 using SuperScanner.Application.Abstractions;
+using SuperScanner.Domain.Documents;
 using SuperScanner.Domain.Ocr;
 using SuperScanner.Domain.TextEditing;
 using SuperScanner.Infrastructure.Persistence;
@@ -13,11 +14,17 @@ public sealed class TextEditProcessingException(string safeCode, bool retryable)
     public bool Retryable { get; } = retryable;
 }
 
+public interface ITextEditProcessor
+{
+    Task RunAsync(Guid editId, CancellationToken ct);
+    Task FailAsync(Guid editId, string safeCode, CancellationToken ct);
+}
+
 public sealed class TextEditProcessor(
     AppDbContext db,
     IObjectStore store,
     ITextEditRenderer renderer,
-    IClock clock)
+    IClock clock) : ITextEditProcessor
 {
     public async Task RunAsync(Guid editId, CancellationToken ct)
     {
@@ -30,7 +37,7 @@ public sealed class TextEditProcessor(
         var page = await db.Pages.Include(candidate => candidate.ActiveRevision)
             .SingleOrDefaultAsync(candidate => candidate.Id == edit.PageId, ct)
             ?? throw new TextEditProcessingException("text_edit_stale_revision", false);
-        if (page.RemovedAt is not null ||
+        if (page.RemovedAt is not null || page.State != PageState.Ready ||
             page.ActiveRevisionId != edit.SourceRevisionId ||
             page.ActiveRevision is null || page.ActiveRevision.Id != edit.SourceRevisionId)
             throw new TextEditProcessingException("text_edit_stale_revision", false);
@@ -123,7 +130,7 @@ public sealed class TextEditProcessor(
             await transaction.CommitAsync(ct);
             return;
         }
-        if (currentPage.RemovedAt is not null ||
+        if (currentPage.RemovedAt is not null || currentPage.State != PageState.Ready ||
             currentPage.ActiveRevisionId != currentEdit.SourceRevisionId ||
             currentEdit.State == TextEditState.Failed)
             throw new TextEditProcessingException("text_edit_stale_revision", false);

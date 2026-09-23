@@ -80,6 +80,125 @@ public sealed class TextEditProcessorPersistenceTests : IAsyncLifetime
         Assert.Empty(fixture.Store.CreatedKeys);
     }
 
+    [Fact]
+    public async Task Page_that_reentered_processing_does_not_activate_pending_edit()
+    {
+        var fixture = await SeedAsync();
+        await using (var change = new AppDbContext(fixture.Options))
+        {
+            var page = await change.Pages.SingleAsync(candidate => candidate.Id == fixture.PageId);
+            page.MarkProcessing();
+            await change.SaveChangesAsync();
+        }
+        await using var db = new AppDbContext(fixture.Options);
+        var processor = new TextEditProcessor(db, fixture.Store, new Renderer(), new Clock());
+        var error = await Assert.ThrowsAsync<TextEditProcessingException>(() =>
+            processor.RunAsync(fixture.EditId, default));
+        Assert.Equal("text_edit_stale_revision", error.SafeCode);
+        Assert.Empty(fixture.Store.CreatedKeys);
+    }
+
+    [Fact]
+    public async Task Existing_identical_output_after_lost_ack_is_reused()
+    {
+        var fixture = await SeedAsync();
+        fixture.Store.Seed(OutputKey(fixture), "rendered"u8.ToArray());
+        await using var db = new AppDbContext(fixture.Options);
+        await new TextEditProcessor(db, fixture.Store, new Renderer(), new Clock())
+            .RunAsync(fixture.EditId, default);
+        Assert.Empty(fixture.Store.CreatedKeys);
+        await using var verify = new AppDbContext(fixture.Options);
+        Assert.Equal(TextEditState.Succeeded,
+            (await verify.TextEditOperations.SingleAsync()).State);
+    }
+
+    [Fact]
+    public async Task Existing_conflicting_output_is_never_activated()
+    {
+        var fixture = await SeedAsync();
+        fixture.Store.Seed(OutputKey(fixture), "different"u8.ToArray());
+        await using var db = new AppDbContext(fixture.Options);
+        var error = await Assert.ThrowsAsync<TextEditProcessingException>(() =>
+            new TextEditProcessor(db, fixture.Store, new Renderer(), new Clock())
+                .RunAsync(fixture.EditId, default));
+        Assert.Equal("text_edit_object_conflict", error.SafeCode);
+        await using var verify = new AppDbContext(fixture.Options);
+        Assert.Equal(fixture.SourceRevisionId,
+            (await verify.Pages.SingleAsync()).ActiveRevisionId);
+    }
+
+    [Fact]
+    public async Task Revision_changed_during_render_cannot_be_activated()
+    {
+        var fixture = await SeedAsync();
+        var renderer = new CallbackRenderer(async () =>
+        {
+            await using var change = new AppDbContext(fixture.Options);
+            var page = await change.Pages.Include(candidate => candidate.ActiveRevision)
+                .SingleAsync(candidate => candidate.Id == fixture.PageId);
+            var other = PageRevision.CreateBase(Guid.NewGuid(), page.Id,
+                "new-source.jpg", new string('b', 64), Now);
+            change.PageRevisions.Add(other);
+            page.ActivateRevision(other);
+            await change.SaveChangesAsync();
+        });
+        await using var db = new AppDbContext(fixture.Options);
+        var error = await Assert.ThrowsAsync<TextEditProcessingException>(() =>
+            new TextEditProcessor(db, fixture.Store, renderer, new Clock())
+                .RunAsync(fixture.EditId, default));
+        Assert.Equal("text_edit_stale_revision", error.SafeCode);
+        Assert.Single(fixture.Store.CreatedKeys); // orphan is unreachable, not activated
+        await using var verify = new AppDbContext(fixture.Options);
+        Assert.NotEqual(fixture.SourceRevisionId,
+            (await verify.Pages.SingleAsync()).ActiveRevisionId);
+    }
+
+    [Fact]
+    public async Task Unsafe_background_does_not_create_an_output_object()
+    {
+        var fixture = await SeedAsync();
+        await using var db = new AppDbContext(fixture.Options);
+        var error = await Assert.ThrowsAsync<TextEditProcessingException>(() =>
+            new TextEditProcessor(db, fixture.Store,
+                new CallbackRenderer(() => Task.CompletedTask, "text_edit_unsafe_background"),
+                new Clock()).RunAsync(fixture.EditId, default));
+        Assert.Equal("text_edit_unsafe_background", error.SafeCode);
+        Assert.False(error.Retryable);
+        Assert.Empty(fixture.Store.CreatedKeys);
+    }
+
+    [Fact]
+    public async Task Transient_object_store_failure_keeps_edit_uncommitted_for_retry()
+    {
+        var fixture = await SeedAsync();
+        fixture.Store.FailWrites = true;
+        await using var db = new AppDbContext(fixture.Options);
+        await Assert.ThrowsAsync<IOException>(() =>
+            new TextEditProcessor(db, fixture.Store, new Renderer(), new Clock())
+                .RunAsync(fixture.EditId, default));
+        await using var verify = new AppDbContext(fixture.Options);
+        Assert.Equal(TextEditState.Processing,
+            (await verify.TextEditOperations.SingleAsync()).State);
+        Assert.Equal(fixture.SourceRevisionId,
+            (await verify.Pages.SingleAsync()).ActiveRevisionId);
+    }
+
+    [Fact]
+    public async Task Cancellation_does_not_write_or_activate_a_revision()
+    {
+        var fixture = await SeedAsync();
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        await using var db = new AppDbContext(fixture.Options);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            new TextEditProcessor(db, fixture.Store, new Renderer(), new Clock())
+                .RunAsync(fixture.EditId, cancellation.Token));
+        Assert.Empty(fixture.Store.CreatedKeys);
+        await using var verify = new AppDbContext(fixture.Options);
+        Assert.Equal(fixture.SourceRevisionId,
+            (await verify.Pages.SingleAsync()).ActiveRevisionId);
+    }
+
     private async Task<Fixture> SeedAsync()
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()
@@ -120,16 +239,19 @@ public sealed class TextEditProcessorPersistenceTests : IAsyncLifetime
             TextLayoutEngine.LayoutVersion, Now);
         db.AddRange(sourceRevision, ocr, edit);
         await db.SaveChangesAsync();
-        return new Fixture(options, store, pageId, editId, sourceRevisionId);
+        return new Fixture(options, store, documentId, pageId, editId, sourceRevisionId);
     }
 
     private static string Hash(byte[] bytes) =>
         Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
 
+    private static string OutputKey(Fixture fixture) =>
+        $"page-revisions/{fixture.DocumentId:N}/{fixture.PageId:N}/{fixture.EditId:N}.jpg";
+
     private static readonly DateTimeOffset Now = new(2026, 9, 23, 0, 0, 0, TimeSpan.Zero);
     private sealed class Clock : IClock { public DateTimeOffset UtcNow => Now; }
     private sealed record Fixture(DbContextOptions<AppDbContext> Options, Store Store,
-        Guid PageId, Guid EditId, Guid SourceRevisionId);
+        Guid DocumentId, Guid PageId, Guid EditId, Guid SourceRevisionId);
 
     private sealed class Renderer : ITextEditRenderer
     {
@@ -141,10 +263,24 @@ public sealed class TextEditProcessorPersistenceTests : IAsyncLifetime
         }
     }
 
+    private sealed class CallbackRenderer(Func<Task> callback, string? failureCode = null) : ITextEditRenderer
+    {
+        public async Task<TextEditRenderResult> RenderAsync(TextEditRenderRequest request,
+            CancellationToken ct)
+        {
+            await callback();
+            if (failureCode is not null) return new(null, null, null, failureCode);
+            var bytes = "rendered"u8.ToArray();
+            return new(bytes, Hash(bytes), [true], null);
+        }
+    }
+
     private sealed class Store(byte[] source) : IObjectStore
     {
         private readonly Dictionary<string, byte[]> objects = new() { ["source.jpg"] = source };
         public List<string> CreatedKeys { get; } = [];
+        public bool FailWrites { get; set; }
+        public void Seed(string key, byte[] bytes) => objects.Add(key, bytes);
         public Task<Uri> CreatePutUrlAsync(PutObjectRequest request, CancellationToken ct) => throw new NotSupportedException();
         public Task<StoredObjectInfo?> HeadAsync(string key, CancellationToken ct) => throw new NotSupportedException();
         public Task<Stream> OpenReadAsync(string key, CancellationToken ct) =>
@@ -154,6 +290,7 @@ public sealed class TextEditProcessorPersistenceTests : IAsyncLifetime
         public async Task<ObjectCreationResult> WriteIfAbsentAsync(string key, string type,
             Stream content, CancellationToken ct)
         {
+            if (FailWrites) throw new IOException("Storage unavailable.");
             if (objects.ContainsKey(key)) return ObjectCreationResult.AlreadyExists;
             using var buffer = new MemoryStream();
             await content.CopyToAsync(buffer, ct);

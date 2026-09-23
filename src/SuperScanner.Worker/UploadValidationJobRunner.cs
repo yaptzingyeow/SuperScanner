@@ -69,7 +69,7 @@ public sealed class UploadValidationJobRunner(
             {
                 if (textEditJob)
                 {
-                    await scope.ServiceProvider.GetRequiredService<TextEditProcessor>()
+                    await scope.ServiceProvider.GetRequiredService<ITextEditProcessor>()
                         .RunAsync(uploadId, workCancellation.Token);
                 }
                 else if (ocrJob)
@@ -239,7 +239,7 @@ public sealed class UploadValidationJobRunner(
         }
         var db = services.GetRequiredService<AppDbContext>();
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
-        await services.GetRequiredService<TextEditProcessor>()
+        await services.GetRequiredService<ITextEditProcessor>()
             .FailAsync(editId, safeCode, ct);
         await queue.FailAsync(jobId, workerId, safeCode, ct);
         await transaction.CommitAsync(ct);
