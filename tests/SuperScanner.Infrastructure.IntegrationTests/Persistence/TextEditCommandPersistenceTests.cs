@@ -61,7 +61,7 @@ public sealed class TextEditCommandPersistenceTests : IAsyncLifetime
         var clock = new Clock();
         await using var db = new AppDbContext(options);
         var service = new CreateTextEdit(new EfTextEditRepository(db),
-            new TextEditPreparation(store, fonts, root),
+            new TextEditPreparation(store, fonts, root, new TextEditingOptions()),
             new PostgresJobQueue(db, clock),
             new HmacAuditWriter(db, Options.Create(new AuditOptions
             {
