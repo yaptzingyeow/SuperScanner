@@ -99,6 +99,27 @@ builder.Services.AddSingleton<IFontCatalogue>(services =>
     return BundledFontCatalogue.Load(Path.Combine(AppContext.BaseDirectory, options.FontManifestPath));
 });
 builder.Services.AddScoped<ITextSelectionRepository, EfTextEditRepository>();
+builder.Services.AddScoped<ITextEditCommandRepository, EfTextEditRepository>();
+builder.Services.AddScoped<ITextEditReadRepository, EfTextEditRepository>();
+builder.Services.AddScoped<ITextEditPreparation>(services => new TextEditPreparation(
+    services.GetRequiredService<IObjectStore>(),
+    services.GetRequiredService<IFontCatalogue>(), AppContext.BaseDirectory,
+    services.GetRequiredService<IOptions<TextEditingOptions>>().Value));
+builder.Services.AddScoped<CreateTextEdit>(services =>
+{
+    var options = services.GetRequiredService<IOptions<TextEditingOptions>>().Value;
+    return new CreateTextEdit(
+        services.GetRequiredService<ITextEditCommandRepository>(),
+        services.GetRequiredService<ITextEditPreparation>(),
+        services.GetRequiredService<IProcessingJobQueue>(),
+        services.GetRequiredService<IAuditWriter>(),
+        services.GetRequiredService<IClock>(),
+        new TextEditLimits(options.Enabled, options.MaxSelectionWords,
+            options.MaxReplacementCharacters, options.MaxReplacementBoxArea,
+            options.MaxQueuedEditsPerPage));
+});
+builder.Services.AddScoped<GetTextEdit>();
+builder.Services.AddScoped<GetPageEditHistory>();
 builder.Services.AddScoped<ITextStyleEstimator>(services => new TextStyleEstimator(
     services.GetRequiredService<IObjectStore>(),
     services.GetRequiredService<IFontCatalogue>(),
