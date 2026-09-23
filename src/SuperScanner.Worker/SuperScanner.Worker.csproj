@@ -12,6 +12,10 @@
     <ProjectReference Include="..\SuperScanner.Infrastructure\SuperScanner.Infrastructure.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="..\..\assets\fonts\**\*" Link="assets\fonts\%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
     <Content Include="processing\**\*.py;processing\requirements.txt"
              Exclude="processing\test_*.py"
              CopyToOutputDirectory="PreserveNewest"

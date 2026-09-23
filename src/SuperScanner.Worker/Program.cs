@@ -9,6 +9,8 @@ using SuperScanner.Infrastructure.Security;
 using SuperScanner.Infrastructure.Auditing;
 using SuperScanner.Infrastructure.Ocr;
 using SuperScanner.Application.Ocr;
+using SuperScanner.Infrastructure.TextEditing;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 if (builder.Environment.IsEnvironment("E2E"))
@@ -35,6 +37,15 @@ builder.Services.AddOptions<DocumentImportOptions>()
     .BindConfiguration(DocumentImportOptions.SectionName)
     .Validate(options => options.IsValid(), "Document import configuration is invalid.")
     .ValidateOnStart();
+builder.Services.AddOptions<TextEditingOptions>()
+    .BindConfiguration(TextEditingOptions.SectionName)
+    .Validate(options => options.IsValid(), "Text editing configuration is invalid.")
+    .ValidateOnStart();
+builder.Services.AddSingleton<IFontCatalogue>(services =>
+{
+    var options = services.GetRequiredService<IOptions<TextEditingOptions>>().Value;
+    return BundledFontCatalogue.Load(Path.Combine(AppContext.BaseDirectory, options.FontManifestPath));
+});
 builder.Services.AddScoped<IPdfImportTool, PopplerPdfImportTool>();
 builder.Services.AddScoped<DocumentImportProcessor>();
 builder.Services.AddSingleton(new DocumentPdfLimits
@@ -70,6 +81,7 @@ builder.Services.AddHostedService<UploadValidationWorker>();
 builder.Services.AddHealthChecks();
 
 var app = builder.Build();
+_ = app.Services.GetRequiredService<IFontCatalogue>();
 app.MapHealthChecks("/health");
 app.Run();
 

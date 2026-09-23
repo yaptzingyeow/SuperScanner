@@ -13,6 +13,8 @@ using SuperScanner.Infrastructure.Processing;
 using SuperScanner.Infrastructure.ObjectStorage;
 using SuperScanner.Infrastructure.Auditing;
 using SuperScanner.Infrastructure.Ocr;
+using SuperScanner.Infrastructure.TextEditing;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -86,6 +88,15 @@ builder.Services.AddOptions<DocumentImportOptions>()
     .BindConfiguration(DocumentImportOptions.SectionName)
     .Validate(options => options.IsValid(), "Document import configuration is invalid.")
     .ValidateOnStart();
+builder.Services.AddOptions<TextEditingOptions>()
+    .BindConfiguration(TextEditingOptions.SectionName)
+    .Validate(options => options.IsValid(), "Text editing configuration is invalid.")
+    .ValidateOnStart();
+builder.Services.AddSingleton<IFontCatalogue>(services =>
+{
+    var options = services.GetRequiredService<IOptions<TextEditingOptions>>().Value;
+    return BundledFontCatalogue.Load(Path.Combine(AppContext.BaseDirectory, options.FontManifestPath));
+});
 builder.Services.AddScoped<CompleteUpload>();
 builder.Services.AddScoped<GetUploadStatus>();
 builder.Services.Configure<R2Options>(builder.Configuration.GetSection(R2Options.SectionName));
@@ -95,6 +106,7 @@ builder.Services.AddScoped<IAuditWriter, HmacAuditWriter>();
 builder.Services.AddScoped<IAuditVerifier, HmacAuditVerifier>();
 
 var app = builder.Build();
+_ = app.Services.GetRequiredService<IFontCatalogue>();
 
 if (builder.Environment.IsEnvironment("E2E"))
 {

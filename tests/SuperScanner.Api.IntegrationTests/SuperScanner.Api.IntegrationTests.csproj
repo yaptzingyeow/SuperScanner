@@ -24,4 +24,9 @@
     <ProjectReference Include="..\..\src\SuperScanner.Api\SuperScanner.Api.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="..\..\assets\fonts\**\*" Link="assets\fonts\%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>
