@@ -28,9 +28,11 @@ public sealed class DocumentPdfBuilder(
     IObjectStore store,
     IClock clock,
     DocumentPdfLimits? limits = null,
-    IPdfTextLayerWriter? textLayerWriter = null)
+    IPdfTextLayerWriter? textLayerWriter = null,
+    PdfExportOptions? pdfExportOptions = null)
 {
     private readonly DocumentPdfLimits limits = limits ?? new();
+    private readonly PdfExportOptions pdfExportOptions = pdfExportOptions ?? new();
     private readonly IPdfTextLayerWriter textLayerWriter = textLayerWriter ?? new PdfSharpTextLayerWriter(
         Path.Combine(AppContext.BaseDirectory, "assets", "fonts", "NotoSans-Regular.ttf"));
 
@@ -65,7 +67,9 @@ public sealed class DocumentPdfBuilder(
             if (snapshot.Length < 1 || snapshot.Length != export.ReadyPageCount)
                 throw new BuildFailure("export_build_failed");
             if (snapshot.Length > limits.MaxPages) throw new BuildFailure("export_size_limit");
-            var ocrById = await LoadSnapshottedOcrAsync(snapshot, ct);
+            var ocrById = this.pdfExportOptions.SearchableTextEnabled
+                ? await LoadSnapshottedOcrAsync(snapshot, ct)
+                : new Dictionary<Guid, PageOcrResult>();
             var key = $"exports/{export.DocumentId}/{export.Id}/document.pdf";
             var existingSearchablePageCount = await GetCompleteOutputSearchablePageCountAsync(key, snapshot.Length, ct);
             var buildResult = existingSearchablePageCount.HasValue
@@ -133,7 +137,7 @@ public sealed class DocumentPdfBuilder(
                     ocr.Elements,
                     page.Width.Point,
                     page.Height.Point,
-                    PdfTextLayerLimits.Default);
+                    pdfExportOptions.ToLimits());
                 skippedWordCount += sourceWords - words.Count;
                 if (words.Count > 0)
                 {

@@ -31,7 +31,9 @@ export class ExportStatusComponent implements OnInit, OnDestroy {
   protected searchabilityCopy(item: DocumentExport): string {
     switch (item.searchability) {
       case 'Searchable':
-        return `All ${item.readyPageCount} ${item.readyPageCount === 1 ? 'page has' : 'pages have'} searchable text.`;
+        return item.readyPageCount === 1
+          ? 'The page has searchable text.'
+          : `All ${item.readyPageCount} pages have searchable text.`;
       case 'PartiallySearchable':
         return `${item.searchablePageCount} of ${item.readyPageCount} pages have searchable text.`;
       default:
@@ -115,7 +117,9 @@ export class ExportStatusComponent implements OnInit, OnDestroy {
   private readyAnnouncement(item: DocumentExport): string {
     if (item.searchability === 'ImageOnly') return 'PDF is ready. It is image-only.';
     if (item.searchability === 'Searchable')
-      return `PDF is ready. All ${item.readyPageCount} pages are searchable.`;
+      return item.readyPageCount === 1
+        ? 'PDF is ready. The page is searchable.'
+        : `PDF is ready. All ${item.readyPageCount} pages are searchable.`;
     return `PDF is ready. ${item.searchablePageCount} of ${item.readyPageCount} pages are searchable.`;
   }
   private safeName(value: string): string {

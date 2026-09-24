@@ -89,6 +89,11 @@ builder.Services.AddOptions<DocumentImportOptions>()
     .BindConfiguration(DocumentImportOptions.SectionName)
     .Validate(options => options.IsValid(), "Document import configuration is invalid.")
     .ValidateOnStart();
+builder.Services.AddOptions<PdfExportOptions>()
+    .BindConfiguration(PdfExportOptions.SectionName)
+    .Validate(options => options.IsValid(), "PDF export text-layer configuration is invalid.")
+    .ValidateOnStart();
+builder.Services.AddSingleton(services => services.GetRequiredService<Microsoft.Extensions.Options.IOptions<PdfExportOptions>>().Value);
 builder.Services.AddOptions<TextEditingOptions>()
     .BindConfiguration(TextEditingOptions.SectionName)
     .Validate(options => options.IsValid(), "Text editing configuration is invalid.")
@@ -98,8 +103,9 @@ builder.Services.AddSingleton<IFontCatalogue>(services =>
     var options = services.GetRequiredService<IOptions<TextEditingOptions>>().Value;
     return BundledFontCatalogue.Load(Path.Combine(AppContext.BaseDirectory, options.FontManifestPath));
 });
-builder.Services.AddSingleton<IPdfTextLayerWriter>(_ => new PdfSharpTextLayerWriter(
-    Path.Combine(AppContext.BaseDirectory, "assets", "fonts", "NotoSans-Regular.ttf")));
+builder.Services.AddSingleton<IPdfTextLayerWriter>(services => new PdfSharpTextLayerWriter(
+    Path.Combine(AppContext.BaseDirectory, "assets", "fonts", "NotoSans-Regular.ttf"),
+    services.GetRequiredService<PdfExportOptions>().ToLimits()));
 builder.Services.AddScoped<ITextSelectionRepository, EfTextEditRepository>();
 builder.Services.AddScoped<ITextEditCommandRepository, EfTextEditRepository>();
 builder.Services.AddScoped<ITextEditReadRepository, EfTextEditRepository>();

@@ -61,6 +61,19 @@ public sealed class DocumentPdfBuilderTests
     }
 
     [Fact]
+    public async Task Build_DisabledSearchableTextPreservesImageOnlyExport()
+    {
+        await using var f = await Fixture.CreateAsync(OcrScenario.Full);
+
+        await f.BuildAsync(pdfOptions: new PdfExportOptions { SearchableTextEnabled = false });
+
+        var export = await f.ReloadAsync();
+        Assert.Equal(DocumentExportState.Ready, export.State);
+        Assert.Equal(0, export.SearchablePageCount);
+        Assert.Equal("ImageOnly", export.Searchability);
+    }
+
+    [Fact]
     public async Task Build_UsesOnlySnapshotImagesInOrderAt96Dpi_AndCompletedRetryIsImmutable()
     {
         await using var f = await Fixture.CreateAsync();
@@ -408,8 +421,11 @@ public sealed class DocumentPdfBuilderTests
             }
             return f;
         }
-        public Task BuildAsync(DocumentPdfLimits? limits = null, IPdfTextLayerWriter? writer = null) =>
-            new DocumentPdfBuilder(Db, Store, Clock, limits, writer).BuildAsync(Export.Id, default);
+        public Task BuildAsync(
+            DocumentPdfLimits? limits = null,
+            IPdfTextLayerWriter? writer = null,
+            PdfExportOptions? pdfOptions = null) =>
+            new DocumentPdfBuilder(Db, Store, Clock, limits, writer, pdfOptions).BuildAsync(Export.Id, default);
         public async Task<DocumentExport> ReloadAsync() { Db.ChangeTracker.Clear(); return await Db.DocumentExports.SingleAsync(); }
         public async ValueTask DisposeAsync() { await Db.DisposeAsync(); await Connection.DisposeAsync(); }
     }

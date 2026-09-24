@@ -7,6 +7,16 @@ namespace SuperScanner.Application.Tests.Processing;
 public sealed class PdfTextLayerProjectorTests
 {
     [Fact]
+    public void PdfExportOptions_RejectsUnsafeOrUnboundedValues()
+    {
+        Assert.True(new PdfExportOptions().IsValid());
+        Assert.False(new PdfExportOptions { MaximumWordsPerPage = 50_001 }.IsValid());
+        Assert.False(new PdfExportOptions { MaximumCharactersPerPage = 2_000_001 }.IsValid());
+        Assert.False(new PdfExportOptions { MinimumHorizontalScalePercent = 0 }.IsValid());
+        Assert.False(new PdfExportOptions { MaximumAbsoluteAngleDegrees = 46 }.IsValid());
+    }
+
+    [Fact]
     public void Project_ConvertsTopOriginCoordinatesToPdfBottomOrigin()
     {
         var word = Word("Hello", 2, Poly(.10, .20, .30, .10));
