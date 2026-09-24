@@ -67,6 +67,7 @@ builder.Services.AddScoped<IDocumentRepository, EfDocumentRepository>();
 builder.Services.AddScoped<IDocumentExportRepository, EfDocumentExportRepository>();
 builder.Services.AddSingleton(new DocumentExportPolicy(builder.Configuration.GetValue("DocumentExport:RetentionDays", 7)));
 builder.Services.AddScoped<CreateDocumentExport>();
+builder.Services.AddScoped<GetDocumentExportPreview>();
 builder.Services.AddScoped<GetDocumentExport>();
 builder.Services.AddSingleton<IClock, SuperScanner.Infrastructure.Time.SystemClock>();
 builder.Services.AddScoped<CreateDocument>();

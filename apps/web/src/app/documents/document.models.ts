@@ -53,6 +53,13 @@ export interface DocumentExport {
   downloadUrl?: string | null;
 }
 
+export interface DocumentExportPreview {
+  readyPageCount: number;
+  excludedPageCount: number;
+  searchablePageCount: number;
+  searchability: 'ImageOnly' | 'PartiallySearchable' | 'Searchable';
+}
+
 export interface DocumentDetail {
   id: string;
   title: string;

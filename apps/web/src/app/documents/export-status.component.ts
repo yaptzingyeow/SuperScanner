@@ -1,5 +1,5 @@
-import { Component, Input, OnDestroy, OnInit, inject, signal } from '@angular/core';
-import { DocumentExport, DocumentPage } from './document.models';
+import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, inject, signal } from '@angular/core';
+import { DocumentExport, DocumentExportPreview, DocumentPage } from './document.models';
 import { DocumentsApiService } from './documents-api.service';
 
 @Component({
@@ -8,7 +8,7 @@ import { DocumentsApiService } from './documents-api.service';
   templateUrl: './export-status.component.html',
   styleUrl: './export-status.component.scss',
 })
-export class ExportStatusComponent implements OnInit, OnDestroy {
+export class ExportStatusComponent implements OnInit, OnChanges, OnDestroy {
   private readonly api = inject(DocumentsApiService);
   @Input({ required: true }) documentId = '';
   @Input({ required: true }) documentTitle = 'document';
@@ -18,6 +18,7 @@ export class ExportStatusComponent implements OnInit, OnDestroy {
   protected readonly busy = signal(false);
   protected readonly error = signal('');
   protected readonly announcement = signal('');
+  protected readonly preview = signal<DocumentExportPreview | null>(null);
   private timer?: ReturnType<typeof setTimeout>;
   private destroyed = false;
 
@@ -113,6 +114,20 @@ export class ExportStatusComponent implements OnInit, OnDestroy {
 
   private pending(item: DocumentExport): boolean {
     return item.state === 'Queued' || item.state === 'Processing';
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['documentId'] || changes['pages']) void this.loadPreview();
+  }
+
+  async loadPreview(): Promise<void> {
+    if (!this.documentId) return;
+    try {
+      const preview = await this.api.getExportPreview(this.documentId);
+      if (!this.destroyed) this.preview.set(preview);
+    } catch {
+      if (!this.destroyed) this.preview.set(null);
+    }
   }
   private readyAnnouncement(item: DocumentExport): string {
     if (item.searchability === 'ImageOnly') return 'PDF is ready. It is image-only.';

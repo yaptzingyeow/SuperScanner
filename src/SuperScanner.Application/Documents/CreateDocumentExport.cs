@@ -1,7 +1,6 @@
 using System.Text.Json;
 using SuperScanner.Application.Abstractions;
 using SuperScanner.Domain.Documents;
-using SuperScanner.Application.Ocr;
 
 namespace SuperScanner.Application.Documents;
 
@@ -34,17 +33,7 @@ public sealed class CreateDocumentExport(IDocumentRepository documents, IDocumen
         var now = clock.UtcNow;
         var readyPages = document.ActivePages.Where(page => page.State == PageState.Ready).ToArray();
         var results = await ocr.FindReadyByPageIdsAsync(readyPages.Select(page => page.Id).ToArray(), ct);
-        var matchingOcr = results
-            .Join(readyPages,
-                result => result.PageId,
-                page => page.Id,
-                (result, page) => new { Result = result, SourceKey = page.GetExportObjectKey() })
-            .Where(candidate =>
-                string.Equals(candidate.Result.SourceObjectKey, candidate.SourceKey, StringComparison.Ordinal) &&
-                string.Equals(candidate.Result.SourceFingerprint, OcrSourceFingerprint.Create(candidate.SourceKey),
-                    StringComparison.Ordinal))
-            .ToDictionary(candidate => candidate.Result.PageId, candidate => new DocumentExportOcrSnapshot(
-                candidate.Result.Id, candidate.Result.SourceObjectKey, candidate.Result.SourceFingerprint));
+        var matchingOcr = DocumentExportOcrEligibility.Match(readyPages, results);
         var export = DocumentExport.Create(Guid.NewGuid(), document, ownerUid, now, policy.Retention, matchingOcr);
         await exports.AddAsync(export, ct);
         await audit.AppendAsync(new AuditWriteRequest(ownerUid, "document.export_created", "document",

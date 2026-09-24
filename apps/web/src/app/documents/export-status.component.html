@@ -4,9 +4,15 @@
     <h2 id="export-title">Export PDF</h2>
   </div>
   <p data-testid="export-summary">
-    <strong>{{ readyCount }}</strong> ready {{ readyCount === 1 ? 'page' : 'pages' }} will be
-    included. <strong>{{ excludedCount }}</strong> {{ excludedCount === 1 ? 'page' : 'pages' }} will
-    be excluded.
+    @if (preview(); as summary) {
+      <strong>{{ summary.readyPageCount }} {{ summary.readyPageCount === 1 ? 'page' : 'pages' }} ·
+        {{ summary.searchablePageCount }} searchable</strong>.
+      {{ summary.excludedPageCount }} {{ summary.excludedPageCount === 1 ? 'page' : 'pages' }} will be excluded.
+    } @else {
+      <strong>{{ readyCount }}</strong> ready {{ readyCount === 1 ? 'page' : 'pages' }} will be
+      included. <strong>{{ excludedCount }}</strong> {{ excludedCount === 1 ? 'page' : 'pages' }} will
+      be excluded.
+    }
   </p>
   @if (current(); as item) {
     <div class="export-state">

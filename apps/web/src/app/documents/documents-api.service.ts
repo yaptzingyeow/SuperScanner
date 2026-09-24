@@ -6,6 +6,7 @@ import {
   DocumentDetail,
   DocumentDto,
   DocumentExport,
+  DocumentExportPreview,
   PageOcr,
   ReorderPagesRequest,
 } from './document.models';
@@ -86,6 +87,12 @@ export class DocumentsApiService {
   createExport(id: string): Promise<DocumentExport> {
     return firstValueFrom(
       this.http.post<DocumentExport>(`${this.baseUrl}/documents/${id}/exports`, null),
+    );
+  }
+
+  getExportPreview(id: string): Promise<DocumentExportPreview> {
+    return firstValueFrom(
+      this.http.get<DocumentExportPreview>(`${this.baseUrl}/documents/${id}/exports/preview`),
     );
   }
 

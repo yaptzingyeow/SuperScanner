@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using SuperScanner.Application.Abstractions;
+using SuperScanner.Application.Ocr;
 using SuperScanner.Domain.Documents;
 using SuperScanner.Domain.Ocr;
 using SuperScanner.Infrastructure.Persistence;
@@ -20,6 +21,7 @@ public sealed class DocumentExportEndpointsTests : IDisposable
     private readonly WebApplicationFactory<Program> factory;
     private readonly DownloadStore store = new();
     private readonly NullAudit audit = new();
+    private readonly TestOcrRepository ocr = new();
 
     public DocumentExportEndpointsTests()
     {
@@ -34,7 +36,7 @@ public sealed class DocumentExportEndpointsTests : IDisposable
             services.RemoveAll<IDocumentExportRepository>();
             services.AddSingleton<IDocumentExportRepository>(exports);
             services.RemoveAll<IOcrRepository>();
-            services.AddSingleton<IOcrRepository, EmptyOcrRepository>();
+            services.AddSingleton<IOcrRepository>(ocr);
             services.RemoveAll<IAuditWriter>();
             services.AddSingleton<IAuditWriter>(audit);
             services.RemoveAll<IObjectStore>();
@@ -42,6 +44,31 @@ public sealed class DocumentExportEndpointsTests : IDisposable
             services.RemoveAll<IProcessingJobQueue>();
             services.AddSingleton<IProcessingJobQueue, Queue>();
         });
+    }
+
+    [Fact]
+    public async Task Preview_ReportsCurrentSearchableEligibilityWithoutCreatingExport()
+    {
+        var page = documents.Document.ActivePages.Single(candidate => candidate.State == PageState.Ready);
+        var fingerprint = OcrSourceFingerprint.Create(page.GetExportObjectKey());
+        var result = PageOcrResult.Queue(Guid.NewGuid(), page.Id, page.GetExportObjectKey(),
+            fingerprint, "en", DateTimeOffset.UtcNow);
+        result.BeginAttempt(1, DateTimeOffset.UtcNow);
+        result.Complete("test", "v1", "private recognized text", [], DateTimeOffset.UtcNow);
+        ocr.Results.Add(result);
+        using var client = PageManagementHttp.Client(factory);
+
+        var response = await client.GetAsync($"/api/documents/{documents.Document.Id}/exports/preview");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(1, body.GetProperty("readyPageCount").GetInt32());
+        Assert.Equal(2, body.GetProperty("excludedPageCount").GetInt32());
+        Assert.Equal(1, body.GetProperty("searchablePageCount").GetInt32());
+        Assert.Equal("Searchable", body.GetProperty("searchability").GetString());
+        Assert.Empty(exports.Items);
+        Assert.DoesNotContain("private recognized text", body.ToString());
+        Assert.True(response.Headers.CacheControl!.NoStore);
     }
 
     [Fact]
@@ -125,6 +152,8 @@ public sealed class DocumentExportEndpointsTests : IDisposable
     {
         using var client = PageManagementHttp.Client(factory, user, appCheck);
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.PostAsync($"/api/documents/{documents.Document.Id}/exports", null)).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await client.GetAsync($"/api/documents/{documents.Document.Id}/exports/preview")).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync($"/api/documents/{documents.Document.Id}/exports/{Guid.NewGuid()}")).StatusCode);
         Assert.Empty(exports.Items);
     }
@@ -248,11 +277,14 @@ public sealed class DocumentExportEndpointsTests : IDisposable
         public Task RescheduleAsync(Guid id, string worker, string code, CancellationToken ct) => throw new NotSupportedException();
     }
 
-    private sealed class EmptyOcrRepository : IOcrRepository
+    private sealed class TestOcrRepository : IOcrRepository
     {
+        public List<PageOcrResult> Results { get; } = [];
         public Task<IReadOnlyList<PageOcrResult>> FindReadyByPageIdsAsync(
             IReadOnlyCollection<Guid> pageIds, CancellationToken ct) =>
-            Task.FromResult<IReadOnlyList<PageOcrResult>>([]);
+            Task.FromResult<IReadOnlyList<PageOcrResult>>(Results
+                .Where(result => result.State == OcrResultState.Ready && pageIds.Contains(result.PageId))
+                .ToArray());
         public Task<IOcrTransaction> BeginTransactionAsync(CancellationToken ct) => throw new NotSupportedException();
         public Task<OcrPageSource?> FindOwnedSourceAsync(string ownerUid, Guid documentId, Guid pageId,
             bool forUpdate, CancellationToken ct) => throw new NotSupportedException();

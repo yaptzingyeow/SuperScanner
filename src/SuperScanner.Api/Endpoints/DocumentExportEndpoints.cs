@@ -11,6 +11,13 @@ public static class DocumentExportEndpoints
     public static void Map(IEndpointRouteBuilder endpoints)
     {
         var group = endpoints.MapGroup("/api/documents/{id:guid}/exports").RequireAuthorization();
+        group.MapGet("/preview", async (Guid id, ICurrentUser user, GetDocumentExportPreview get,
+            HttpContext context, CancellationToken ct) =>
+        {
+            context.Response.Headers.CacheControl = "private, no-store";
+            try { return Results.Ok(await get.HandleAsync(user.FirebaseUid, id, ct)); }
+            catch (DocumentExportNotFoundException) { return Results.NotFound(); }
+        });
         group.MapPost("", async (Guid id, ICurrentUser user, CreateDocumentExport create, HttpContext context, CancellationToken ct) =>
         {
             context.Response.Headers.CacheControl = "private, no-store";

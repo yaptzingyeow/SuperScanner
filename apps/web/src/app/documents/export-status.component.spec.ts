@@ -40,6 +40,12 @@ describe('ExportStatusComponent', () => {
 
   function setup(pages: DocumentPage[], initialExport?: DocumentExport) {
     const api = {
+      getExportPreview: vi.fn().mockResolvedValue({
+        readyPageCount: pages.filter((item) => item.state === 'Ready').length,
+        excludedPageCount: pages.filter((item) => item.state !== 'Ready').length,
+        searchablePageCount: 0,
+        searchability: 'ImageOnly',
+      }),
       createExport: vi.fn().mockResolvedValue(exported('Queued')),
       getExport: vi.fn().mockResolvedValue(exported('Ready')),
       downloadExport: vi.fn().mockResolvedValue(new Blob(['pdf'], { type: 'application/pdf' })),
@@ -58,6 +64,28 @@ describe('ExportStatusComponent', () => {
   }
 
   afterEach(() => vi.restoreAllMocks());
+
+  it('shows server-canonical searchable eligibility before export', async () => {
+    const { fixture, component, api } = setup([
+      page('p1', 'Ready'),
+      page('p2', 'Ready'),
+      page('p3', 'Ready'),
+      page('p4', 'Failed'),
+    ]);
+    api.getExportPreview.mockResolvedValue({
+      readyPageCount: 3,
+      excludedPageCount: 1,
+      searchablePageCount: 2,
+      searchability: 'PartiallySearchable',
+    });
+
+    await component.loadPreview();
+    fixture.detectChanges();
+
+    expect(api.getExportPreview).toHaveBeenCalledWith('doc-1');
+    expect(fixture.nativeElement.querySelector('[data-testid="export-summary"]').textContent)
+      .toContain('3 pages · 2 searchable');
+  });
 
   it('shows ready and excluded counts and disables export with no ready page', () => {
     const { fixture } = setup([page('p1', 'Processing'), page('p2', 'Failed')]);

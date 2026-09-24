@@ -44,12 +44,23 @@ describe('DocumentsApiService organizer APIs', () => {
     await reorder;
   });
 
-  it('removes pages and supports export create, status, and binary download', async () => {
+  it('removes pages and supports export preview, create, status, and binary download', async () => {
     const removal = service.removePage('doc-1', 'page-2');
     const deleteRequest = http.expectOne('/api/documents/doc-1/pages/page-2');
     expect(deleteRequest.request.method).toBe('DELETE');
     deleteRequest.flush(null);
     await removal;
+
+    const preview = service.getExportPreview('doc-1');
+    const previewRequest = http.expectOne('/api/documents/doc-1/exports/preview');
+    expect(previewRequest.request.method).toBe('GET');
+    previewRequest.flush({
+      readyPageCount: 3,
+      excludedPageCount: 1,
+      searchablePageCount: 2,
+      searchability: 'PartiallySearchable',
+    });
+    await preview;
 
     const creation = service.createExport('doc-1');
     const createRequest = http.expectOne('/api/documents/doc-1/exports');
