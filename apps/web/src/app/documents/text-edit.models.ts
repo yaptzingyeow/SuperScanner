@@ -43,9 +43,16 @@ export interface CreateTextEditRequest {
 export interface TextEditAccepted { editId: string; state: string; replayed: boolean }
 export interface TextEditStatus {
   id: string;
+  sourceRevisionId: string;
   state: 'Queued' | 'Processing' | 'Succeeded' | 'Failed';
   failureCode?: string | null;
   resultRevisionId?: string | null;
+}
+export interface PageEditHistory {
+  canUndo: boolean;
+  canRedo: boolean;
+  activeRevisionId: string | null;
+  entries: TextEditStatus[];
 }
 export interface TextEditSelection {
   pageId: string;

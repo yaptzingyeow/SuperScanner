@@ -110,6 +110,7 @@ export class TextReplacementEditorComponent implements OnInit, OnDestroy {
     if (candidate) {
       this.style.update((current) => current && ({
         ...current, fontId: candidate.catalogueId, fontVersion: candidate.version,
+        weight: candidate.version.includes('bold') ? 700 : 400,
       }));
       this.idempotencyKey = '';
     }
@@ -117,7 +118,14 @@ export class TextReplacementEditorComponent implements OnInit, OnDestroy {
 
   protected updateStyle(field: keyof TextEditStyle, value: string | number): void {
     if (field === 'fontSize') this.changedSize = true;
-    this.style.update((current) => current && ({ ...current, [field]: value }));
+    this.style.update((current) => {
+      if (!current) return current;
+      if (field !== 'weight') return { ...current, [field]: value };
+      const candidate = this.proposal()?.style.candidates.find((item) =>
+        item.catalogueId === current.fontId &&
+        item.version.includes('bold') === (value === 700));
+      return candidate ? { ...current, weight: value as number, fontVersion: candidate.version } : current;
+    });
     this.idempotencyKey = '';
   }
 
@@ -191,6 +199,10 @@ export class TextReplacementEditorComponent implements OnInit, OnDestroy {
         this.status.set('Rendering failed. The previous page is unchanged.');
         this.submitting.set(false);
         this.failed.set(true);
+        this.proposal.update((current) => current && ({
+          ...current,
+          activeRevisionId: result.sourceRevisionId,
+        }));
         this.idempotencyKey = '';
       } else this.schedulePoll(editId);
     } catch {

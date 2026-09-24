@@ -10,6 +10,7 @@ describe('TextReplacementEditorComponent', () => {
     originalText: 'Yap Tzing Yeow', box: { x: .1, y: .2, width: .3, height: .06 },
     style: { candidates: [
       { catalogueId: 'noto-serif', version: 'archive-main-regular', score: .8 },
+      { catalogueId: 'noto-serif', version: 'archive-main-bold', score: .7 },
       { catalogueId: 'noto-sans', version: 'archive-main-regular', score: .5 },
     ], confidence: .4, colorHex: '#202020', fontSizePoints: 16,
     fontWeight: 400, letterSpacing: 0, baselineAngleDegrees: 0, alignment: 'left' },
@@ -45,6 +46,17 @@ describe('TextReplacementEditorComponent', () => {
       .toBe('Yap Tzing Yeow');
     expect(fixture.nativeElement.textContent).toContain('Low confidence');
     expect(fixture.nativeElement.textContent).toContain('Noto Sans');
+  });
+
+  it('uses the bold font file when the user selects Bold weight', async () => {
+    const { fixture, api } = await setup();
+    (fixture.componentInstance as unknown as { updateStyle(field: string, value: number): void })
+      .updateStyle('weight', 700);
+    fixture.detectChanges();
+    (fixture.nativeElement.querySelector('[data-testid="apply-edit"]') as HTMLButtonElement).click();
+    await fixture.whenStable();
+    expect(api.apply.mock.calls[0][2].style.weight).toBe(700);
+    expect(api.apply.mock.calls[0][2].style.fontVersion).toBe('archive-main-bold');
   });
 
   it('keeps typing draft-only until Apply change is pressed', async () => {
@@ -149,6 +161,22 @@ describe('TextReplacementEditorComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('previous page is unchanged');
     expect((fixture.nativeElement.querySelector('[data-testid="apply-edit"]') as HTMLButtonElement).disabled)
       .toBe(false);
+  });
+
+  it('retries a failed first edit against the base revision created by the server', async () => {
+    const { fixture, api } = await setup();
+    api.get.mockResolvedValue({ id: 'edit-1', sourceRevisionId: 'revision-base',
+      state: 'Failed', failureCode: 'unsafe_background' });
+    const apply = fixture.nativeElement.querySelector('[data-testid="apply-edit"]') as HTMLButtonElement;
+    apply.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    apply.click();
+    await fixture.whenStable();
+
+    expect(api.apply).toHaveBeenCalledTimes(2);
+    expect(api.apply.mock.calls[1][2].expectedRevisionId).toBe('revision-base');
   });
 
   it('warns when an unselected OCR word intersects the preview box', async () => {
