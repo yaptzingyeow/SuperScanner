@@ -42,6 +42,8 @@ export interface DocumentExport {
   documentRevision: number;
   readyPageCount: number;
   excludedPageCount: number;
+  searchablePageCount: number;
+  searchability: 'ImageOnly' | 'PartiallySearchable' | 'Searchable';
   failureCode?: string | null;
   createdAt: string;
   completedAt?: string | null;

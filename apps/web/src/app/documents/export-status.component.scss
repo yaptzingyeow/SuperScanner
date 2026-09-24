@@ -44,6 +44,23 @@ p {
   background: #ffebe8;
   color: #963627;
 }
+.searchability {
+  display: grid;
+  gap: 3px;
+  padding: 11px 12px;
+  border: 1px solid #cfe4da;
+  border-radius: 10px;
+  background: #f8fcfa;
+  color: #214f3e;
+}
+.searchability strong {
+  font-size: 14px;
+}
+.searchability.warning {
+  border-color: #efd7a7;
+  background: #fff9ed;
+  color: #76551b;
+}
 .actions {
   display: flex;
   gap: 10px;

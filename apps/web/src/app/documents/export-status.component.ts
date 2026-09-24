@@ -28,6 +28,17 @@ export class ExportStatusComponent implements OnInit, OnDestroy {
     return this.pages.length - this.readyCount;
   }
 
+  protected searchabilityCopy(item: DocumentExport): string {
+    switch (item.searchability) {
+      case 'Searchable':
+        return `All ${item.readyPageCount} ${item.readyPageCount === 1 ? 'page has' : 'pages have'} searchable text.`;
+      case 'PartiallySearchable':
+        return `${item.searchablePageCount} of ${item.readyPageCount} pages have searchable text.`;
+      default:
+        return 'Image-only PDF. Text cannot be searched or selected.';
+    }
+  }
+
   ngOnInit(): void {
     this.current.set(this.initialExport ?? null);
     if (this.initialExport && this.pending(this.initialExport))
@@ -82,9 +93,16 @@ export class ExportStatusComponent implements OnInit, OnDestroy {
     try {
       const updated = await this.api.getExport(this.documentId, exportId);
       if (this.destroyed) return;
-      const changed = updated.state !== this.current()?.state;
+      const previous = this.current();
+      const changed = updated.state !== previous?.state ||
+        updated.searchability !== previous?.searchability ||
+        updated.searchablePageCount !== previous?.searchablePageCount;
       this.current.set(updated);
-      if (changed) this.announcement.set(`PDF export is ${updated.state}.`);
+      if (changed) {
+        this.announcement.set(updated.state === 'Ready'
+          ? this.readyAnnouncement(updated)
+          : `PDF export is ${updated.state}.`);
+      }
       if (this.pending(updated)) this.schedulePoll(exportId, 3000);
     } catch {
       if (!this.destroyed) this.error.set('We could not refresh the PDF status. Please try again.');
@@ -93,6 +111,12 @@ export class ExportStatusComponent implements OnInit, OnDestroy {
 
   private pending(item: DocumentExport): boolean {
     return item.state === 'Queued' || item.state === 'Processing';
+  }
+  private readyAnnouncement(item: DocumentExport): string {
+    if (item.searchability === 'ImageOnly') return 'PDF is ready. It is image-only.';
+    if (item.searchability === 'Searchable')
+      return `PDF is ready. All ${item.readyPageCount} pages are searchable.`;
+    return `PDF is ready. ${item.searchablePageCount} of ${item.readyPageCount} pages are searchable.`;
   }
   private safeName(value: string): string {
     return (

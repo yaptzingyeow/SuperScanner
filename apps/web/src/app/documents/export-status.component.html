@@ -23,6 +23,19 @@
           PDF.
         </p>
       }
+      @if (item.state === 'Ready') {
+        <div
+          class="searchability"
+          [class.warning]="item.searchability === 'ImageOnly'"
+          [attr.data-searchability]="item.searchability"
+        >
+          <strong data-testid="searchability-summary">
+            {{ item.readyPageCount }} {{ item.readyPageCount === 1 ? 'page' : 'pages' }} ·
+            {{ item.searchablePageCount }} searchable
+          </strong>
+          <p>{{ searchabilityCopy(item) }}</p>
+        </div>
+      }
     </div>
     <div class="actions">
       @if (item.state === 'Ready') {

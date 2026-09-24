@@ -20,12 +20,19 @@ describe('ExportStatusComponent', () => {
     appliedCropRevision: 1,
     previewRevision: 'crop-0',
   });
-  const exported = (state: string, isOutdated = false): DocumentExport => ({
+  const exported = (
+    state: string,
+    isOutdated = false,
+    searchablePageCount = state === 'Ready' ? 3 : 0,
+    searchability: DocumentExport['searchability'] = state === 'Ready' ? 'Searchable' : 'ImageOnly',
+  ): DocumentExport => ({
     id: 'export-1',
     state,
     documentRevision: 4,
     readyPageCount: 3,
     excludedPageCount: 2,
+    searchablePageCount,
+    searchability,
     createdAt: '2026-09-21T00:00:00Z',
     expiresAt: '2026-09-22T00:00:00Z',
     isOutdated,
@@ -85,5 +92,40 @@ describe('ExportStatusComponent', () => {
     await component.download();
     expect(api.downloadExport).toHaveBeenCalledWith('doc-1', 'export-1');
     expect(createObjectURL).toHaveBeenCalled();
+  });
+
+  it('shows the exported page and searchable-page counts', () => {
+    const item = { ...exported('Ready', false, 3, 'PartiallySearchable'), readyPageCount: 4 };
+    const { fixture } = setup([page('p1', 'Ready')], item);
+
+    expect(fixture.nativeElement.querySelector('[data-testid="searchability-summary"]').textContent)
+      .toContain('4 pages · 3 searchable');
+  });
+
+  it.each([
+    ['ImageOnly', 0, 'Image-only PDF. Text cannot be searched or selected.'],
+    ['PartiallySearchable', 2, '2 of 3 pages have searchable text.'],
+    ['Searchable', 3, 'All 3 pages have searchable text.'],
+  ] as const)('shows completed %s copy', (searchability, count, expected) => {
+    const { fixture } = setup(
+      [page('p1', 'Ready')],
+      exported('Ready', false, count, searchability),
+    );
+
+    expect(fixture.nativeElement.textContent).toContain(expected);
+  });
+
+  it('announces searchability when polling reaches Ready', async () => {
+    const { component, api, fixture } = setup(
+      [page('p1', 'Ready')],
+      exported('Processing', false, 0, 'ImageOnly'),
+    );
+    api.getExport.mockResolvedValue(exported('Ready', false, 2, 'PartiallySearchable'));
+
+    await component.poll('export-1');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[aria-live="polite"]').textContent)
+      .toContain('PDF is ready. 2 of 3 pages are searchable.');
   });
 });
