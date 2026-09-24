@@ -116,11 +116,43 @@ public sealed class DocumentExportTests
         var export = DocumentExport.Create(Guid.NewGuid(), document, "firebase-user-1", Now, TimeSpan.FromDays(7));
 
         export.Start(Now.AddMinutes(1));
-        export.Complete("exports/document/export/document.pdf", Now.AddMinutes(2));
+        export.Complete("exports/document/export/document.pdf", Now.AddMinutes(2), 1);
 
         Assert.Equal(DocumentExportState.Ready, export.State);
         Assert.Equal("exports/document/export/document.pdf", export.OutputObjectKey);
         Assert.Equal(Now.AddMinutes(2), export.CompletedAt);
+        Assert.Equal(1, export.SearchablePageCount);
+        Assert.Equal("Searchable", export.Searchability);
+    }
+
+    [Theory]
+    [InlineData(0, "ImageOnly")]
+    [InlineData(1, "PartiallySearchable")]
+    [InlineData(2, "Searchable")]
+    public void Complete_ClassifiesSearchability(int searchablePages, string expected)
+    {
+        var document = Document.Create(Guid.NewGuid(), "firebase-user-1", "Form", Now);
+        foreach (var pageNumber in new[] { 1, 2 })
+            PrepareReadyPage(document.AppendImportedPages(Guid.NewGuid(), [pageNumber], 10, Now).Single(), $"preview-{pageNumber}");
+        var export = DocumentExport.Create(Guid.NewGuid(), document, "firebase-user-1", Now, TimeSpan.FromDays(7));
+        export.Start(Now);
+
+        export.Complete("exports/result.pdf", Now, searchablePages);
+
+        Assert.Equal(searchablePages, export.SearchablePageCount);
+        Assert.Equal(expected, export.Searchability);
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(2)]
+    public void Complete_RejectsSearchableCountOutsideReadyPages(int searchablePages)
+    {
+        var export = CreateReadyExport();
+        export.Start(Now);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            export.Complete("exports/result.pdf", Now, searchablePages));
     }
 
     [Fact]
@@ -141,6 +173,7 @@ public sealed class DocumentExportTests
         Assert.Null(export.FailureCode);
         Assert.Null(export.CompletedAt);
         Assert.Null(export.OutputObjectKey);
+        Assert.Equal(0, export.SearchablePageCount);
     }
 
     [Fact]

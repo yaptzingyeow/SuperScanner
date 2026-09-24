@@ -56,6 +56,8 @@ public sealed class DocumentExportEndpointsTests : IDisposable
         Assert.Equal("Queued", body.GetProperty("state").GetString());
         Assert.Equal(1, body.GetProperty("readyPageCount").GetInt32());
         Assert.Equal(2, body.GetProperty("excludedPageCount").GetInt32());
+        Assert.Equal(0, body.GetProperty("searchablePageCount").GetInt32());
+        Assert.Equal("ImageOnly", body.GetProperty("searchability").GetString());
         Assert.False(body.GetProperty("isOutdated").GetBoolean());
         documents.Document.MarkContentChanged(DateTimeOffset.UtcNow);
         var status = await client.GetAsync(statusUrl);
@@ -67,6 +69,24 @@ public sealed class DocumentExportEndpointsTests : IDisposable
         Assert.DoesNotContain("private/", json);
         Assert.DoesNotContain("snapshot", json, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("objectKey", json, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Status_ReportsCompletedSearchabilityWithoutOcrDetails()
+    {
+        var export = DocumentExport.Create(Guid.NewGuid(), documents.Document, "user-a",
+            DateTimeOffset.UtcNow, TimeSpan.FromDays(7));
+        export.Start(DateTimeOffset.UtcNow);
+        export.Complete("private/export.pdf", DateTimeOffset.UtcNow, 1);
+        exports.Items.Add(export);
+        using var client = PageManagementHttp.Client(factory);
+
+        var body = await client.GetFromJsonAsync<JsonElement>(
+            $"/api/documents/{documents.Document.Id}/exports/{export.Id}");
+
+        Assert.Equal(1, body.GetProperty("searchablePageCount").GetInt32());
+        Assert.Equal("Searchable", body.GetProperty("searchability").GetString());
+        Assert.DoesNotContain("ocr", body.ToString(), StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -269,6 +289,8 @@ public sealed class PostgreSqlDocumentExportEndpointsTests : IAsyncLifetime
         var saved = verification.ServiceProvider.GetRequiredService<AppDbContext>();
         var export = await saved.DocumentExports.SingleAsync();
         Assert.Equal(page.Id, Assert.Single(JsonSerializer.Deserialize<DocumentExportSnapshotEntry[]>(export.SnapshotJson)!).PageId);
+        Assert.Equal(0, export.SearchablePageCount);
+        Assert.Equal("ImageOnly", export.Searchability);
         Assert.Equal("document.export_created", (await saved.AuditEvents.SingleAsync()).Action);
         Assert.Equal($"export:{export.Id}:build:v1", (await saved.ProcessingJobs.SingleAsync()).IdempotencyKey);
     }

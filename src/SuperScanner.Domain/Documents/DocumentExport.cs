@@ -16,6 +16,12 @@ public sealed class DocumentExport
     public string SnapshotJson { get; private set; } = string.Empty;
     public int ReadyPageCount { get; private set; }
     public int ExcludedPageCount { get; private set; }
+    public int SearchablePageCount { get; private set; }
+    public string Searchability => SearchablePageCount == 0
+        ? "ImageOnly"
+        : SearchablePageCount == ReadyPageCount
+            ? "Searchable"
+            : "PartiallySearchable";
     public string? OutputObjectKey { get; private set; }
     public string? FailureCode { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
@@ -91,6 +97,7 @@ public sealed class DocumentExport
         FailureCode = null;
         CompletedAt = null;
         OutputObjectKey = null;
+        SearchablePageCount = 0;
     }
 
     public void Start(DateTimeOffset now)
@@ -103,7 +110,7 @@ public sealed class DocumentExport
         State = DocumentExportState.Processing;
     }
 
-    public void Complete(string outputObjectKey, DateTimeOffset now)
+    public void Complete(string outputObjectKey, DateTimeOffset now, int searchablePageCount = 0)
     {
         if (State != DocumentExportState.Processing)
         {
@@ -111,8 +118,11 @@ public sealed class DocumentExport
         }
 
         ArgumentException.ThrowIfNullOrWhiteSpace(outputObjectKey);
+        if (searchablePageCount < 0 || searchablePageCount > ReadyPageCount)
+            throw new ArgumentOutOfRangeException(nameof(searchablePageCount));
         State = DocumentExportState.Ready;
         OutputObjectKey = outputObjectKey;
+        SearchablePageCount = searchablePageCount;
         FailureCode = null;
         CompletedAt = now;
     }

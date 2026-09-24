@@ -67,10 +67,12 @@ public sealed class DocumentPdfBuilder(
             if (snapshot.Length > limits.MaxPages) throw new BuildFailure("export_size_limit");
             var ocrById = await LoadSnapshottedOcrAsync(snapshot, ct);
             var key = $"exports/{export.DocumentId}/{export.Id}/document.pdf";
-            if (!await HasCompleteOutputAsync(key, snapshot.Length, ct))
-                await BuildAndStoreAsync(snapshot, ocrById, key, ct);
+            var existingSearchablePageCount = await GetCompleteOutputSearchablePageCountAsync(key, snapshot.Length, ct);
+            var buildResult = existingSearchablePageCount.HasValue
+                ? new DocumentPdfBuildResult(existingSearchablePageCount.Value, 0)
+                : await BuildAndStoreAsync(snapshot, ocrById, key, ct);
             ct.ThrowIfCancellationRequested();
-            export.Complete(key, clock.UtcNow);
+            export.Complete(key, clock.UtcNow, buildResult.SearchablePageCount);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
         catch (Exception exception)
@@ -155,7 +157,8 @@ public sealed class DocumentPdfBuilder(
         ct.ThrowIfCancellationRequested();
         output.Position = 0;
         var created = await store.WriteIfAbsentAsync(key, "application/pdf", output, ct);
-        if (created == ObjectCreationResult.AlreadyExists && !await HasCompleteOutputAsync(key, snapshot.Length, ct))
+        if (created == ObjectCreationResult.AlreadyExists &&
+            !((await GetCompleteOutputSearchablePageCountAsync(key, snapshot.Length, ct)).HasValue))
             throw new BuildFailure("export_build_failed");
         return new DocumentPdfBuildResult(searchablePageCount, skippedWordCount);
     }
@@ -198,14 +201,14 @@ public sealed class DocumentPdfBuilder(
         return result;
     }
 
-    private async Task<bool> HasCompleteOutputAsync(string key, int pageCount, CancellationToken ct)
+    private async Task<int?> GetCompleteOutputSearchablePageCountAsync(string key, int pageCount, CancellationToken ct)
     {
         // A successful PUT may outlive a canceled/failed database commit. Never overwrite that
         // immutable key. This HEAD is a recovery optimization, not publication fencing:
         // WriteIfAbsentAsync enforces that atomically even if a remote PUT outlives our lock.
         // Validate before making the existing output visible, or fail closed if it is corrupt.
         var info = await store.HeadAsync(key, ct);
-        if (info is null) return false;
+        if (info is null) return null;
         if (info.SizeBytes > limits.MaxPdfBytes) throw new BuildFailure("export_size_limit");
         await using var output = new BoundedPdfStream(limits.MaxPdfBytes, ct);
         await using var input = await store.OpenReadAsync(key, ct);
@@ -215,7 +218,8 @@ public sealed class DocumentPdfBuilder(
         output.Position = 0;
         using var pdf = PdfReader.Open(output, PdfDocumentOpenMode.Import);
         if (pdf.PageCount != pageCount) throw new BuildFailure("export_build_failed");
-        return true;
+        return pdf.Pages.Cast<PdfPage>().Count(page =>
+            page.Resources?.Elements.GetDictionary("/Font") is not null);
     }
 
     private async Task<MemoryStream> ReadImageAsync(string key, long maxBytes, CancellationToken ct)

@@ -36,6 +36,9 @@ public sealed class DocumentPdfBuilderTests
 
         var export = await f.ReloadAsync();
         Assert.Equal(DocumentExportState.Ready, export.State);
+        Assert.Equal(searchablePages, export.SearchablePageCount);
+        Assert.Equal(searchablePages == 0 ? "ImageOnly" : searchablePages == 3 ? "Searchable" : "PartiallySearchable",
+            export.Searchability);
         using var pdf = PdfReader.Open(
             new MemoryStream(f.Store.Objects[export.OutputObjectKey!]),
             PdfDocumentOpenMode.Import);

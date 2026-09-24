@@ -4,7 +4,8 @@ using SuperScanner.Domain.Documents;
 namespace SuperScanner.Application.Documents;
 
 public sealed record DocumentExportResult(Guid Id, string State, long DocumentRevision,
-    int ReadyPageCount, int ExcludedPageCount, string StatusUrl, string? DownloadUrl,
+    int ReadyPageCount, int ExcludedPageCount, int SearchablePageCount, string Searchability,
+    string StatusUrl, string? DownloadUrl,
     bool IsOutdated, string? FailureCode, DateTimeOffset CreatedAt, DateTimeOffset? CompletedAt,
     DateTimeOffset ExpiresAt)
 {
@@ -18,7 +19,8 @@ public sealed record DocumentExportResult(Guid Id, string State, long DocumentRe
             _ => "export_build_failed"
         };
         return new(export.Id, export.State.ToString(), export.DocumentRevision,
-            export.ReadyPageCount, export.ExcludedPageCount, statusUrl,
+            export.ReadyPageCount, export.ExcludedPageCount,
+            export.SearchablePageCount, export.Searchability, statusUrl,
             export.State == DocumentExportState.Ready && export.ExpiresAt > now ? $"{statusUrl}/download" : null,
             export.DocumentRevision != documentRevision, failureCode,
             export.CreatedAt, export.CompletedAt, export.ExpiresAt);

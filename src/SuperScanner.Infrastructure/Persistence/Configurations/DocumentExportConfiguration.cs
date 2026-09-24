@@ -16,6 +16,8 @@ public sealed class DocumentExportConfiguration : IEntityTypeConfiguration<Docum
         builder.Property(export => export.SnapshotJson).HasColumnType("jsonb").IsRequired();
         builder.Property(export => export.ReadyPageCount).IsRequired();
         builder.Property(export => export.ExcludedPageCount).IsRequired();
+        builder.Property(export => export.SearchablePageCount).HasDefaultValue(0).IsRequired();
+        builder.Ignore(export => export.Searchability);
         builder.Property(export => export.OutputObjectKey).HasMaxLength(1024);
         builder.Property(export => export.FailureCode).HasMaxLength(64);
         builder.Property(export => export.CreatedAt).IsRequired();
