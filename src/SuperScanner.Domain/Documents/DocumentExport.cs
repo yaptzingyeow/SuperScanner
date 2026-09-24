@@ -27,7 +27,8 @@ public sealed class DocumentExport
         Document document,
         string ownerUid,
         DateTimeOffset now,
-        TimeSpan retention)
+        TimeSpan retention,
+        IReadOnlyDictionary<Guid, DocumentExportOcrSnapshot>? ocrByPage = null)
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentException.ThrowIfNullOrWhiteSpace(ownerUid);
@@ -46,12 +47,23 @@ public sealed class DocumentExport
             throw new InvalidOperationException("Document has no ready pages to export.");
         }
 
-        var snapshot = readyPages.Select(page => new DocumentExportSnapshotEntry(
-            page.Id,
-            page.Position,
-            page.AppliedCropRevision,
-            page.AppliedFilter,
-            page.GetExportObjectKey()));
+        var snapshot = readyPages.Select(page =>
+        {
+            var processedObjectKey = page.GetExportObjectKey();
+            DocumentExportOcrSnapshot? ocr = null;
+            var hasMatchingOcr = ocrByPage is not null &&
+                ocrByPage.TryGetValue(page.Id, out ocr) &&
+                string.Equals(ocr.SourceObjectKey, processedObjectKey, StringComparison.Ordinal);
+            return new DocumentExportSnapshotEntry(
+                page.Id,
+                page.Position,
+                page.AppliedCropRevision,
+                page.AppliedFilter,
+                processedObjectKey,
+                hasMatchingOcr ? ocr!.ResultId : null,
+                hasMatchingOcr ? ocr!.SourceObjectKey : null,
+                hasMatchingOcr ? ocr!.SourceFingerprint : null);
+        });
 
         return new DocumentExport
         {
@@ -124,4 +136,25 @@ public sealed record DocumentExportSnapshotEntry(
     int Position,
     int AppliedCropRevision,
     string AppliedFilter,
-    string ProcessedObjectKey);
+    string ProcessedObjectKey,
+    Guid? OcrResultId = null,
+    string? OcrSourceObjectKey = null,
+    string? OcrSourceFingerprint = null);
+
+public sealed record DocumentExportOcrSnapshot
+{
+    public DocumentExportOcrSnapshot(Guid resultId, string sourceObjectKey, string sourceFingerprint)
+    {
+        if (resultId == Guid.Empty) throw new ArgumentException("An OCR result ID is required.", nameof(resultId));
+        ArgumentException.ThrowIfNullOrWhiteSpace(sourceObjectKey);
+        if (sourceFingerprint.Length != 64 || sourceFingerprint.Any(character => !char.IsAsciiHexDigit(character)))
+            throw new ArgumentException("A SHA-256 source fingerprint is required.", nameof(sourceFingerprint));
+        ResultId = resultId;
+        SourceObjectKey = sourceObjectKey;
+        SourceFingerprint = sourceFingerprint.ToLowerInvariant();
+    }
+
+    public Guid ResultId { get; }
+    public string SourceObjectKey { get; }
+    public string SourceFingerprint { get; }
+}

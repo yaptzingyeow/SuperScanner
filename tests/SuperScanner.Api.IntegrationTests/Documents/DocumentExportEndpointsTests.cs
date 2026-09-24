@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using SuperScanner.Application.Abstractions;
 using SuperScanner.Domain.Documents;
+using SuperScanner.Domain.Ocr;
 using SuperScanner.Infrastructure.Persistence;
 using Testcontainers.PostgreSql;
 
@@ -32,6 +33,8 @@ public sealed class DocumentExportEndpointsTests : IDisposable
             services.AddSingleton<IDocumentRepository>(documents);
             services.RemoveAll<IDocumentExportRepository>();
             services.AddSingleton<IDocumentExportRepository>(exports);
+            services.RemoveAll<IOcrRepository>();
+            services.AddSingleton<IOcrRepository, EmptyOcrRepository>();
             services.RemoveAll<IAuditWriter>();
             services.AddSingleton<IAuditWriter>(audit);
             services.RemoveAll<IObjectStore>();
@@ -224,6 +227,20 @@ public sealed class DocumentExportEndpointsTests : IDisposable
         public Task CompleteAsync(Guid id, string worker, CancellationToken ct) => throw new NotSupportedException();
         public Task RescheduleAsync(Guid id, string worker, string code, CancellationToken ct) => throw new NotSupportedException();
     }
+
+    private sealed class EmptyOcrRepository : IOcrRepository
+    {
+        public Task<IReadOnlyList<PageOcrResult>> FindReadyByPageIdsAsync(
+            IReadOnlyCollection<Guid> pageIds, CancellationToken ct) =>
+            Task.FromResult<IReadOnlyList<PageOcrResult>>([]);
+        public Task<IOcrTransaction> BeginTransactionAsync(CancellationToken ct) => throw new NotSupportedException();
+        public Task<OcrPageSource?> FindOwnedSourceAsync(string ownerUid, Guid documentId, Guid pageId,
+            bool forUpdate, CancellationToken ct) => throw new NotSupportedException();
+        public Task<PageOcrResult?> FindBySourceAsync(Guid pageId, string sourceFingerprint,
+            bool forUpdate, CancellationToken ct) => throw new NotSupportedException();
+        public Task AddAsync(PageOcrResult result, CancellationToken ct) => throw new NotSupportedException();
+        public Task SaveChangesAsync(CancellationToken ct) => throw new NotSupportedException();
+    }
 }
 
 // Native PostgreSQL transaction/locking verification; run when Docker is available.
@@ -271,6 +288,7 @@ public sealed class PostgreSqlDocumentExportEndpointsTests : IAsyncLifetime
         var handler = new SuperScanner.Application.Documents.CreateDocumentExport(
             scope.ServiceProvider.GetRequiredService<IDocumentRepository>(),
             scope.ServiceProvider.GetRequiredService<IDocumentExportRepository>(),
+            scope.ServiceProvider.GetRequiredService<IOcrRepository>(),
             scope.ServiceProvider.GetRequiredService<IClock>(),
             scope.ServiceProvider.GetRequiredService<IAuditWriter>(), new FailingQueue(queue),
             new SuperScanner.Application.Documents.DocumentExportPolicy(7));

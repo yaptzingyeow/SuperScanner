@@ -54,6 +54,48 @@ public sealed class DocumentExportTests
     }
 
     [Fact]
+    public void Create_SnapshotsOnlyOcrForTheExactExportSource()
+    {
+        var document = Document.Create(Guid.NewGuid(), "firebase-user-1", "Form", Now);
+        var pages = document.AppendImportedPages(Guid.NewGuid(), [1, 2], 10, Now).ToArray();
+        PrepareReadyPage(pages[0], "previews/current.jpg");
+        PrepareReadyPage(pages[1], "previews/second.jpg");
+        var matchingId = Guid.NewGuid();
+        var candidates = new Dictionary<Guid, DocumentExportOcrSnapshot>
+        {
+            [pages[0].Id] = new(matchingId, "previews/current.jpg", new string('a', 64)),
+            [pages[1].Id] = new(Guid.NewGuid(), "previews/stale.jpg", new string('b', 64))
+        };
+
+        var export = DocumentExport.Create(Guid.NewGuid(), document, "firebase-user-1",
+            Now, TimeSpan.FromDays(7), candidates);
+
+        var snapshot = JsonSerializer.Deserialize<DocumentExportSnapshotEntry[]>(export.SnapshotJson)!;
+        Assert.Equal(matchingId, snapshot[0].OcrResultId);
+        Assert.Equal("previews/current.jpg", snapshot[0].OcrSourceObjectKey);
+        Assert.Equal(new string('a', 64), snapshot[0].OcrSourceFingerprint);
+        Assert.Null(snapshot[1].OcrResultId);
+        Assert.Null(snapshot[1].OcrSourceObjectKey);
+        Assert.Null(snapshot[1].OcrSourceFingerprint);
+    }
+
+    [Fact]
+    public void Snapshot_LegacyJsonDefaultsOcrIdentityToNull()
+    {
+        var pageId = Guid.NewGuid();
+        var json = $$"""
+            [{"PageId":"{{pageId}}","Position":1,"AppliedCropRevision":0,
+              "AppliedFilter":"Original","ProcessedObjectKey":"previews/page.jpg"}]
+            """;
+
+        var entry = Assert.Single(JsonSerializer.Deserialize<DocumentExportSnapshotEntry[]>(json)!);
+
+        Assert.Null(entry.OcrResultId);
+        Assert.Null(entry.OcrSourceObjectKey);
+        Assert.Null(entry.OcrSourceFingerprint);
+    }
+
+    [Fact]
     public void Create_RejectsDocumentWithoutReadyPages()
     {
         var document = Document.Create(Guid.NewGuid(), "firebase-user-1", "Form", Now);

@@ -160,6 +160,13 @@ public sealed class OcrEndpointsTests
         public Task<PageOcrResult?> FindBySourceAsync(Guid pageId, string sourceFingerprint, bool forUpdate,
             CancellationToken ct) => Task.FromResult(Result);
 
+        public Task<IReadOnlyList<PageOcrResult>> FindReadyByPageIdsAsync(
+            IReadOnlyCollection<Guid> pageIds, CancellationToken ct) =>
+            Task.FromResult<IReadOnlyList<PageOcrResult>>(
+                Result is { State: OcrResultState.Ready } && pageIds.Contains(Result.PageId)
+                    ? [Result]
+                    : []);
+
         public Task AddAsync(PageOcrResult result, CancellationToken ct)
         {
             Result = result;

@@ -27,6 +27,10 @@ public interface IOcrRepository
         bool forUpdate,
         CancellationToken ct);
 
+    Task<IReadOnlyList<PageOcrResult>> FindReadyByPageIdsAsync(
+        IReadOnlyCollection<Guid> pageIds,
+        CancellationToken ct);
+
     Task AddAsync(PageOcrResult result, CancellationToken ct);
 
     Task SaveChangesAsync(CancellationToken ct);

@@ -106,6 +106,12 @@ internal sealed class MemoryOcrRepository(OcrPageSource? source) : IOcrRepositor
         Task.FromResult(Results.SingleOrDefault(result =>
             result.PageId == pageId && result.SourceFingerprint == sourceFingerprint));
 
+    public Task<IReadOnlyList<PageOcrResult>> FindReadyByPageIdsAsync(
+        IReadOnlyCollection<Guid> pageIds, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<PageOcrResult>>(Results
+            .Where(result => pageIds.Contains(result.PageId) && result.State == OcrResultState.Ready)
+            .ToArray());
+
     public Task AddAsync(PageOcrResult result, CancellationToken ct)
     {
         Results.Add(result);

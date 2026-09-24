@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using SuperScanner.Application.Abstractions;
 using SuperScanner.Application.Documents;
 using SuperScanner.Domain.Documents;
+using SuperScanner.Domain.Ocr;
+using SuperScanner.Application.Ocr;
 using SuperScanner.Infrastructure.Persistence;
 using SuperScanner.Infrastructure.Processing;
 
@@ -80,6 +82,35 @@ public sealed class DocumentExportTests
         await Assert.ThrowsAsync<DocumentExportNoReadyPagesException>(() =>
             Create(fixture).HandleAsync("user-a", fixture.DocumentId, default));
         await AssertEmptyAsync(fixture);
+    }
+
+    [Fact]
+    public async Task Create_SnapshotsOnlyTheReadyOcrForTheExactActiveSource()
+    {
+        await using var fixture = await ReadyFixtureAsync();
+        var document = await fixture.ReloadAsync();
+        var page = document.ActivePages.Single(candidate => candidate.State == PageState.Ready);
+        var sourceKey = page.GetExportObjectKey();
+        var fingerprint = OcrSourceFingerprint.Create(sourceKey);
+        var ready = PageOcrResult.Queue(Guid.NewGuid(), page.Id, sourceKey,
+            fingerprint, "en", fixture.Clock.UtcNow);
+        ready.BeginAttempt(1, fixture.Clock.UtcNow);
+        ready.Complete("Fake", "v1", "Yap Tzing Yeow", [], fixture.Clock.UtcNow);
+        var stale = PageOcrResult.Queue(Guid.NewGuid(), page.Id, "private/stale.jpg",
+            OcrSourceFingerprint.Create("private/stale.jpg"), "en", fixture.Clock.UtcNow);
+        fixture.Db.AddRange(ready, stale);
+        await fixture.Db.SaveChangesAsync();
+        fixture.Db.ChangeTracker.Clear();
+
+        var created = await Create(fixture).HandleAsync("user-a", fixture.DocumentId, default);
+        var export = await fixture.Db.DocumentExports.AsNoTracking().SingleAsync(item => item.Id == created.Id);
+        var entry = Assert.Single(JsonSerializer.Deserialize<DocumentExportSnapshotEntry[]>(export.SnapshotJson)!);
+
+        Assert.Equal(ready.Id, entry.OcrResultId);
+        Assert.Equal(sourceKey, entry.OcrSourceObjectKey);
+        Assert.Equal(fingerprint, entry.OcrSourceFingerprint);
+        Assert.Single(await fixture.Db.ProcessingJobs.Where(job => job.Type == "BuildDocumentPdf").ToListAsync());
+        Assert.Empty(await fixture.Db.ProcessingJobs.Where(job => job.Type.Contains("Ocr")).ToListAsync());
     }
 
     [Theory]
@@ -161,7 +192,7 @@ public sealed class DocumentExportTests
     }
 
     private static CreateDocumentExport Create(PageMutationFixture fixture, IProcessingJobQueue? queue = null) =>
-        new(fixture.Repository, new EfDocumentExportRepository(fixture.Db), fixture.Clock, fixture.Audit,
+        new(fixture.Repository, new EfDocumentExportRepository(fixture.Db), new EfOcrRepository(fixture.Db), fixture.Clock, fixture.Audit,
             queue ?? new PostgresJobQueue(fixture.Db, fixture.Clock), new DocumentExportPolicy(7));
 
     private static GetDocumentExport Get(PageMutationFixture fixture) =>

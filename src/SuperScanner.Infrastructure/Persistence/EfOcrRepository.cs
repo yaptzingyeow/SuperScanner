@@ -87,6 +87,17 @@ public sealed class EfOcrRepository(AppDbContext db) : IOcrRepository
             .SingleOrDefaultAsync(ct);
     }
 
+    public async Task<IReadOnlyList<PageOcrResult>> FindReadyByPageIdsAsync(
+        IReadOnlyCollection<Guid> pageIds,
+        CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(pageIds);
+        if (pageIds.Count == 0) return [];
+        return await db.PageOcrResults.AsNoTracking()
+            .Where(result => pageIds.Contains(result.PageId) && result.State == OcrResultState.Ready)
+            .ToListAsync(ct);
+    }
+
     public Task AddAsync(PageOcrResult result, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(result);
