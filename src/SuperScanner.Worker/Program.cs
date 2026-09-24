@@ -58,6 +58,8 @@ builder.Services.AddSingleton(new DocumentPdfLimits
 {
     MaxPdfBytes = builder.Configuration.GetValue("DocumentExport:MaxOutputBytes", 104_857_600L)
 });
+builder.Services.AddSingleton<IPdfTextLayerWriter>(_ => new PdfSharpTextLayerWriter(
+    Path.Combine(AppContext.BaseDirectory, "assets", "fonts", "NotoSans-Regular.ttf")));
 builder.Services.AddScoped<DocumentPdfBuilder>();
 builder.Services.AddOptions<DocumentBoundaryOptions>()
     .BindConfiguration(DocumentBoundaryOptions.SectionName)

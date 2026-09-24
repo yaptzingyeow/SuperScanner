@@ -30,6 +30,7 @@ public static class PdfTextLayerProjector
 
             var text = element.Text?.Trim();
             if (string.IsNullOrEmpty(text) ||
+                text.Any(char.IsSurrogate) ||
                 text.Length > limits.MaximumCharactersPerWord ||
                 characters + text.Length > limits.MaximumCharactersPerPage)
             {

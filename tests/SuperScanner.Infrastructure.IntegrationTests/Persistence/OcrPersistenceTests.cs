@@ -127,6 +127,29 @@ public sealed class OcrPersistenceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ExportQuery_LoadsOnlyExactSnapshottedResultsWithTheirElements()
+    {
+        await using var db = CreateDbContext();
+        await db.Database.MigrateAsync();
+        var (document, page) = CreateReadyDocument();
+        var ready = CreateReadyResult(page);
+        db.AddRange(document, ready);
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        var requestedIds = new[] { ready.Id, Guid.NewGuid() };
+        var results = await db.PageOcrResults
+            .AsNoTracking()
+            .Include(result => result.Elements)
+            .Where(result => requestedIds.Contains(result.Id))
+            .ToListAsync();
+
+        var stored = Assert.Single(results);
+        Assert.Equal(ready.Id, stored.Id);
+        Assert.Equal(2, stored.Elements.Count);
+    }
+
+    [Fact]
     public async Task Repository_DoesNotReturnResultForSupersededPreview()
     {
         await using var db = CreateDbContext();

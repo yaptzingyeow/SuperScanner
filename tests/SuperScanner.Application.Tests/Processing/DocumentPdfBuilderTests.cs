@@ -10,6 +10,7 @@ using PdfSharp.Pdf;
 using PdfSharp.Pdf.Advanced;
 using SuperScanner.Application.Abstractions;
 using SuperScanner.Domain.Documents;
+using SuperScanner.Domain.Ocr;
 using SuperScanner.Domain.Processing;
 using SuperScanner.Infrastructure.Persistence;
 using SuperScanner.Infrastructure.Processing;
@@ -19,6 +20,43 @@ namespace SuperScanner.Application.Tests.Processing;
 
 public sealed class DocumentPdfBuilderTests
 {
+    [Theory]
+    [InlineData(OcrScenario.Full, 3)]
+    [InlineData(OcrScenario.Partial, 1)]
+    [InlineData(OcrScenario.None, 0)]
+    [InlineData(OcrScenario.Stale, 0)]
+    [InlineData(OcrScenario.Missing, 0)]
+    [InlineData(OcrScenario.NewerOnly, 0)]
+    [InlineData(OcrScenario.InvalidWord, 0)]
+    public async Task Build_AddsTextOnlyForExactReadySnapshotOcr(OcrScenario scenario, int searchablePages)
+    {
+        await using var f = await Fixture.CreateAsync(scenario);
+
+        await f.BuildAsync();
+
+        var export = await f.ReloadAsync();
+        Assert.Equal(DocumentExportState.Ready, export.State);
+        using var pdf = PdfReader.Open(
+            new MemoryStream(f.Store.Objects[export.OutputObjectKey!]),
+            PdfDocumentOpenMode.Import);
+        Assert.Equal(searchablePages, pdf.Pages.Cast<PdfPage>().Count(page =>
+            page.Resources?.Elements.GetDictionary("/Font") is not null));
+    }
+
+    [Fact]
+    public async Task Build_TextLayerInfrastructureFailureIsHardAndUsesSafeCode()
+    {
+        await using var f = await Fixture.CreateAsync(OcrScenario.Partial);
+
+        await f.BuildAsync(writer: new FailingTextLayerWriter());
+
+        var export = await f.ReloadAsync();
+        Assert.Equal(DocumentExportState.Failed, export.State);
+        Assert.Equal("export_build_failed", export.FailureCode);
+        Assert.DoesNotContain("sensitive", export.FailureCode);
+        Assert.Equal(0, f.Store.Writes);
+    }
+
     [Fact]
     public async Task Build_UsesOnlySnapshotImagesInOrderAt96Dpi_AndCompletedRetryIsImmutable()
     {
@@ -311,7 +349,7 @@ public sealed class DocumentPdfBuilderTests
         public required DocumentExport Export { get; init; }
         public Store Store { get; } = new();
         public Clock Clock { get; } = new();
-        public static async Task<Fixture> CreateAsync()
+        public static async Task<Fixture> CreateAsync(OcrScenario ocrScenario = OcrScenario.None)
         {
             var connection = new SqliteConnection("Data Source=:memory:");
             await connection.OpenAsync();
@@ -325,7 +363,37 @@ public sealed class DocumentPdfBuilderTests
                 page.SetPreview($"revision-{index}", $"thumb-{index}");
                 if (index < 4) page.MarkReady();
             }
-            var export = DocumentExport.Create(Guid.NewGuid(), document, "owner", now, TimeSpan.FromDays(7));
+            var ocrSnapshots = new Dictionary<Guid, DocumentExportOcrSnapshot>();
+            var readyPages = document.ActivePages.Where(page => page.State == PageState.Ready).ToArray();
+            var ocrCount = ocrScenario == OcrScenario.Full ? readyPages.Length : ocrScenario == OcrScenario.Partial ? 1 :
+                ocrScenario is OcrScenario.Stale or OcrScenario.Missing or OcrScenario.NewerOnly or OcrScenario.InvalidWord ? 1 : 0;
+            for (var i = 0; i < ocrCount; i++)
+            {
+                var page = readyPages[i];
+                var snapshottedId = Guid.NewGuid();
+                var fingerprint = new string((char)('a' + i), 64);
+                ocrSnapshots[page.Id] = new DocumentExportOcrSnapshot(
+                    snapshottedId, $"revision-{i + 1}", fingerprint);
+
+                if (ocrScenario != OcrScenario.Missing)
+                {
+                    var storedId = ocrScenario == OcrScenario.NewerOnly ? Guid.NewGuid() : snapshottedId;
+                    var storedKey = ocrScenario == OcrScenario.Stale ? "stale-revision" : $"revision-{i + 1}";
+                    var result = PageOcrResult.Queue(storedId, page.Id, storedKey, fingerprint, "en", now);
+                    result.BeginAttempt(1, now);
+                    var polygon = ocrScenario == OcrScenario.InvalidWord
+                        ? Enumerable.Repeat(new OcrPoint(.2, .2), 4).ToArray()
+                        : new[] { new OcrPoint(.1, .1), new(.3, .1), new(.3, .15), new(.1, .15) };
+                    var element = OcrElement.Create(
+                        Guid.NewGuid(), storedId, null, OcrElementKind.Word,
+                        $"private-page-{i + 1}", .99, OcrTextType.Printed, 0, polygon);
+                    result.Complete("google-document-ai", "v1", "private", [element], now);
+                    db.Add(result);
+                }
+            }
+
+            var export = DocumentExport.Create(
+                Guid.NewGuid(), document, "owner", now, TimeSpan.FromDays(7), ocrSnapshots);
             db.AddRange(document, export);
             await db.SaveChangesAsync();
             var f = new Fixture { Connection = connection, Db = db, Document = document, Export = export };
@@ -337,9 +405,18 @@ public sealed class DocumentPdfBuilderTests
             }
             return f;
         }
-        public Task BuildAsync(DocumentPdfLimits? limits = null) => new DocumentPdfBuilder(Db, Store, Clock, limits).BuildAsync(Export.Id, default);
+        public Task BuildAsync(DocumentPdfLimits? limits = null, IPdfTextLayerWriter? writer = null) =>
+            new DocumentPdfBuilder(Db, Store, Clock, limits, writer).BuildAsync(Export.Id, default);
         public async Task<DocumentExport> ReloadAsync() { Db.ChangeTracker.Clear(); return await Db.DocumentExports.SingleAsync(); }
         public async ValueTask DisposeAsync() { await Db.DisposeAsync(); await Connection.DisposeAsync(); }
+    }
+
+    public enum OcrScenario { None, Full, Partial, Stale, Missing, NewerOnly, InvalidWord }
+
+    private sealed class FailingTextLayerWriter : IPdfTextLayerWriter
+    {
+        public void Write(PdfPage page, IReadOnlyList<PdfTextLayerWord> words) =>
+            throw new PdfTextLayerWriteException("sensitive-text-must-not-escape");
     }
 
     private sealed class Clock : IClock { public DateTimeOffset UtcNow => new(2026, 9, 18, 0, 0, 0, TimeSpan.Zero); }

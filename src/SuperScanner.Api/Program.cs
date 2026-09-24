@@ -98,6 +98,8 @@ builder.Services.AddSingleton<IFontCatalogue>(services =>
     var options = services.GetRequiredService<IOptions<TextEditingOptions>>().Value;
     return BundledFontCatalogue.Load(Path.Combine(AppContext.BaseDirectory, options.FontManifestPath));
 });
+builder.Services.AddSingleton<IPdfTextLayerWriter>(_ => new PdfSharpTextLayerWriter(
+    Path.Combine(AppContext.BaseDirectory, "assets", "fonts", "NotoSans-Regular.ttf")));
 builder.Services.AddScoped<ITextSelectionRepository, EfTextEditRepository>();
 builder.Services.AddScoped<ITextEditCommandRepository, EfTextEditRepository>();
 builder.Services.AddScoped<ITextEditReadRepository, EfTextEditRepository>();

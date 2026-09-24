@@ -8,6 +8,7 @@ using PdfSharp.Pdf;
 using PdfSharp.Pdf.IO;
 using SuperScanner.Application.Abstractions;
 using SuperScanner.Domain.Documents;
+using SuperScanner.Domain.Ocr;
 using SuperScanner.Infrastructure.Persistence;
 
 namespace SuperScanner.Infrastructure.Processing;
@@ -22,9 +23,16 @@ public sealed class DocumentPdfLimits
     public int MaxPages { get; init; } = 50;
 }
 
-public sealed class DocumentPdfBuilder(AppDbContext db, IObjectStore store, IClock clock, DocumentPdfLimits? limits = null)
+public sealed class DocumentPdfBuilder(
+    AppDbContext db,
+    IObjectStore store,
+    IClock clock,
+    DocumentPdfLimits? limits = null,
+    IPdfTextLayerWriter? textLayerWriter = null)
 {
     private readonly DocumentPdfLimits limits = limits ?? new();
+    private readonly IPdfTextLayerWriter textLayerWriter = textLayerWriter ?? new PdfSharpTextLayerWriter(
+        Path.Combine(AppContext.BaseDirectory, "assets", "fonts", "NotoSans-Regular.ttf"));
 
     public async Task FailAsync(Guid exportId, CancellationToken ct)
     {
@@ -57,9 +65,10 @@ public sealed class DocumentPdfBuilder(AppDbContext db, IObjectStore store, IClo
             if (snapshot.Length < 1 || snapshot.Length != export.ReadyPageCount)
                 throw new BuildFailure("export_build_failed");
             if (snapshot.Length > limits.MaxPages) throw new BuildFailure("export_size_limit");
+            var ocrById = await LoadSnapshottedOcrAsync(snapshot, ct);
             var key = $"exports/{export.DocumentId}/{export.Id}/document.pdf";
             if (!await HasCompleteOutputAsync(key, snapshot.Length, ct))
-                await BuildAndStoreAsync(snapshot, key, ct);
+                await BuildAndStoreAsync(snapshot, ocrById, key, ct);
             ct.ThrowIfCancellationRequested();
             export.Complete(key, clock.UtcNow);
         }
@@ -77,16 +86,23 @@ public sealed class DocumentPdfBuilder(AppDbContext db, IObjectStore store, IClo
             $"SELECT * FROM document_exports WHERE \"Id\" = {exportId} FOR UPDATE").ToListAsync(ct)).SingleOrDefault()
         : await db.DocumentExports.SingleOrDefaultAsync(x => x.Id == exportId, ct);
 
-    private async Task BuildAndStoreAsync(DocumentExportSnapshotEntry[] snapshot, string key, CancellationToken ct)
+    private async Task<DocumentPdfBuildResult> BuildAndStoreAsync(
+        DocumentExportSnapshotEntry[] snapshot,
+        IReadOnlyDictionary<Guid, PageOcrResult> ocrById,
+        string key,
+        CancellationToken ct)
     {
         using var pdf = new PdfDocument();
         long sourceBytes = 0, pixels = 0;
+        var searchablePageCount = 0;
+        var skippedWordCount = 0;
         foreach (var entry in snapshot)
         {
             ct.ThrowIfCancellationRequested();
             using var source = await ReadImageAsync(entry.ProcessedObjectKey,
                 Math.Min(limits.MaxSourceBytes, limits.MaxTotalSourceBytes - sourceBytes), ct);
             sourceBytes += source.Length;
+            PdfPage page;
             try
             {
                 var info = new MagickImageInfo(source);
@@ -98,15 +114,38 @@ public sealed class DocumentPdfBuilder(AppDbContext db, IObjectStore store, IClo
                 pixels += pagePixels;
                 source.Position = 0;
                 using var image = XImage.FromStream(source);
-                var page = pdf.AddPage();
+                page = pdf.AddPage();
                 page.Width = XUnit.FromPoint(image.PixelWidth * 72d / 96);
                 page.Height = XUnit.FromPoint(image.PixelHeight * 72d / 96);
-                using var graphics = XGraphics.FromPdfPage(page);
-                graphics.DrawImage(image, 0, 0, page.Width.Point, page.Height.Point);
+                using (var graphics = XGraphics.FromPdfPage(page))
+                    graphics.DrawImage(image, 0, 0, page.Width.Point, page.Height.Point);
             }
             catch (BuildFailure) { throw; }
             catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
             catch (Exception) { throw new BuildFailure("export_decode_failed"); }
+
+            if (FindEligibleOcr(entry, ocrById) is { } ocr)
+            {
+                var sourceWords = ocr.Elements.Count(element => element.Kind == OcrElementKind.Word);
+                var words = PdfTextLayerProjector.Project(
+                    ocr.Elements,
+                    page.Width.Point,
+                    page.Height.Point,
+                    PdfTextLayerLimits.Default);
+                skippedWordCount += sourceWords - words.Count;
+                if (words.Count > 0)
+                {
+                    try
+                    {
+                        textLayerWriter.Write(page, words);
+                        searchablePageCount++;
+                    }
+                    catch (PdfTextLayerWriteException)
+                    {
+                        throw new BuildFailure("export_build_failed");
+                    }
+                }
+            }
         }
 
         // Stage locally with a hard write bound. Object storage receives only a complete PDF,
@@ -118,6 +157,45 @@ public sealed class DocumentPdfBuilder(AppDbContext db, IObjectStore store, IClo
         var created = await store.WriteIfAbsentAsync(key, "application/pdf", output, ct);
         if (created == ObjectCreationResult.AlreadyExists && !await HasCompleteOutputAsync(key, snapshot.Length, ct))
             throw new BuildFailure("export_build_failed");
+        return new DocumentPdfBuildResult(searchablePageCount, skippedWordCount);
+    }
+
+    private async Task<IReadOnlyDictionary<Guid, PageOcrResult>> LoadSnapshottedOcrAsync(
+        IReadOnlyCollection<DocumentExportSnapshotEntry> snapshot,
+        CancellationToken ct)
+    {
+        var ids = snapshot
+            .Where(entry => entry.OcrResultId.HasValue)
+            .Select(entry => entry.OcrResultId!.Value)
+            .Distinct()
+            .Take(limits.MaxPages)
+            .ToArray();
+        if (ids.Length == 0) return new Dictionary<Guid, PageOcrResult>();
+
+        return await db.PageOcrResults
+            .AsNoTracking()
+            .Include(result => result.Elements)
+            .Where(result => ids.Contains(result.Id))
+            .ToDictionaryAsync(result => result.Id, ct);
+    }
+
+    private static PageOcrResult? FindEligibleOcr(
+        DocumentExportSnapshotEntry entry,
+        IReadOnlyDictionary<Guid, PageOcrResult> ocrById)
+    {
+        if (entry.OcrResultId is not Guid id ||
+            entry.OcrSourceObjectKey is null ||
+            entry.OcrSourceFingerprint is null ||
+            !ocrById.TryGetValue(id, out var result) ||
+            result.State != OcrResultState.Ready ||
+            result.PageId != entry.PageId ||
+            !string.Equals(result.SourceObjectKey, entry.OcrSourceObjectKey, StringComparison.Ordinal) ||
+            !string.Equals(result.SourceFingerprint, entry.OcrSourceFingerprint, StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        return result;
     }
 
     private async Task<bool> HasCompleteOutputAsync(string key, int pageCount, CancellationToken ct)
@@ -168,6 +246,8 @@ public sealed class DocumentPdfBuilder(AppDbContext db, IObjectStore store, IClo
     }
 
     private sealed class BuildFailure(string code) : Exception(code) { public string Code { get; } = code; }
+
+    private sealed record DocumentPdfBuildResult(int SearchablePageCount, int SkippedWordCount);
 
     private sealed class BoundedPdfStream(long maxBytes, CancellationToken ct) : FileStream(
         Path.Combine(Path.GetTempPath(), $"superscanner-export-{Guid.NewGuid():N}.tmp"),
