@@ -18,11 +18,18 @@ public static class PdfTextLayerProjector
         var projected = new List<PdfTextLayerWord>(Math.Min(elements.Count, limits.MaximumWordsPerPage));
         var characters = 0;
 
-        foreach (var element in elements
-                     .Where(candidate => candidate.Kind == OcrElementKind.Word)
-                     .OrderBy(candidate => candidate.ReadingOrder)
-                     .ThenBy(candidate => candidate.Id))
+        var elementsById = elements
+            .GroupBy(element => element.Id)
+            .ToDictionary(group => group.Key, group => group.First());
+        var orderedWords = elements
+            .Where(candidate => candidate.Kind == OcrElementKind.Word)
+            .Select(element => new OrderedWord(element, BuildReadingOrderPath(element, elementsById)))
+            .OrderBy(candidate => candidate.Path, ReadingOrderPathComparer.Instance)
+            .ThenBy(candidate => candidate.Element.Id);
+
+        foreach (var orderedWord in orderedWords)
         {
+            var element = orderedWord.Element;
             if (projected.Count >= limits.MaximumWordsPerPage)
             {
                 break;
@@ -64,11 +71,44 @@ public static class PdfTextLayerProjector
                 geometry.Width,
                 geometry.Height,
                 geometry.AngleDegrees,
-                element.ReadingOrder));
+                projected.Count));
             characters += text.Length;
         }
 
         return projected;
+    }
+
+    private static int[] BuildReadingOrderPath(
+        OcrElement word,
+        IReadOnlyDictionary<Guid, OcrElement> elementsById)
+    {
+        var path = new List<int>();
+        var visited = new HashSet<Guid>();
+        var current = word;
+
+        while (true)
+        {
+            if (!visited.Add(current.Id))
+            {
+                path.Add(int.MaxValue);
+                break;
+            }
+
+            path.Add(current.ReadingOrder);
+            if (current.ParentElementId is not Guid parentId)
+            {
+                break;
+            }
+
+            if (!elementsById.TryGetValue(parentId, out current!))
+            {
+                path.Add(int.MaxValue);
+                break;
+            }
+        }
+
+        path.Reverse();
+        return path.ToArray();
     }
 
     private static bool TryProject(
@@ -162,4 +202,26 @@ public static class PdfTextLayerProjector
         double Width,
         double Height,
         double AngleDegrees);
+
+    private sealed record OrderedWord(OcrElement Element, int[] Path);
+
+    private sealed class ReadingOrderPathComparer : IComparer<int[]>
+    {
+        public static ReadingOrderPathComparer Instance { get; } = new();
+
+        public int Compare(int[]? first, int[]? second)
+        {
+            if (ReferenceEquals(first, second)) return 0;
+            if (first is null) return -1;
+            if (second is null) return 1;
+
+            for (var index = 0; index < Math.Min(first.Length, second.Length); index++)
+            {
+                var comparison = first[index].CompareTo(second[index]);
+                if (comparison != 0) return comparison;
+            }
+
+            return first.Length.CompareTo(second.Length);
+        }
+    }
 }

@@ -44,6 +44,25 @@ public sealed class PdfTextLayerProjectorTests
     }
 
     [Fact]
+    public void Project_PreservesBlockLineAndWordHierarchyWhenLocalOrdersRepeat()
+    {
+        var resultId = Guid.NewGuid();
+        var block = Element(resultId, null, OcrElementKind.Block, "block", 0, Poly(.1, .1, .8, .8));
+        var lineOne = Element(resultId, block.Id, OcrElementKind.Line, "line one", 0, Poly(.1, .1, .8, .1));
+        var lineTwo = Element(resultId, block.Id, OcrElementKind.Line, "line two", 1, Poly(.1, .3, .8, .1));
+        var oneA = Element(resultId, lineOne.Id, OcrElementKind.Word, "one-a", 0, Poly(.1, .1, .1, .05));
+        var oneB = Element(resultId, lineOne.Id, OcrElementKind.Word, "one-b", 1, Poly(.3, .1, .1, .05));
+        var twoA = Element(resultId, lineTwo.Id, OcrElementKind.Word, "two-a", 0, Poly(.1, .3, .1, .05));
+        var twoB = Element(resultId, lineTwo.Id, OcrElementKind.Word, "two-b", 1, Poly(.3, .3, .1, .05));
+
+        var projected = PdfTextLayerProjector.Project(
+            [twoB, oneB, lineTwo, block, twoA, lineOne, oneA], 100, 100, PdfTextLayerLimits.Default);
+
+        Assert.Equal(["one-a", "one-b", "two-a", "two-b"], projected.Select(word => word.Text));
+        Assert.Equal([0, 1, 2, 3], projected.Select(word => word.ReadingOrder));
+    }
+
+    [Fact]
     public void Project_PreservesMildClockwiseRotationAndBoundsIt()
     {
         var word = Word("tilted", 0,

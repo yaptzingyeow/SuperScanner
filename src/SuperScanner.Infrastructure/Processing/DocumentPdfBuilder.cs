@@ -7,6 +7,7 @@ using PdfSharp.Drawing;
 using PdfSharp.Pdf;
 using PdfSharp.Pdf.IO;
 using SuperScanner.Application.Abstractions;
+using SuperScanner.Application.Ocr;
 using SuperScanner.Domain.Documents;
 using SuperScanner.Domain.Ocr;
 using SuperScanner.Infrastructure.Persistence;
@@ -193,6 +194,11 @@ public sealed class DocumentPdfBuilder(
         if (entry.OcrResultId is not Guid id ||
             entry.OcrSourceObjectKey is null ||
             entry.OcrSourceFingerprint is null ||
+            !string.Equals(entry.OcrSourceObjectKey, entry.ProcessedObjectKey, StringComparison.Ordinal) ||
+            !string.Equals(
+                entry.OcrSourceFingerprint,
+                OcrSourceFingerprint.Create(entry.ProcessedObjectKey),
+                StringComparison.Ordinal) ||
             !ocrById.TryGetValue(id, out var result) ||
             result.State != OcrResultState.Ready ||
             result.PageId != entry.PageId ||

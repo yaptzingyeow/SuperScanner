@@ -2,13 +2,15 @@ using ImageMagick;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-using System.Data.Common;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using PdfSharp.Pdf.IO;
 using PdfSharp.Pdf;
 using PdfSharp.Pdf.Advanced;
+using System.Data.Common;
+using System.Text.Json;
 using SuperScanner.Application.Abstractions;
+using SuperScanner.Application.Ocr;
 using SuperScanner.Domain.Documents;
 using SuperScanner.Domain.Ocr;
 using SuperScanner.Domain.Processing;
@@ -71,6 +73,21 @@ public sealed class DocumentPdfBuilderTests
         Assert.Equal(DocumentExportState.Ready, export.State);
         Assert.Equal(0, export.SearchablePageCount);
         Assert.Equal("ImageOnly", export.Searchability);
+    }
+
+    [Fact]
+    public async Task Build_TamperedSnapshotCannotAttachOcrToDifferentProcessedImage()
+    {
+        await using var f = await Fixture.CreateAsync(OcrScenario.Full);
+        var entries = JsonSerializer.Deserialize<DocumentExportSnapshotEntry[]>(f.Export.SnapshotJson)!;
+        entries[0] = entries[0] with { ProcessedObjectKey = "revision-2" };
+        typeof(DocumentExport).GetProperty(nameof(DocumentExport.SnapshotJson))!
+            .SetValue(f.Export, JsonSerializer.Serialize(entries));
+        await f.Db.SaveChangesAsync();
+
+        await f.BuildAsync();
+
+        Assert.Equal(2, (await f.ReloadAsync()).SearchablePageCount);
     }
 
     [Fact]
@@ -387,7 +404,7 @@ public sealed class DocumentPdfBuilderTests
             {
                 var page = readyPages[i];
                 var snapshottedId = Guid.NewGuid();
-                var fingerprint = new string((char)('a' + i), 64);
+                var fingerprint = OcrSourceFingerprint.Create($"revision-{i + 1}");
                 ocrSnapshots[page.Id] = new DocumentExportOcrSnapshot(
                     snapshottedId, $"revision-{i + 1}", fingerprint);
 
