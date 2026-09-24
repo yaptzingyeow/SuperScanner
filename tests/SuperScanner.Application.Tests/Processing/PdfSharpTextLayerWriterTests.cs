@@ -3,6 +3,8 @@ using PdfSharp.Drawing;
 using PdfSharp.Pdf;
 using PdfSharp.Pdf.Advanced;
 using SuperScanner.Infrastructure.Processing;
+using UglyToad.PdfPig.DocumentLayoutAnalysis.TextExtractor;
+using PdfPigDocument = UglyToad.PdfPig.PdfDocument;
 
 namespace SuperScanner.Application.Tests.Processing;
 
@@ -28,11 +30,13 @@ public sealed class PdfSharpTextLayerWriterTests
         document.Save(output, false);
         var pdf = Encoding.Latin1.GetString(output.ToArray());
         var content = DecodeLastContent(page);
+        using var extractedDocument = PdfPigDocument.Open(output.ToArray());
+        var extracted = ContentOrderTextExtractor.GetText(extractedDocument.GetPage(1));
 
         Assert.Contains("3 Tr", content);
         Assert.Contains("/ToUnicode", pdf);
-        Assert.True(content.IndexOf(" Tj", StringComparison.Ordinal) <
-                    content.LastIndexOf(" Tj", StringComparison.Ordinal));
+        Assert.Equal("Yap Tzing Yeow", string.Join(' ', extracted.Split(
+            (char[]?)null, StringSplitOptions.RemoveEmptyEntries)));
     }
 
     [Fact]
