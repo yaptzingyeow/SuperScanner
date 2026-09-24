@@ -1,10 +1,24 @@
 using SuperScanner.Application.Ocr;
 using SuperScanner.Infrastructure.Ocr;
+using SuperScanner.Domain.Ocr;
 
 namespace SuperScanner.Application.Tests.Ocr;
 
 public sealed class FakeOcrProviderTests
 {
+    [Fact]
+    public async Task Printed_edit_fixture_has_three_contiguous_printed_words()
+    {
+        var provider = new FakeOcrProvider(FakeOcrScenario.PrintedTextReplacement);
+        await using var content = new MemoryStream([1]);
+        var result = await provider.RecognizeAsync(new OcrInput(content, "image/jpeg", "en"), default);
+        Assert.Equal("Yap Tzing Yeow", result.FullText);
+        Assert.Equal(new[] { "Yap", "Tzing", "Yeow" }, result.Elements
+            .Where(element => element.Kind == OcrElementKind.Word)
+            .Select(element => element.Text));
+        Assert.All(result.Elements.Where(element => element.Kind == OcrElementKind.Word),
+            element => Assert.Equal(OcrTextType.Printed, element.TextType));
+    }
     [Fact]
     public async Task DisabledProvider_ReturnsPermanentSafeFailure()
     {

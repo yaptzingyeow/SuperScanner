@@ -16,18 +16,37 @@ if (-not $AdminPassword) { $AdminPassword = Read-RequiredSecureString 'PostgreSQ
 $psql = Find-Psql
 $sql = @"
 WITH required_tables(name) AS (
-    VALUES ('documents'), ('pages'), ('upload_intents'), ('processing_jobs'), ('audit_events'), ('__EFMigrationsHistory')
+    VALUES
+      ('documents'),
+      ('pages'),
+      ('upload_intents'),
+      ('processing_jobs'),
+      ('audit_events'),
+      ('document_exports'),
+      ('page_ocr_results'),
+      ('ocr_elements'),
+      ('page_revisions'),
+      ('text_edit_operations'),
+      ('__EFMigrationsHistory')
 ), required_migrations(id) AS (
     VALUES
       ('20260902013508_InitialSchema'),
       ('20260903153822_QuarantinedUploadIntents'),
       ('20260903155654_UploadValidationJobs'),
       ('20260904012909_LeasedProcessingJobs'),
-      ('20260904015937_TamperEvidentAuditChain')
+      ('20260904015937_TamperEvidentAuditChain'),
+      ('20260912000000_DocumentPreviews'),
+      ('20260912010000_PageCrops'),
+      ('20260913000000_PageFilters'),
+      ('20260914000000_AiDocumentBoundary'),
+      ('20260914210000_MultiPageDocuments'),
+      ('20260922004203_OcrFoundation'),
+      ('20260922174452_PageRevisions'),
+      ('20260923005415_PrintedTextEditing')
 ), required_indexes(name) AS (
     VALUES
       ('IX_documents_OwnerFirebaseUid_UpdatedAt'),
-      ('IX_pages_DocumentId_PageNumber'),
+      ('IX_pages_DocumentId_Position'),
       ('IX_upload_intents_IdempotencyKey'),
       ('IX_processing_jobs_Status_AvailableAt_CreatedAt'),
       ('IX_audit_events_TargetId_Sequence')
@@ -50,6 +69,11 @@ WITH required_tables(name) AS (
         ('pages', 'SELECT'), ('pages', 'INSERT'), ('pages', 'UPDATE'), ('pages', 'DELETE'),
         ('upload_intents', 'SELECT'), ('upload_intents', 'INSERT'), ('upload_intents', 'UPDATE'), ('upload_intents', 'DELETE'),
         ('processing_jobs', 'SELECT'), ('processing_jobs', 'INSERT'), ('processing_jobs', 'UPDATE'), ('processing_jobs', 'DELETE'),
+        ('document_exports', 'SELECT'), ('document_exports', 'INSERT'), ('document_exports', 'UPDATE'), ('document_exports', 'DELETE'),
+        ('page_ocr_results', 'SELECT'), ('page_ocr_results', 'INSERT'), ('page_ocr_results', 'UPDATE'), ('page_ocr_results', 'DELETE'),
+        ('ocr_elements', 'SELECT'), ('ocr_elements', 'INSERT'), ('ocr_elements', 'UPDATE'), ('ocr_elements', 'DELETE'),
+        ('page_revisions', 'SELECT'), ('page_revisions', 'INSERT'), ('page_revisions', 'UPDATE'), ('page_revisions', 'DELETE'),
+        ('text_edit_operations', 'SELECT'), ('text_edit_operations', 'INSERT'), ('text_edit_operations', 'UPDATE'), ('text_edit_operations', 'DELETE'),
         ('audit_events', 'SELECT'), ('audit_events', 'INSERT')
       ) permissions(table_name, privilege)
      WHERE NOT has_table_privilege('$ApplicationRole', 'public.' || table_name, privilege)
@@ -72,4 +96,4 @@ if ($issues.Count -gt 0) {
     throw "Database verification failed:$([Environment]::NewLine)$details"
 }
 
-Write-Host "Verified schema, five migrations, indexes, and $ApplicationRole permissions on $DatabaseName."
+Write-Host "Verified schema, migrations, indexes, and $ApplicationRole permissions on $DatabaseName."

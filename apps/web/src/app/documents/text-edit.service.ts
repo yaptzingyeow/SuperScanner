@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { API_BASE_URL } from '../core/api/security.interceptor';
-import { CreateTextEditRequest, TextEditAccepted, TextEditStatus, TextStyleProposal } from './text-edit.models';
+import { CreateTextEditRequest, PageEditHistory, TextEditAccepted, TextEditStatus, TextStyleProposal } from './text-edit.models';
 
 @Injectable({ providedIn: 'root' })
 export class TextEditService {
@@ -26,5 +26,15 @@ export class TextEditService {
 
   get(documentId: string, pageId: string, editId: string): Promise<TextEditStatus> {
     return firstValueFrom(this.http.get<TextEditStatus>(`${this.url(documentId, pageId)}/${editId}`));
+  }
+
+  history(documentId: string, pageId: string): Promise<PageEditHistory> {
+    return firstValueFrom(this.http.get<PageEditHistory>(`${this.url(documentId, pageId)}/history`));
+  }
+
+  switchRevision(documentId: string, pageId: string, direction: 'undo' | 'redo',
+    expectedRevisionId: string | null): Promise<PageEditHistory> {
+    return firstValueFrom(this.http.post<PageEditHistory>(
+      `${this.url(documentId, pageId)}/${direction}`, { expectedRevisionId }));
   }
 }

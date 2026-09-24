@@ -18,7 +18,17 @@ $sql = @"
 GRANT CONNECT ON DATABASE "$DatabaseName" TO "$ApplicationRole";
 GRANT USAGE ON SCHEMA public TO "$ApplicationRole";
 REVOKE CREATE ON SCHEMA public FROM "$ApplicationRole";
-GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE documents, pages, upload_intents, processing_jobs TO "$ApplicationRole";
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE
+    documents,
+    pages,
+    upload_intents,
+    processing_jobs,
+    document_exports,
+    page_ocr_results,
+    ocr_elements,
+    page_revisions,
+    text_edit_operations
+TO "$ApplicationRole";
 GRANT SELECT, INSERT ON TABLE audit_events TO "$ApplicationRole";
 REVOKE UPDATE, DELETE, TRUNCATE ON TABLE audit_events FROM "$ApplicationRole";
 "@

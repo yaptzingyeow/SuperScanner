@@ -46,6 +46,20 @@
               (downloadOriginal)="download(page.id)"
               (editText)="beginTextEdit($event)"
             />
+            @if (page.state === 'Ready' && !page.previewRevision.startsWith('crop-')) {
+              <button type="button" (click)="openTextHistory(page.id)">Edit history for page {{ page.position }}</button>
+              @if (historyPageId() === page.id) {
+                @if (editHistory(); as history) {
+                  <div class="edit-history" aria-label="Text edit history">
+                    <button type="button" data-testid="undo-edit" [disabled]="!history.canUndo || historyBusy()"
+                      (click)="switchTextRevision(page.id, 'undo')">Undo text edit</button>
+                    <button type="button" data-testid="redo-edit" [disabled]="!history.canRedo || historyBusy()"
+                      (click)="switchTextRevision(page.id, 'redo')">Redo text edit</button>
+                  </div>
+                }
+                @if (historyError()) { <p role="alert">{{ historyError() }}</p> }
+              }
+            }
             @if (page.state === 'Ready') {
               <app-ocr-status
                 [documentId]="doc.id"

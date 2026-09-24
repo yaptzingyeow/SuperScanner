@@ -7,6 +7,7 @@ import { API_BASE_URL } from '../core/api/security.interceptor';
 import { DocumentDetail, DocumentPage, PageOcr } from './document.models';
 import { DocumentDetailComponent } from './document-detail.component';
 import { DocumentsApiService } from './documents-api.service';
+import { TextEditService } from './text-edit.service';
 
 describe('DocumentDetailComponent organizer', () => {
   const page = (id: string, position: number): DocumentPage => ({
@@ -38,6 +39,12 @@ describe('DocumentDetailComponent organizer', () => {
   });
 
   function setup(document = detail()) {
+    const textEdits = {
+      history: vi.fn().mockResolvedValue({ canUndo: true, canRedo: false,
+        activeRevisionId: 'revision-2', entries: [] }),
+      switchRevision: vi.fn().mockResolvedValue({ canUndo: false, canRedo: true,
+        activeRevisionId: 'revision-1', entries: [] }),
+    };
     const api = {
       getDocument: vi.fn().mockResolvedValue(document),
       reorderPages: vi
@@ -61,12 +68,13 @@ describe('DocumentDetailComponent organizer', () => {
         provideRouter([]),
         { provide: API_BASE_URL, useValue: '/api' },
         { provide: DocumentsApiService, useValue: api },
+        { provide: TextEditService, useValue: textEdits },
         { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => 'doc-1' } } } },
       ],
     });
     const fixture = TestBed.createComponent(DocumentDetailComponent);
     fixture.detectChanges();
-    return { fixture, component: fixture.componentInstance as any, api };
+    return { fixture, component: fixture.componentInstance as any, api, textEdits };
   }
 
   it('persists the complete optimistic order after drag and keyboard moves', async () => {
@@ -133,6 +141,28 @@ describe('DocumentDetailComponent organizer', () => {
     expect(component.canLeave()).toBe(false);
     expect(component.canLeave()).toBe(true);
     expect(confirm).toHaveBeenCalledTimes(2);
+  });
+
+  it('offers server-authorized undo and reloads the page after switching revisions', async () => {
+    const { fixture, component, api, textEdits } = setup(detail([
+      { ...page('p1', 1), previewRevision: 'revision-2' },
+    ]));
+    await fixture.whenStable();
+    await component.openTextHistory('p1');
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('button[data-testid="undo-edit"]')).not.toBeNull();
+    await component.switchTextRevision('p1', 'undo');
+    expect(textEdits.switchRevision).toHaveBeenCalledWith('doc-1', 'p1', 'undo', 'revision-2');
+    expect(api.getDocument).toHaveBeenCalledTimes(2);
+    expect(component.editHistory()?.canRedo).toBe(true);
+  });
+
+  it('does not offer edit history on a page that has never entered text editing', async () => {
+    const { fixture } = setup();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect([...fixture.nativeElement.querySelectorAll('button')]
+      .some((button: HTMLButtonElement) => button.textContent?.includes('Edit history for page'))).toBe(false);
   });
 
   it('keeps OCR snapshots page-local and removes them when a page disappears', async () => {

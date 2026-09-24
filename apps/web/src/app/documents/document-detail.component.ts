@@ -10,7 +10,8 @@ import { DocumentsApiService } from './documents-api.service';
 import { ExportStatusComponent } from './export-status.component';
 import { PageCardComponent } from './page-card.component';
 import { OcrStatusComponent } from './ocr-status.component';
-import { TextEditSelection } from './text-edit.models';
+import { PageEditHistory, TextEditSelection } from './text-edit.models';
+import { TextEditService } from './text-edit.service';
 import { TextReplacementEditorComponent } from './text-replacement-editor.component';
 import { flattenSelectableWords } from './ocr-selection';
 import { OcrPoint } from './document.models';
@@ -34,6 +35,7 @@ export class DocumentDetailComponent implements OnInit, OnDestroy {
   @ViewChild(TextReplacementEditorComponent) editor?: TextReplacementEditorComponent;
   private readonly http = inject(HttpClient);
   private readonly documentsApi = inject(DocumentsApiService);
+  private readonly textEdits = inject(TextEditService);
   private readonly route = inject(ActivatedRoute);
   private readonly base = inject(API_BASE_URL).replace(/\/+$/, '');
   protected readonly id = this.route.snapshot.paramMap.get('documentId') ?? '';
@@ -46,6 +48,10 @@ export class DocumentDetailComponent implements OnInit, OnDestroy {
   protected readonly reordering = signal(false);
   protected readonly showAddPages = signal(false);
   protected readonly editSelection = signal<TextEditSelection | null>(null);
+  protected readonly editHistory = signal<PageEditHistory | null>(null);
+  protected readonly historyPageId = signal<string | null>(null);
+  protected readonly historyBusy = signal(false);
+  protected readonly historyError = signal('');
   protected readonly editOtherPolygons = signal<OcrPoint[][]>([]);
   private returnFocus?: HTMLElement;
   private timer?: ReturnType<typeof setTimeout>;
@@ -160,6 +166,40 @@ export class DocumentDetailComponent implements OnInit, OnDestroy {
     delete this.loadedRevisions[pageId];
     await this.load();
     this.announcement.set('Text change applied. The latest page preview was loaded.');
+  }
+
+  protected async openTextHistory(pageId: string): Promise<void> {
+    this.historyPageId.set(pageId);
+    this.editHistory.set(null);
+    this.historyError.set('');
+    try {
+      const history = await this.textEdits.history(this.id, pageId);
+      if (this.historyPageId() === pageId) this.editHistory.set(history);
+    } catch {
+      this.historyError.set('Edit history is not available right now.');
+    }
+  }
+
+  protected async switchTextRevision(pageId: string, direction: 'undo' | 'redo'): Promise<void> {
+    const history = this.editHistory();
+    if (!history || this.historyBusy() ||
+      !(direction === 'undo' ? history.canUndo : history.canRedo)) return;
+    this.historyBusy.set(true);
+    this.historyError.set('');
+    try {
+      this.editHistory.set(await this.textEdits.switchRevision(this.id, pageId,
+        direction, history.activeRevisionId));
+      delete this.loadedRevisions[pageId];
+      this.ocrByPage.update((current) => {
+        const next = { ...current }; delete next[pageId]; return next;
+      });
+      await this.load();
+      this.announcement.set(direction === 'undo' ? 'Text change undone.' : 'Text change restored.');
+    } catch {
+      this.historyError.set('The page changed or the action failed. Reload history and try again.');
+    } finally {
+      this.historyBusy.set(false);
+    }
   }
 
   private async persistOrder(pages: DocumentPage[]): Promise<void> {

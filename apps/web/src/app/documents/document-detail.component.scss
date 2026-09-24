@@ -68,6 +68,13 @@ button:disabled {
   display: grid;
   gap: 10px;
 }
+.edit-history {
+  display: flex;
+  gap: 8px;
+}
+.edit-history button {
+  flex: 1;
+}
 .cdk-drag-preview {
   border-radius: 18px;
   box-shadow: 0 18px 50px #183c2f38;

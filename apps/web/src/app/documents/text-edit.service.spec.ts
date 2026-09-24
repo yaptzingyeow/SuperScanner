@@ -49,4 +49,24 @@ describe('TextEditService', () => {
     expect((await status).state).toBe('Succeeded');
     http.verify();
   });
+
+  it('reads revision history and sends an expected revision for undo', async () => {
+    TestBed.configureTestingModule({ providers: [
+      provideHttpClient(), provideHttpClientTesting(),
+      { provide: API_BASE_URL, useValue: '/api' },
+    ] });
+    const service = TestBed.inject(TextEditService);
+    const http = TestBed.inject(HttpTestingController);
+    const history = service.history('doc-1', 'page-1');
+    http.expectOne('/api/documents/doc-1/pages/page-1/text-edits/history')
+      .flush({ canUndo: true, canRedo: false, activeRevisionId: 'revision-2', entries: [] });
+    expect((await history).canUndo).toBe(true);
+    const undo = service.switchRevision('doc-1', 'page-1', 'undo', 'revision-2');
+    const request = http.expectOne('/api/documents/doc-1/pages/page-1/text-edits/undo');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual({ expectedRevisionId: 'revision-2' });
+    request.flush({ canUndo: false, canRedo: true, activeRevisionId: 'revision-1', entries: [] });
+    expect((await undo).canRedo).toBe(true);
+    http.verify();
+  });
 });

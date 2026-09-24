@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using SuperScanner.Domain.Documents;
 using SuperScanner.Domain.TextEditing;
 using SuperScanner.Infrastructure.Persistence;
@@ -61,6 +63,28 @@ public sealed class PageRevisionPersistenceTests : IAsyncLifetime
         Assert.Equal(derivedRevision.ObjectKey, stored.GetProcessedObjectKey());
         Assert.NotNull(derivedRevision.ParentRevisionId);
         Assert.NotNull(derivedRevision.ProducingTextEditId);
+    }
+
+    [Fact]
+    public async Task Printed_text_migration_preserves_existing_legacy_page()
+    {
+        var options = Options();
+        var document = ReadyDocument();
+        await using (var old = new AppDbContext(options))
+        {
+            await old.GetService<IMigrator>().MigrateAsync("20260922174452_PageRevisions");
+            old.Documents.Add(document);
+            await old.SaveChangesAsync();
+        }
+        await using var upgraded = new AppDbContext(options);
+        await upgraded.Database.MigrateAsync();
+        var page = await upgraded.Pages.SingleAsync(candidate =>
+            candidate.DocumentId == document.Id);
+        Assert.Null(page.ActiveRevisionId);
+        Assert.Equal("previews/page.jpg", page.GetProcessedObjectKey());
+        Assert.Equal("previews/page.jpg", page.GetExportObjectKey());
+        Assert.Contains("20260923005415_PrintedTextEditing",
+            await upgraded.Database.GetAppliedMigrationsAsync());
     }
 
     [Fact]

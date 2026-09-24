@@ -8,7 +8,8 @@ public enum FakeOcrScenario
     Normal,
     Empty,
     Timeout,
-    Invalid
+    Invalid,
+    PrintedTextReplacement
 }
 
 public sealed class FakeOcrProvider(FakeOcrScenario scenario = FakeOcrScenario.Normal) : IOcrProvider
@@ -46,6 +47,26 @@ public sealed class FakeOcrProvider(FakeOcrScenario scenario = FakeOcrScenario.N
             [
                 new("word", "missing", OcrElementKind.Word, "Invalid", .9,
                     OcrTextType.Printed, 0, Polygon)
+            ]);
+        }
+
+        if (scenario == FakeOcrScenario.PrintedTextReplacement)
+        {
+            OcrPoint[] printedLine = [
+                new(.1, .105), new(.46, .105), new(.46, .15), new(.1, .15)
+            ];
+            return new("Yap Tzing Yeow", "Fake", "printed-edit-fixture-v1",
+            [
+                new("block-1", null, OcrElementKind.Block, "Yap Tzing Yeow", .99,
+                    OcrTextType.Printed, 0, printedLine),
+                new("line-1", "block-1", OcrElementKind.Line, "Yap Tzing Yeow", .99,
+                    OcrTextType.Printed, 0, printedLine),
+                new("word-1", "line-1", OcrElementKind.Word, "Yap", .99,
+                    OcrTextType.Printed, 0, [new(.1, .105), new(.18, .105), new(.18, .15), new(.1, .15)]),
+                new("word-2", "line-1", OcrElementKind.Word, "Tzing", .99,
+                    OcrTextType.Printed, 1, [new(.19, .105), new(.31, .105), new(.31, .15), new(.19, .15)]),
+                new("word-3", "line-1", OcrElementKind.Word, "Yeow", .99,
+                    OcrTextType.Printed, 2, [new(.32, .105), new(.46, .105), new(.46, .15), new(.32, .15)])
             ]);
         }
 

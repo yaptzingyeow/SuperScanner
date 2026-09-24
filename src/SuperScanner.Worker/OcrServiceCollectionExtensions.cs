@@ -31,7 +31,10 @@ public static class OcrServiceCollectionExtensions
                 services.AddSingleton<IOcrProvider, DisabledOcrProvider>();
                 break;
             case OcrProviderNames.Fake:
-                services.AddSingleton<IOcrProvider, FakeOcrProvider>();
+                services.AddSingleton<IOcrProvider>(_ => new FakeOcrProvider(
+                    environment.IsEnvironment("E2E") &&
+                    configuration.GetValue<bool>("E2E:PrintedTextFixture")
+                        ? FakeOcrScenario.PrintedTextReplacement : FakeOcrScenario.Normal));
                 break;
             case OcrProviderNames.GoogleDocumentAi:
                 services.AddSingleton<IDocumentAiClient>(serviceProvider =>
