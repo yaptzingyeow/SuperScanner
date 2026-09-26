@@ -13,6 +13,22 @@ namespace SuperScanner.Application.Tests.Documents;
 public sealed class DocumentExportTests
 {
     [Fact]
+    public async Task Create_IncludesSavedSignatureAssetAndGeometry()
+    {
+        await using var fixture = await ReadyFixtureAsync();
+        var document = await fixture.ReloadAsync();
+        var page = document.ActivePages.First();
+        fixture.Db.Add(PageSignature.Create(Guid.NewGuid(), document.Id, page.Id, Guid.NewGuid(),
+            "private/signature.png", 2, new SignatureBox(.2, .3, .4, .2), fixture.Clock.UtcNow));
+        await fixture.Db.SaveChangesAsync();
+        await Create(fixture).HandleAsync("user-a", document.Id, default);
+        var export = await fixture.Db.DocumentExports.SingleAsync();
+        var entries = JsonSerializer.Deserialize<DocumentExportSnapshotEntry[]>(export.SnapshotJson)!;
+        var signature = Assert.Single(entries.Single(e => e.PageId == page.Id).Signatures);
+        Assert.Equal("private/signature.png", signature.AssetKey);
+        Assert.Equal(.3, signature.Box.Y);
+    }
+    [Fact]
     public async Task Create_SnapshotsOnlyActiveReadyPagesInVisibleOrder_AndCommitsAuditAndJob()
     {
         await using var fixture = await PageMutationFixture.CreateAsync(5);
@@ -193,7 +209,8 @@ public sealed class DocumentExportTests
 
     private static CreateDocumentExport Create(PageMutationFixture fixture, IProcessingJobQueue? queue = null) =>
         new(fixture.Repository, new EfDocumentExportRepository(fixture.Db), new EfOcrRepository(fixture.Db), fixture.Clock, fixture.Audit,
-            queue ?? new PostgresJobQueue(fixture.Db, fixture.Clock), new DocumentExportPolicy(7));
+            queue ?? new PostgresJobQueue(fixture.Db, fixture.Clock), new DocumentExportPolicy(7),
+            new EfPageSignatureRepository(fixture.Db));
 
     private static GetDocumentExport Get(PageMutationFixture fixture) =>
         new(new EfDocumentExportRepository(fixture.Db), fixture.Clock);

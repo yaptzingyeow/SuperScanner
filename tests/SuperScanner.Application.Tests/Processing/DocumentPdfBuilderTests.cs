@@ -1,4 +1,5 @@
 using ImageMagick;
+using ImageMagick.Drawing;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -22,6 +23,48 @@ namespace SuperScanner.Application.Tests.Processing;
 
 public sealed class DocumentPdfBuilderTests
 {
+    [Fact]
+    public async Task Build_DrawsTransparentSignatureAtSnapshottedBounds()
+    {
+        await using var f = await Fixture.CreateAsync();
+        var entries = JsonSerializer.Deserialize<DocumentExportSnapshotEntry[]>(f.Export.SnapshotJson)!;
+        entries[0] = entries[0] with { SignatureOverlays = [new(Guid.NewGuid(), "signature.png",
+            new SignatureBox(.25, .25, .5, .5), 4)] };
+        f.Db.Entry(f.Export).Property(e => e.SnapshotJson).CurrentValue = JsonSerializer.Serialize(entries);
+        await f.Db.SaveChangesAsync();
+        using var ink = new MagickImage(MagickColors.Transparent, 20, 5);
+        new Drawables().FillColor(MagickColors.Black).Rectangle(5, 1, 15, 3).Draw(ink);
+        f.Store.Objects["signature.png"] = ink.ToByteArray(MagickFormat.Png);
+        await f.BuildAsync();
+        var export = await f.ReloadAsync();
+        Assert.Equal(DocumentExportState.Ready, export.State);
+        using var pdf = PdfReader.Open(new MemoryStream(f.Store.Objects[export.OutputObjectKey!]), PdfDocumentOpenMode.Import);
+        var page = pdf.Pages[0];
+        Assert.Equal(72, page.Width.Point);
+        Assert.Equal(36, page.Height.Point);
+        var images = page.Resources.Elements.GetDictionary("/XObject")!;
+        Assert.Equal(2, images.Elements.Count);
+        Assert.Contains(images.Elements.Values.OfType<PdfReference>(), reference =>
+            ((PdfDictionary)reference.Value).Elements.ContainsKey("/SMask"));
+        var content = System.Text.Encoding.ASCII.GetString(page.Contents.CreateSingleContent().Stream.Value);
+        Assert.Contains("36 0 0 18 18 9 cm", content);
+    }
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Build_RefusesMissingOrCorruptSignatureInsteadOfOmittingIt(bool corrupt)
+    {
+        await using var f = await Fixture.CreateAsync();
+        var entries = JsonSerializer.Deserialize<DocumentExportSnapshotEntry[]>(f.Export.SnapshotJson)!;
+        entries[0] = entries[0] with { SignatureOverlays = [new(Guid.NewGuid(), "signature.png",
+            new SignatureBox(.1, .2, .3, .15), 2)] };
+        f.Db.Entry(f.Export).Property(e => e.SnapshotJson).CurrentValue = JsonSerializer.Serialize(entries);
+        await f.Db.SaveChangesAsync();
+        if (corrupt) f.Store.Objects["signature.png"] = "broken"u8.ToArray();
+        await f.BuildAsync();
+        Assert.Equal(DocumentExportState.Failed, (await f.ReloadAsync()).State);
+        Assert.Equal(0, f.Store.Writes);
+    }
     [Theory]
     [InlineData(OcrScenario.Full, 3)]
     [InlineData(OcrScenario.Partial, 1)]

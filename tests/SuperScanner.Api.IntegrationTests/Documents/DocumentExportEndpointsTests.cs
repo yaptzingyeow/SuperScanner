@@ -345,7 +345,8 @@ public sealed class PostgreSqlDocumentExportEndpointsTests : IAsyncLifetime
             scope.ServiceProvider.GetRequiredService<IOcrRepository>(),
             scope.ServiceProvider.GetRequiredService<IClock>(),
             scope.ServiceProvider.GetRequiredService<IAuditWriter>(), new FailingQueue(queue),
-            new SuperScanner.Application.Documents.DocumentExportPolicy(7));
+            new SuperScanner.Application.Documents.DocumentExportPolicy(7),
+            scope.ServiceProvider.GetRequiredService<IPageSignatureRepository>());
         await Assert.ThrowsAsync<IOException>(() => handler.HandleAsync("user-a", document.Id, default));
         await using var verification = factory.Services.CreateAsyncScope();
         var saved = verification.ServiceProvider.GetRequiredService<AppDbContext>();

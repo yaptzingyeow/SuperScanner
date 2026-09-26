@@ -34,7 +34,8 @@ public sealed class DocumentExport
         string ownerUid,
         DateTimeOffset now,
         TimeSpan retention,
-        IReadOnlyDictionary<Guid, DocumentExportOcrSnapshot>? ocrByPage = null)
+        IReadOnlyDictionary<Guid, DocumentExportOcrSnapshot>? ocrByPage = null,
+        IReadOnlyDictionary<Guid, IReadOnlyList<SignatureOverlaySnapshot>>? signaturesByPage = null)
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentException.ThrowIfNullOrWhiteSpace(ownerUid);
@@ -68,7 +69,9 @@ public sealed class DocumentExport
                 processedObjectKey,
                 hasMatchingOcr ? ocr!.ResultId : null,
                 hasMatchingOcr ? ocr!.SourceObjectKey : null,
-                hasMatchingOcr ? ocr!.SourceFingerprint : null);
+                hasMatchingOcr ? ocr!.SourceFingerprint : null,
+                signaturesByPage is not null && signaturesByPage.TryGetValue(page.Id, out var signatures)
+                    ? signatures.ToArray() : []);
         });
 
         return new DocumentExport
@@ -149,7 +152,15 @@ public sealed record DocumentExportSnapshotEntry(
     string ProcessedObjectKey,
     Guid? OcrResultId = null,
     string? OcrSourceObjectKey = null,
-    string? OcrSourceFingerprint = null);
+    string? OcrSourceFingerprint = null,
+    IReadOnlyList<SignatureOverlaySnapshot>? SignatureOverlays = null)
+{
+    [System.Text.Json.Serialization.JsonIgnore]
+    public IReadOnlyList<SignatureOverlaySnapshot> Signatures => SignatureOverlays ?? [];
+}
+
+public sealed record SignatureOverlaySnapshot(
+    Guid SignatureId, string AssetKey, SignatureBox Box, double ImageAspectRatio);
 
 public sealed record DocumentExportOcrSnapshot
 {

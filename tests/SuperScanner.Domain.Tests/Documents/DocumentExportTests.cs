@@ -9,6 +9,28 @@ public sealed class DocumentExportTests
     private static readonly DateTimeOffset Now = DateTimeOffset.Parse("2026-09-14T00:00:00Z");
 
     [Fact]
+    public void Create_FreezesSignatureGeometryAndAssetAfterMutation()
+    {
+        var document = Document.Create(Guid.NewGuid(), "owner", "Form", Now);
+        var page = document.AddPage(Guid.NewGuid(), 10, Now);
+        PrepareReadyPage(page, "preview.jpg");
+        var signature = PageSignature.Create(Guid.NewGuid(), document.Id, page.Id, Guid.NewGuid(),
+            "signature.png", 2, new SignatureBox(.1, .2, .3, .15), Now);
+        var export = DocumentExport.Create(Guid.NewGuid(), document, "owner", Now, TimeSpan.FromDays(7),
+            signaturesByPage: new Dictionary<Guid, IReadOnlyList<SignatureOverlaySnapshot>>
+            { [page.Id] = [new(signature.Id, signature.AssetKey, signature.Box, signature.ImageAspectRatio)] });
+        signature.MoveResize(new SignatureBox(.5, .5, .2, .1), 0, Now);
+        signature.Delete(1, Now);
+        var entry = Assert.Single(JsonSerializer.Deserialize<DocumentExportSnapshotEntry[]>(export.SnapshotJson)!);
+        var saved = Assert.Single(entry.Signatures);
+        Assert.Equal("signature.png", saved.AssetKey);
+        Assert.Equal(.1, saved.Box.X);
+        Assert.Equal(.2, saved.Box.Y);
+        Assert.Equal(.3, saved.Box.Width);
+        Assert.Equal(.15, saved.Box.Height);
+    }
+
+    [Fact]
     public void Create_SnapshotsOnlyReadyPagesInVisibleOrder()
     {
         var document = Document.Create(Guid.NewGuid(), "firebase-user-1", "Form", Now);

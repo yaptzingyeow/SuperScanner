@@ -131,6 +131,33 @@ public sealed class DocumentPdfBuilder(
             catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
             catch (Exception) { throw new BuildFailure("export_decode_failed"); }
 
+            foreach (var signature in entry.Signatures)
+            {
+                using var ink = await ReadImageAsync(signature.AssetKey,
+                    Math.Min(5 * 1024 * 1024, limits.MaxTotalSourceBytes - sourceBytes), ct);
+                sourceBytes += ink.Length;
+                try
+                {
+                    var info = new MagickImageInfo(ink);
+                    var inkPixels = checked((long)info.Width * info.Height);
+                    if (info.Format != MagickFormat.Png || inkPixels <= 0)
+                        throw new BuildFailure("export_decode_failed");
+                    if (inkPixels > 12_000_000 || inkPixels > limits.MaxTotalPixels - pixels)
+                        throw new BuildFailure("export_size_limit");
+                    pixels += inkPixels;
+                    var box = signature.Box ?? throw new BuildFailure("export_decode_failed");
+                    _ = new SignatureBox(box.X, box.Y, box.Width, box.Height);
+                    ink.Position = 0;
+                    using var image = XImage.FromStream(ink);
+                    using var graphics = XGraphics.FromPdfPage(page, XGraphicsPdfPageOptions.Append);
+                    graphics.DrawImage(image, box.X * page.Width.Point, box.Y * page.Height.Point,
+                        box.Width * page.Width.Point, box.Height * page.Height.Point);
+                }
+                catch (BuildFailure) { throw; }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+                catch (Exception) { throw new BuildFailure("export_decode_failed"); }
+            }
+
             if (FindEligibleOcr(entry, ocrById) is { } ocr)
             {
                 var sourceWords = ocr.Elements.Count(element => element.Kind == OcrElementKind.Word);

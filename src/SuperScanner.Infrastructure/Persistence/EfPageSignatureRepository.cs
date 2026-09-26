@@ -7,6 +7,6 @@ namespace SuperScanner.Infrastructure.Persistence;
 public sealed class EfPageSignatureRepository(AppDbContext db) : IPageSignatureRepository
 {
     public async Task<IReadOnlyList<PageSignature>> GetActiveForDocumentAsync(Guid documentId, CancellationToken ct) =>
-        await db.PageSignatures.AsNoTracking().Where(x => x.DocumentId == documentId && x.DeletedAt == null)
-            .OrderBy(x => x.CreatedAt).ThenBy(x => x.Id).ToListAsync(ct);
+        (await db.PageSignatures.AsNoTracking().Where(x => x.DocumentId == documentId && x.DeletedAt == null)
+            .ToListAsync(ct)).OrderBy(x => x.CreatedAt).ThenBy(x => x.Id).ToArray();
 }

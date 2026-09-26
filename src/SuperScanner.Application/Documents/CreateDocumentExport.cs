@@ -20,7 +20,8 @@ public sealed class DocumentExportPolicy
 
 public sealed class CreateDocumentExport(IDocumentRepository documents, IDocumentExportRepository exports,
     IOcrRepository ocr,
-    IClock clock, IAuditWriter audit, IProcessingJobQueue queue, DocumentExportPolicy policy)
+    IClock clock, IAuditWriter audit, IProcessingJobQueue queue, DocumentExportPolicy policy,
+    IPageSignatureRepository signatures)
 {
     public async Task<DocumentExportResult> HandleAsync(string ownerUid, Guid documentId, CancellationToken ct)
     {
@@ -34,7 +35,13 @@ public sealed class CreateDocumentExport(IDocumentRepository documents, IDocumen
         var readyPages = document.ActivePages.Where(page => page.State == PageState.Ready).ToArray();
         var results = await ocr.FindReadyByPageIdsAsync(readyPages.Select(page => page.Id).ToArray(), ct);
         var matchingOcr = DocumentExportOcrEligibility.Match(readyPages, results);
-        var export = DocumentExport.Create(Guid.NewGuid(), document, ownerUid, now, policy.Retention, matchingOcr);
+        var overlays = await signatures.GetActiveForDocumentAsync(document.Id, ct);
+        var signatureSnapshots = overlays.OrderBy(s => s.CreatedAt).ThenBy(s => s.Id)
+            .GroupBy(s => s.PageId).ToDictionary(g => g.Key,
+                g => (IReadOnlyList<SignatureOverlaySnapshot>)g.Select(s =>
+                    new SignatureOverlaySnapshot(s.Id, s.AssetKey, s.Box, s.ImageAspectRatio)).ToArray());
+        var export = DocumentExport.Create(Guid.NewGuid(), document, ownerUid, now, policy.Retention, matchingOcr,
+            signatureSnapshots);
         await exports.AddAsync(export, ct);
         await audit.AppendAsync(new AuditWriteRequest(ownerUid, "document.export_created", "document",
             document.Id, JsonSerializer.Serialize(new { exportId = export.Id }), now), ct);
