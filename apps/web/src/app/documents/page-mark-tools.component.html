@@ -1,0 +1,20 @@
+<section class="mark-toolbar" aria-label="Check and cross mark controls">
+  <div class="mark-heading"><strong>Tick / Cross</strong><span>Place a transparent mark without text recognition.</span></div>
+  @if (placing()) { <p role="status">Click a checkbox on the page to place your mark. You can zoom first.</p> }
+  @if (draft(); as mark) {
+    <div class="mark-fields">
+      <label>Mark <select [value]="mark.kind" [disabled]="busy()" (change)="kind.emit($any($event.target).value)">
+        <option value="Check">✓ Tick</option><option value="Cross">× Cross</option></select></label>
+      <label>Color <input type="color" [value]="mark.color" [disabled]="busy()" (change)="colorChanged($event)" /></label>
+      <label>Size {{ size() }}% <input type="range" min="50" max="300" step="10" [value]="size()" [disabled]="busy()" (input)="sizeChanged($event)" /></label>
+      <label>Thickness {{ (mark.strokeWidth * 100).toFixed(0) }}% <input type="range" min="2" max="20" step="1" [value]="mark.strokeWidth * 100" [disabled]="busy()" (input)="strokeChanged($event)" /></label>
+    </div>
+    <div class="mark-actions"><button type="button" class="primary" data-testid="save-mark" [disabled]="busy()" (click)="save.emit()">{{ busy() ? 'Saving…' : 'Save mark' }}</button>
+      <button type="button" [disabled]="busy()" (click)="cancel.emit()">Cancel</button></div>
+  } @else if (selected()) {
+    <button type="button" [disabled]="busy()" (click)="edit.emit()">Move / style</button>
+    <button type="button" [disabled]="busy()" (click)="remove.emit()">Delete selected mark</button>
+  }
+  <div class="mark-actions"><button type="button" data-testid="undo-mark" [disabled]="busy() || !canUndo()" (click)="undo.emit()">Undo mark</button>
+    <button type="button" data-testid="redo-mark" [disabled]="busy() || !canRedo()" (click)="redo.emit()">Redo mark</button></div>
+</section>

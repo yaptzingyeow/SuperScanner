@@ -1,16 +1,26 @@
 <main class="text-page">
   <a class="back" [routerLink]="['/documents', documentId]">← Back to document</a>
   <header>
-    <p class="eyebrow">TEXT EDITOR</p>
-    <h1>{{ title() || 'Edit text' }} · Page {{ page()?.position || '' }}</h1>
-    <p>Add text directly, or recognize and select words to replace or delete them.</p>
+    <p class="eyebrow">PAGE EDITOR</p>
+    <h1>{{ title() || 'Edit page' }} · Page {{ page()?.position || '' }}</h1>
+    <p>Add a mark or signature directly. To replace scanned words, recognize text first.</p>
   </header>
 
   @if (loading()) { <p role="status">Opening page…</p> }
   @if (error()) { <p class="error" role="alert">{{ error() }}</p><button type="button" (click)="load()">Retry</button> }
   @if (page() && imageUrl()) {
     <div class="page-actions"><button type="button" class="primary add-text" data-testid="add-text" [disabled]="signatureBusy()" (click)="addText()">+ Add text</button>
-      <button type="button" class="primary" data-testid="add-signature" [disabled]="signatureBusy()" (click)="openSignatureCreator()">+ Add signature</button></div>
+      <button type="button" class="primary" data-testid="add-signature" [disabled]="signatureBusy()" (click)="openSignatureCreator()">+ Add signature</button>
+      <button type="button" class="primary" data-testid="add-mark" [disabled]="markBusy()" (click)="beginMarkPlacement()">✓ Tick / × Cross</button></div>
+    @if (markError()) { <p role="alert" class="error">{{ markError() }}</p><button type="button" [disabled]="markBusy()" (click)="refreshMarks()">Reload saved marks</button> }
+    @if (markNotice()) { <p role="status">{{ markNotice() }}</p> }
+    @if (placingMark() || markDraft() || selectedMarkId() || marks().length || markCanUndo() || markCanRedo()) {
+      <app-page-mark-tools [draft]="markDraft()" [selected]="!!selectedMark()" [placing]="placingMark()" [busy]="markBusy()"
+        [canUndo]="markCanUndo()" [canRedo]="markCanRedo()" (undo)="undoMark()" (redo)="redoMark()"
+        (place)="beginMarkPlacement()" (kind)="changeMarkKind($event)" (color)="changeMarkColor($event)"
+        (strokeWidth)="changeMarkStroke($event)" (sizePercent)="changeMarkSize($event)"
+        (save)="saveMark()" (cancel)="cancelMark()" (edit)="editMark()" (remove)="deleteMark()" />
+    }
     @if (signatureError()) { <p role="alert" class="error">{{ signatureError() }}</p><button type="button" [disabled]="signatureBusy()" (click)="refreshSignatures()">Reload saved signatures</button> }
     <p role="status" aria-live="polite">{{ signatureNotice() }}</p>
     @if (signatureDraft(); as draft) {
@@ -35,7 +45,7 @@
           <p>Checking text recognition status…</p>
         } @else if (ocr()!.state === 'NotRequested') {
           <strong>Step 1: Recognize text</strong>
-          <p>We have not recognized this page yet. Select Recognize text to make its words selectable. This may use the OCR service.</p>
+          <p>To replace scanned words, select Recognize text. Tick / Cross and Add signature work without it. Recognition may use the OCR service.</p>
           <button class="primary" type="button" data-testid="recognize-text" [disabled]="busy()" (click)="recognize()">Recognize text</button>
         } @else if (ocr()!.state === 'Failed') {
           <strong>Text recognition failed</strong>
@@ -65,12 +75,16 @@
           <img [src]="imageUrl()" alt="Full page preview for selecting text" draggable="false" />
           @if (ocr()?.state === 'Ready') {
             <app-ocr-text-overlay [pageId]="pageId" [ocr]="ocr()!"
-              [style.pointer-events]="spaceHeld() ? 'none' : null"
+              [style.pointer-events]="spaceHeld() || placingMark() || markDraft() ? 'none' : null"
               (editSelection)="beginTextEdit($event)"
               (deleteSelection)="beginTextEdit($event, 'delete')" />
           }
           <app-page-signature-overlay [signatures]="signatures()" [selectedId]="selectedSignatureId()" [draft]="signatureDraft()"
             [panMode]="spaceHeld()" [disabled]="signatureBusy()" (selected)="selectSignature($event)" (boxChange)="changeSignatureBox($event)" />
+          <app-page-mark-overlay [marks]="marks()" [draft]="markDraft()" [selectedId]="selectedMarkId()"
+            [placementMode]="placingMark()" [panMode]="spaceHeld()" [disabled]="markBusy()"
+            (place)="placeMark($event)" (select)="selectMark($event)" (toggleDelete)="deleteMark($event)"
+            (boxChange)="changeMarkBox($event)" />
         </div>
       </div>
     </section>

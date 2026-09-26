@@ -24,6 +24,28 @@ namespace SuperScanner.Application.Tests.Processing;
 public sealed class DocumentPdfBuilderTests
 {
     [Fact]
+    public async Task Build_DrawsMarkAsTransparentVectorAtSnapshottedBounds()
+    {
+        await using var f = await Fixture.CreateAsync();
+        var entries = JsonSerializer.Deserialize<DocumentExportSnapshotEntry[]>(f.Export.SnapshotJson)!;
+        entries[0] = entries[0] with { MarkOverlays = [
+            new(Guid.NewGuid(), PageMarkKind.Check, new SignatureBox(.25, .25, .5, .5), "#00AA00", .08),
+            new(Guid.NewGuid(), PageMarkKind.Cross, new SignatureBox(.7, .1, .1, .2), "#FF0000", .12)] };
+        f.Db.Entry(f.Export).Property(e => e.SnapshotJson).CurrentValue = JsonSerializer.Serialize(entries);
+        await f.Db.SaveChangesAsync();
+        await f.BuildAsync();
+        var export = await f.ReloadAsync();
+        Assert.Equal(DocumentExportState.Ready, export.State);
+        using var pdf = PdfReader.Open(new MemoryStream(f.Store.Objects[export.OutputObjectKey!]), PdfDocumentOpenMode.Import);
+        var page = pdf.Pages[0];
+        var images = page.Resources.Elements.GetDictionary("/XObject")!;
+        Assert.Single(images.Elements);
+        var content = System.Text.Encoding.ASCII.GetString(page.Contents.CreateSingleContent().Stream.Value);
+        Assert.Contains("0 0.667 0 RG", content);
+        Assert.Contains("1 0 0 RG", content);
+        Assert.Matches(@"(?m)^S$", content);
+    }
+    [Fact]
     public async Task Build_DrawsTransparentSignatureAtSnapshottedBounds()
     {
         await using var f = await Fixture.CreateAsync();

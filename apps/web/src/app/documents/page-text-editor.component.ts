@@ -14,11 +14,16 @@ import { PageSignatureOverlayComponent } from './page-signature-overlay.componen
 import { PageSignatureService } from './page-signature.service';
 import { SignatureBox, SignatureDraft, SignatureView } from './page-signature.models';
 import { CdkTrapFocus } from '@angular/cdk/a11y';
+import { PageMarkOverlayComponent } from './page-mark-overlay.component';
+import { PageMarkToolsComponent } from './page-mark-tools.component';
+import { PageMarkService } from './page-mark.service';
+import { PageMarkDraft, PageMarkDto, PageMarkKind, markBoxAt, markSizeBox } from './page-mark.models';
+import { PageMarkHistory } from './page-mark-history';
 
 @Component({
   selector: 'app-page-text-editor',
   standalone: true,
-  imports: [RouterLink, OcrTextOverlayComponent, TextReplacementEditorComponent, SignatureCreatorComponent, PageSignatureOverlayComponent, CdkTrapFocus],
+  imports: [RouterLink, OcrTextOverlayComponent, TextReplacementEditorComponent, SignatureCreatorComponent, PageSignatureOverlayComponent, PageMarkOverlayComponent, PageMarkToolsComponent, CdkTrapFocus],
   templateUrl: './page-text-editor.component.html',
   styleUrl: './page-text-editor.component.scss',
 })
@@ -28,6 +33,7 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
   private readonly api = inject(DocumentsApiService);
   private readonly http = inject(HttpClient);
   private readonly signatureApi = inject(PageSignatureService);
+  private readonly markApi = inject(PageMarkService);
   private readonly base = inject(API_BASE_URL).replace(/\/+$/, '');
   protected readonly documentId = this.route.snapshot.paramMap.get('documentId') ?? '';
   protected readonly pageId = this.route.snapshot.paramMap.get('pageId') ?? '';
@@ -51,6 +57,18 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
   protected readonly signatureBusy = signal(false);
   protected readonly signatureError = signal('');
   protected readonly signatureNotice = signal('');
+  protected readonly marks = signal<PageMarkDto[]>([]);
+  protected readonly markDraft = signal<PageMarkDraft | null>(null);
+  protected readonly selectedMarkId = signal<string | null>(null);
+  protected readonly placingMark = signal(false);
+  protected readonly markBusy = signal(false);
+  protected readonly markError = signal('');
+  protected readonly markNotice = signal('');
+  protected readonly markCanUndo = signal(false);
+  protected readonly markCanRedo = signal(false);
+  private readonly markHistory = new PageMarkHistory();
+  private markRequestId = '';
+  private markTarget?: PageMarkDto;
   private signatureBlob?: Blob;
   private signatureRequestId = '';
   private signatureTarget?: SignatureView;
@@ -65,12 +83,13 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
   }
 
   canLeave(): boolean {
-    return !(this.editor?.isDirty() || this.signatureDraft() || this.signatureCreatorOpen()) || window.confirm('Discard your unsaved page changes?');
+    if (this.markBusy()) return false;
+    return !(this.editor?.isDirty() || this.signatureDraft() || this.signatureCreatorOpen() || this.markDraft()) || window.confirm('Discard your unsaved page changes?');
   }
 
   @HostListener('window:beforeunload', ['$event'])
   beforeUnload(event: BeforeUnloadEvent): void {
-    if (this.editor?.isDirty() || this.signatureDraft() || this.signatureCreatorOpen()) {
+    if (this.editor?.isDirty() || this.signatureDraft() || this.signatureCreatorOpen() || this.markDraft() || this.markBusy()) {
       event.preventDefault();
       event.returnValue = '';
     }
@@ -93,7 +112,7 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
       if (this.destroyed) return;
       if (this.imageUrl()) URL.revokeObjectURL(this.imageUrl());
       this.imageUrl.set(URL.createObjectURL(blob));
-      await Promise.all([this.refreshOcr(), this.refreshSignatures()]);
+      await Promise.all([this.refreshOcr(), this.refreshSignatures(), this.refreshMarks()]);
     } catch {
       if (!this.destroyed) this.error.set('Could not open this page for text editing. Try again.');
     } finally {
@@ -140,6 +159,7 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
 
   protected beginPan(event: PointerEvent): void {
     if (this.zoom() <= 1 || event.button !== 0) return;
+    if (this.placingMark() && !this.spaceHeld()) return;
     if (event.target instanceof Element &&
         event.target.closest('button, a, input, select, textarea, [role="button"]')) return;
     const viewport = event.currentTarget as HTMLElement;
@@ -165,6 +185,7 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
 
   protected beginTextEdit(selection: TextEditSelection, mode: 'replace' | 'delete' = 'replace'): void {
     if (!this.leaveSignatureTool()) return;
+    if (!this.leaveMarkTool()) return;
     this.editMode.set(mode);
     this.selection.set(selection);
     const selected = new Set(selection.wordIds);
@@ -175,6 +196,7 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
 
   protected addText(): void {
     if (!this.leaveSignatureTool()) return;
+    if (!this.leaveMarkTool()) return;
     this.editMode.set('add');
     this.otherPolygons.set([]);
     this.selection.set({ pageId: this.pageId,
@@ -196,6 +218,7 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
     if (this.signatureBusy()) return;
     if (this.editor?.isDirty() && !window.confirm('Discard your unapplied text changes?')) return;
     if (!this.leaveSignatureTool()) return;
+    if (!this.leaveMarkTool()) return;
     this.closeTextEdit(); this.signatureError.set(''); this.signatureNotice.set(''); this.signatureCreatorOpen.set(true);
   }
 
@@ -315,6 +338,149 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
     if (this.signatureDraft()) used.add(this.signatureDraft()!.localImageUrl);
     for (const url of this.signatureUrls) if (!used.has(url)) { URL.revokeObjectURL(url); this.signatureUrls.delete(url); }
   }
+
+  protected beginMarkPlacement(): void {
+    if (this.markBusy() || !this.leaveSignatureTool()) return;
+    if (!this.leaveMarkTool()) return;
+    if (this.editor?.isDirty() && !window.confirm('Discard your unapplied text changes?')) return;
+    this.closeTextEdit(); this.markError.set(''); this.markNotice.set('');
+    this.markTarget = undefined; this.markDraft.set(null); this.selectedMarkId.set(null);
+    this.placingMark.set(true);
+  }
+  protected placeMark(point: { x: number; y: number }): void {
+    if (!this.placingMark() || this.markBusy()) return;
+    const image = document.querySelector<HTMLImageElement>('.full-page-image > img');
+    if (!image?.naturalWidth || !image.naturalHeight) return;
+    try {
+      const box = markBoxAt(point.x, point.y, image.naturalWidth, image.naturalHeight);
+      const prior = this.markDraft();
+      if (!prior) this.markRequestId = crypto.randomUUID();
+      this.markDraft.set({ id: prior?.id ?? 'draft', kind: prior?.kind ?? 'Check', box,
+        color: prior?.color ?? '#000000', strokeWidth: prior?.strokeWidth ?? .08 });
+      this.selectedMarkId.set('draft'); this.placingMark.set(false);
+      this.markNotice.set('Drag to position your mark, adjust color or size, then Save.');
+    } catch { this.markError.set('This mark cannot fit at that position.'); }
+  }
+  protected selectedMark(): PageMarkDto | undefined { return this.marks().find(mark => mark.id === this.selectedMarkId()); }
+  protected selectMark(id: string): void {
+    if (this.markBusy() || this.markDraft()?.id === id) return;
+    if (this.markDraft() && !window.confirm('Discard your unsaved mark changes?')) return;
+    this.cancelMark(); this.selectedMarkId.set(id);
+  }
+  protected editMark(): void {
+    const mark = this.selectedMark(); if (!mark || this.markBusy()) return;
+    this.markTarget = mark; this.markDraft.set({ ...mark, box: { ...mark.box } });
+    this.markNotice.set('Drag to move, use the corner handles to resize, then Save.');
+  }
+  protected changeMarkBox(change: { id: string; box: SignatureBox }): void {
+    const draft = this.markDraft();
+    if (draft?.id === change.id && !this.markBusy()) this.markDraft.set({ ...draft, box: change.box });
+  }
+  protected changeMarkKind(kind: PageMarkKind): void {
+    const draft = this.markDraft(); if (draft) this.markDraft.set({ ...draft, kind });
+  }
+  protected changeMarkColor(color: string): void {
+    const draft = this.markDraft(); if (draft) this.markDraft.set({ ...draft, color });
+  }
+  protected changeMarkStroke(strokeWidth: number): void {
+    const draft = this.markDraft(); if (draft && Number.isFinite(strokeWidth)) this.markDraft.set({ ...draft, strokeWidth });
+  }
+  protected changeMarkSize(percent: number): void {
+    const draft = this.markDraft(); if (!draft || !Number.isFinite(percent)) return;
+    try { this.markDraft.set({ ...draft, box: markSizeBox(draft.box, percent / (draft.box.width / .025 * 100)) }); }
+    catch { this.markError.set('The mark is too large for this page.'); }
+  }
+  protected cancelMark(): void {
+    if (this.markBusy()) return;
+    this.markDraft.set(null); this.markTarget = undefined; this.placingMark.set(false);
+    this.markNotice.set(''); this.markError.set('');
+  }
+  protected async saveMark(): Promise<void> {
+    const draft = this.markDraft(); if (!draft || this.markBusy()) return;
+    this.markBusy.set(true); this.markError.set('');
+    try {
+      const before = this.markTarget ?? null;
+      const dto = this.markTarget
+        ? await this.markApi.update(this.documentId, this.pageId, { ...draft, pageId: this.pageId, revision: this.markTarget.revision })
+        : await this.markApi.create(this.documentId, this.pageId, draft, this.markRequestId);
+      if (this.destroyed) return;
+      this.marks.update(marks => [...marks.filter(mark => mark.id !== dto.id), dto]);
+      this.markDraft.set(null); this.markTarget = undefined; this.selectedMarkId.set(dto.id);
+      this.markHistory.record(before, dto); this.syncMarkHistory();
+      this.markNotice.set('Mark saved. Export a new PDF to include it.');
+    } catch (error) {
+      if (!this.destroyed) this.markError.set((error as { status?: number }).status === 409
+        ? 'This mark changed elsewhere. Your draft is safe. Reload saved marks and review it.'
+        : 'Mark could not be saved. Your draft is still here. Try Save again.');
+    } finally { if (!this.destroyed) this.markBusy.set(false); }
+  }
+  protected async deleteMark(id?: string): Promise<void> {
+    const mark = this.marks().find(candidate => candidate.id === (id ?? this.selectedMarkId()));
+    if (!mark || this.markBusy()) return;
+    this.markBusy.set(true); this.markError.set('');
+    try {
+      await this.markApi.delete(this.documentId, this.pageId, mark);
+      if (this.destroyed) return;
+      this.marks.update(marks => marks.filter(candidate => candidate.id !== mark.id));
+      if (this.selectedMarkId() === mark.id) this.selectedMarkId.set(null);
+      this.markHistory.record(mark, null); this.syncMarkHistory();
+      this.markNotice.set('Mark removed. Your original scan is unchanged.');
+    } catch { if (!this.destroyed) this.markError.set('Could not remove the mark. Reload saved marks and try again.'); }
+    finally { if (!this.destroyed) this.markBusy.set(false); }
+  }
+  protected async refreshMarks(): Promise<void> {
+    try {
+      const marks = await this.markApi.list(this.documentId, this.pageId);
+      if (!this.destroyed) { this.marks.set(marks); this.markError.set(''); }
+    } catch { if (!this.destroyed) this.markError.set('Could not load saved marks. Try Reload saved marks.'); }
+  }
+  private syncMarkHistory(): void {
+    this.markCanUndo.set(this.markHistory.canUndo); this.markCanRedo.set(this.markHistory.canRedo);
+  }
+  private async applyMarkHistory(target: PageMarkDto | null, currentId: string): Promise<PageMarkDto | null> {
+    const current = this.marks().find(mark => mark.id === currentId);
+    if (target && current) {
+      const saved = await this.markApi.update(this.documentId, this.pageId, { ...target, id: current.id,
+        pageId: this.pageId, revision: current.revision });
+      this.marks.update(marks => marks.map(mark => mark.id === currentId ? saved : mark));
+      return saved;
+    }
+    if (target && !current) {
+      const saved = await this.markApi.create(this.documentId, this.pageId, target, crypto.randomUUID());
+      this.marks.update(marks => [...marks, saved]);
+      return saved;
+    }
+    if (current) {
+      await this.markApi.delete(this.documentId, this.pageId, current);
+      this.marks.update(marks => marks.filter(mark => mark.id !== currentId));
+      if (this.selectedMarkId() === currentId) this.selectedMarkId.set(null);
+      return null;
+    }
+    throw new Error('Mark history no longer matches this page.');
+  }
+  protected async undoMark(): Promise<void> { await this.runMarkHistory('undo'); }
+  protected async redoMark(): Promise<void> { await this.runMarkHistory('redo'); }
+  private async runMarkHistory(direction: 'undo' | 'redo'): Promise<void> {
+    if (this.markBusy() || this.markDraft()) return;
+    this.markBusy.set(true); this.markError.set('');
+    try {
+      await this.markHistory[direction]((target, id) => this.applyMarkHistory(target, id));
+      this.markNotice.set(direction === 'undo' ? 'Mark change undone.' : 'Mark change restored.');
+    } catch (error) {
+      if ((error as { status?: number }).status === 409) {
+        await this.refreshMarks(); this.markHistory.clear();
+        this.markError.set('This page changed elsewhere. Saved marks were reloaded; old Undo history was cleared.');
+      } else this.markError.set('Could not change this mark. Your Undo history is unchanged. Try again.');
+    } finally { this.syncMarkHistory(); this.markBusy.set(false); }
+  }
+  private leaveMarkTool(): boolean {
+    if (this.markBusy()) return false;
+    if (this.markDraft() && !window.confirm('Discard your unsaved mark changes?')) return false;
+    this.cancelMark(); this.selectedMarkId.set(null); return true;
+  }
+
+  @HostListener('document:keydown.escape')
+  protected escapeMark(): void { if (this.markDraft() || this.placingMark()) this.cancelMark(); }
 
   private async refreshOcr(): Promise<void> {
     clearTimeout(this.timer);

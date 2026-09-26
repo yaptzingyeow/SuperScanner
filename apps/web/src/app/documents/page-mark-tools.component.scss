@@ -1,0 +1,10 @@
+.mark-toolbar { position: sticky; top: 12px; z-index: 21; display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; padding: 12px 16px; margin-bottom: 16px; background: #fff8e9; border: 1px solid #eac780; border-radius: 12px; box-shadow: 0 4px 16px #49350515; }
+.mark-heading { display: grid; gap: 2px; min-width: 145px; } .mark-heading span { color: #635942; font-size: .84rem; }
+.mark-toolbar p { margin: 0; flex: 1; }
+.mark-fields { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; flex: 1; }
+.mark-fields label { display: grid; gap: 3px; font-size: .83rem; font-weight: 600; }
+.mark-fields input, .mark-fields select { min-height: 36px; }
+.mark-actions { display: flex; gap: 8px; }
+.mark-toolbar button { min-height: 40px; padding: 7px 12px; border: 1px solid #b99d68; border-radius: 8px; background: white; color: #302b20; font: inherit; font-weight: 650; cursor: pointer; }
+.mark-toolbar button.primary { border-color: #165e47; background: #165e47; color: white; }
+.mark-toolbar button:disabled { opacity: .5; cursor: default; }

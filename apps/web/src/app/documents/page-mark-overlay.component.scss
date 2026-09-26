@@ -1,0 +1,10 @@
+:host { position: absolute; inset: 0; z-index: 8; pointer-events: none; }
+.mark-surface { position: absolute; inset: 0; pointer-events: none; }
+.mark-surface.placing { pointer-events: auto; cursor: crosshair; }
+.mark { position: absolute; pointer-events: none; }
+.mark-body { display: block; width: 100%; height: 100%; border: 1px solid transparent; padding: 0; background: transparent; cursor: pointer; pointer-events: auto; }
+.mark.selected .mark-body, .mark.editable .mark-body { border: 1px dashed #2563eb; }
+.mark-body svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.handle { position: absolute; width: 12px; height: 12px; padding: 0; background: #fff; border: 2px solid #2563eb; border-radius: 50%; pointer-events: auto; touch-action: none; }
+.nw { left: -6px; top: -6px; cursor: nwse-resize; } .ne { right: -6px; top: -6px; cursor: nesw-resize; }
+.sw { left: -6px; bottom: -6px; cursor: nesw-resize; } .se { right: -6px; bottom: -6px; cursor: nwse-resize; }

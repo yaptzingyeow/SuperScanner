@@ -9,6 +9,35 @@ public sealed class DocumentExportTests
     private static readonly DateTimeOffset Now = DateTimeOffset.Parse("2026-09-14T00:00:00Z");
 
     [Fact]
+    public void Create_FreezesMarkGeometryAndStyleAfterMutation()
+    {
+        var document = Document.Create(Guid.NewGuid(), "owner", "Form", Now);
+        var page = document.AddPage(Guid.NewGuid(), 10, Now);
+        PrepareReadyPage(page, "preview.jpg");
+        var mark = PageMark.Create(Guid.NewGuid(), document.Id, page.Id, Guid.NewGuid(),
+            PageMarkKind.Check, new SignatureBox(.1, .2, .03, .04), new PageMarkStyle("#00AA00", .08), Now);
+        var export = DocumentExport.Create(Guid.NewGuid(), document, "owner", Now, TimeSpan.FromDays(7),
+            marksByPage: new Dictionary<Guid, IReadOnlyList<MarkOverlaySnapshot>>
+            { [page.Id] = [new(mark.Id, mark.Kind, mark.Box, mark.Style.Color, mark.Style.StrokeWidth)] });
+        mark.Update(PageMarkKind.Cross, new SignatureBox(.5, .5, .04, .04), new PageMarkStyle("#FF0000", .12), 0, Now);
+        mark.Delete(1, Now);
+        var entry = Assert.Single(JsonSerializer.Deserialize<DocumentExportSnapshotEntry[]>(export.SnapshotJson)!);
+        var saved = Assert.Single(entry.Marks);
+        Assert.Equal(PageMarkKind.Check, saved.Kind);
+        Assert.Equal(.1, saved.Box.X);
+        Assert.Equal("#00AA00", saved.Color);
+        Assert.Equal(.08, saved.StrokeWidth);
+    }
+
+    [Fact]
+    public void Snapshot_LegacyJsonDefaultsMarksToEmpty()
+    {
+        var json = $$"""[{"PageId":"{{Guid.NewGuid()}}","Position":1,"AppliedCropRevision":0,"AppliedFilter":"Original","ProcessedObjectKey":"page.jpg"}]""";
+        var entry = Assert.Single(JsonSerializer.Deserialize<DocumentExportSnapshotEntry[]>(json)!);
+        Assert.Empty(entry.Marks);
+    }
+
+    [Fact]
     public void Create_FreezesSignatureGeometryAndAssetAfterMutation()
     {
         var document = Document.Create(Guid.NewGuid(), "owner", "Form", Now);

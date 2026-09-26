@@ -13,6 +13,26 @@ namespace SuperScanner.Application.Tests.Documents;
 public sealed class DocumentExportTests
 {
     [Fact]
+    public async Task Create_SnapshotsActiveMarkAndIgnoresLaterChanges()
+    {
+        await using var fixture = await ReadyFixtureAsync();
+        var document = await fixture.ReloadAsync();
+        var page = document.ActivePages.First();
+        var mark = PageMark.Create(Guid.NewGuid(), document.Id, page.Id, Guid.NewGuid(),
+            PageMarkKind.Check, new SignatureBox(.1, .2, .03, .04), new PageMarkStyle("#0000FF", .08), fixture.Clock.UtcNow);
+        fixture.Db.PageMarks.Add(mark);
+        await fixture.Db.SaveChangesAsync();
+        await Create(fixture).HandleAsync("user-a", document.Id, default);
+        mark.Update(PageMarkKind.Cross, new SignatureBox(.2, .3, .03, .04), new PageMarkStyle("#FF0000", .12), 0, fixture.Clock.UtcNow);
+        await fixture.Db.SaveChangesAsync();
+        var export = await fixture.Db.DocumentExports.SingleAsync();
+        var entry = Assert.Single(JsonSerializer.Deserialize<DocumentExportSnapshotEntry[]>(export.SnapshotJson)!);
+        var saved = Assert.Single(entry.Marks);
+        Assert.Equal(PageMarkKind.Check, saved.Kind);
+        Assert.Equal("#0000FF", saved.Color);
+        Assert.Equal(.1, saved.Box.X);
+    }
+    [Fact]
     public async Task Create_IncludesSavedSignatureAssetAndGeometry()
     {
         await using var fixture = await ReadyFixtureAsync();
@@ -210,7 +230,7 @@ public sealed class DocumentExportTests
     private static CreateDocumentExport Create(PageMutationFixture fixture, IProcessingJobQueue? queue = null) =>
         new(fixture.Repository, new EfDocumentExportRepository(fixture.Db), new EfOcrRepository(fixture.Db), fixture.Clock, fixture.Audit,
             queue ?? new PostgresJobQueue(fixture.Db, fixture.Clock), new DocumentExportPolicy(7),
-            new EfPageSignatureRepository(fixture.Db));
+            new EfPageSignatureRepository(fixture.Db), new EfPageMarkRepository(fixture.Db));
 
     private static GetDocumentExport Get(PageMutationFixture fixture) =>
         new(new EfDocumentExportRepository(fixture.Db), fixture.Clock);

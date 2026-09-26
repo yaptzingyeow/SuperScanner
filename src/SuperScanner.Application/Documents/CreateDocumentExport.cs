@@ -21,7 +21,7 @@ public sealed class DocumentExportPolicy
 public sealed class CreateDocumentExport(IDocumentRepository documents, IDocumentExportRepository exports,
     IOcrRepository ocr,
     IClock clock, IAuditWriter audit, IProcessingJobQueue queue, DocumentExportPolicy policy,
-    IPageSignatureRepository signatures)
+    IPageSignatureRepository signatures, IPageMarkRepository marks)
 {
     public async Task<DocumentExportResult> HandleAsync(string ownerUid, Guid documentId, CancellationToken ct)
     {
@@ -40,8 +40,12 @@ public sealed class CreateDocumentExport(IDocumentRepository documents, IDocumen
             .GroupBy(s => s.PageId).ToDictionary(g => g.Key,
                 g => (IReadOnlyList<SignatureOverlaySnapshot>)g.Select(s =>
                     new SignatureOverlaySnapshot(s.Id, s.AssetKey, s.Box, s.ImageAspectRatio)).ToArray());
+        var activeMarks = await marks.GetActiveForDocumentAsync(document.Id, ct);
+        var markSnapshots = activeMarks.GroupBy(m => m.PageId).ToDictionary(g => g.Key,
+            g => (IReadOnlyList<MarkOverlaySnapshot>)g.Select(m =>
+                new MarkOverlaySnapshot(m.Id, m.Kind, m.Box, m.Style.Color, m.Style.StrokeWidth)).ToArray());
         var export = DocumentExport.Create(Guid.NewGuid(), document, ownerUid, now, policy.Retention, matchingOcr,
-            signatureSnapshots);
+            signatureSnapshots, markSnapshots);
         await exports.AddAsync(export, ct);
         await audit.AppendAsync(new AuditWriteRequest(ownerUid, "document.export_created", "document",
             document.Id, JsonSerializer.Serialize(new { exportId = export.Id }), now), ct);

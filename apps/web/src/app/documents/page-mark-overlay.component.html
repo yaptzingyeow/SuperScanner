@@ -1,0 +1,23 @@
+<div class="mark-surface" [class.placing]="placementMode() && !panMode()" (click)="placeAt($event)">
+  @for (mark of entries(); track mark.id) {
+    <div class="mark" [class.selected]="selectedId() === mark.id" [class.editable]="draft()?.id === mark.id"
+      [style.left.%]="mark.box.x * 100" [style.top.%]="mark.box.y * 100"
+      [style.width.%]="mark.box.width * 100" [style.height.%]="mark.box.height * 100">
+      <button type="button" class="mark-body" [attr.aria-label]="mark.kind === 'Check' ? 'Check mark' : 'Cross mark'"
+        [disabled]="disabled()" (click)="choose($event, mark.id)" (keydown)="key($event, mark)"
+        (pointerdown)="start($event, mark)" (pointermove)="move($event)"
+        (pointerup)="finish($event)" (pointercancel)="cancel($event)">
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path [attr.d]="path(mark.kind)"
+          [attr.stroke]="mark.color" [attr.stroke-width]="mark.strokeWidth * 100"
+          stroke-linecap="round" stroke-linejoin="round" fill="none" /></svg>
+      </button>
+      @if (draft()?.id === mark.id) {
+        @for (corner of corners; track corner) {
+          <button type="button" class="handle" [class]="'handle ' + corner" [attr.aria-label]="'Resize mark ' + corner"
+            (pointerdown)="start($event, mark, corner)" (pointermove)="move($event)"
+            (pointerup)="finish($event)" (pointercancel)="cancel($event)"></button>
+        }
+      }
+    </div>
+  }
+</div>

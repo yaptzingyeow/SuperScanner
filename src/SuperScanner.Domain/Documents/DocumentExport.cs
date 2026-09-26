@@ -35,7 +35,8 @@ public sealed class DocumentExport
         DateTimeOffset now,
         TimeSpan retention,
         IReadOnlyDictionary<Guid, DocumentExportOcrSnapshot>? ocrByPage = null,
-        IReadOnlyDictionary<Guid, IReadOnlyList<SignatureOverlaySnapshot>>? signaturesByPage = null)
+        IReadOnlyDictionary<Guid, IReadOnlyList<SignatureOverlaySnapshot>>? signaturesByPage = null,
+        IReadOnlyDictionary<Guid, IReadOnlyList<MarkOverlaySnapshot>>? marksByPage = null)
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentException.ThrowIfNullOrWhiteSpace(ownerUid);
@@ -71,7 +72,9 @@ public sealed class DocumentExport
                 hasMatchingOcr ? ocr!.SourceObjectKey : null,
                 hasMatchingOcr ? ocr!.SourceFingerprint : null,
                 signaturesByPage is not null && signaturesByPage.TryGetValue(page.Id, out var signatures)
-                    ? signatures.ToArray() : null);
+                    ? signatures.ToArray() : null,
+                marksByPage is not null && marksByPage.TryGetValue(page.Id, out var marks)
+                    ? marks.ToArray() : null);
         });
 
         return new DocumentExport
@@ -153,14 +156,20 @@ public sealed record DocumentExportSnapshotEntry(
     Guid? OcrResultId = null,
     string? OcrSourceObjectKey = null,
     string? OcrSourceFingerprint = null,
-    IReadOnlyList<SignatureOverlaySnapshot>? SignatureOverlays = null)
+    IReadOnlyList<SignatureOverlaySnapshot>? SignatureOverlays = null,
+    IReadOnlyList<MarkOverlaySnapshot>? MarkOverlays = null)
 {
     [System.Text.Json.Serialization.JsonIgnore]
     public IReadOnlyList<SignatureOverlaySnapshot> Signatures => SignatureOverlays ?? [];
+    [System.Text.Json.Serialization.JsonIgnore]
+    public IReadOnlyList<MarkOverlaySnapshot> Marks => MarkOverlays ?? [];
 }
 
 public sealed record SignatureOverlaySnapshot(
     Guid SignatureId, string AssetKey, SignatureBox Box, double ImageAspectRatio);
+
+public sealed record MarkOverlaySnapshot(
+    Guid MarkId, PageMarkKind Kind, SignatureBox Box, string Color, double StrokeWidth);
 
 public sealed record DocumentExportOcrSnapshot
 {

@@ -17,6 +17,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<DocumentExport> DocumentExports => Set<DocumentExport>();
 
     public DbSet<PageSignature> PageSignatures => Set<PageSignature>();
+    public DbSet<PageMark> PageMarks => Set<PageMark>();
     public DbSet<SuperScanner.Infrastructure.Signatures.SignatureAssetWriteIntent> SignatureAssetWriteIntents =>
         Set<SuperScanner.Infrastructure.Signatures.SignatureAssetWriteIntent>();
 

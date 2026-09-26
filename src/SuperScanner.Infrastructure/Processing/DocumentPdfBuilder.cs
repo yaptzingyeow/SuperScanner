@@ -158,6 +158,18 @@ public sealed class DocumentPdfBuilder(
                 catch (Exception) { throw new BuildFailure("export_decode_failed"); }
             }
 
+            if (entry.Marks.Count > 0)
+            {
+                try
+                {
+                    using var graphics = XGraphics.FromPdfPage(page, XGraphicsPdfPageOptions.Append);
+                    foreach (var mark in entry.Marks)
+                        PdfMarkRenderer.Draw(graphics, mark, page.Width.Point, page.Height.Point);
+                }
+                catch (Exception ex) when (ex is ArgumentException or FormatException or OverflowException)
+                { throw new BuildFailure("export_decode_failed"); }
+            }
+
             if (FindEligibleOcr(entry, ocrById) is { } ocr)
             {
                 var sourceWords = ocr.Elements.Count(element => element.Kind == OcrElementKind.Word);

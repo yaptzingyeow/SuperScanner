@@ -8,6 +8,7 @@ import { DocumentDetail, DocumentPage, PageOcr } from './document.models';
 import { DocumentsApiService } from './documents-api.service';
 import { PageTextEditorComponent } from './page-text-editor.component';
 import { PageSignatureService } from './page-signature.service';
+import { PageMarkService } from './page-mark.service';
 import { SignatureCreatorComponent } from './signature-creator.component';
 import { By } from '@angular/platform-browser';
 
@@ -52,6 +53,8 @@ describe('PageTextEditorComponent', () => {
     const signatures = { list: vi.fn().mockResolvedValue(savedSignatures), image: vi.fn().mockResolvedValue(new Blob(['ink'])),
       create: vi.fn().mockResolvedValue({ id: 'signature-1', pageId: 'page-1', box: { x: .2, y: .2, width: .3, height: .1 }, imageAspectRatio: 3, revision: 0, imageUrl: '/api/signature' }),
       update: vi.fn(), delete: vi.fn().mockResolvedValue(undefined) };
+    const marks = { list: vi.fn().mockResolvedValue([]), create: vi.fn().mockImplementation(async (_documentId, _pageId, draft) =>
+      ({ ...draft, id: 'mark-1', pageId: 'page-1', revision: 0 })), update: vi.fn(), delete: vi.fn().mockResolvedValue(undefined) };
     TestBed.configureTestingModule({
       imports: [PageTextEditorComponent],
       providers: [provideRouter([]),
@@ -59,6 +62,7 @@ describe('PageTextEditorComponent', () => {
         { provide: DocumentsApiService, useValue: api },
         { provide: HttpClient, useValue: http },
         { provide: PageSignatureService, useValue: signatures },
+        { provide: PageMarkService, useValue: marks },
         { provide: ActivatedRoute, useValue: { snapshot: { paramMap: {
           get: (name: string) => name === 'documentId' ? 'document-1' : 'page-1',
         } } } },
@@ -66,8 +70,26 @@ describe('PageTextEditorComponent', () => {
     });
     const fixture = TestBed.createComponent(PageTextEditorComponent);
     fixture.detectChanges();
-    return { fixture, api, http, signatures };
+    return { fixture, api, http, signatures, marks };
   }
+
+  it('places and saves a tick without OCR, then undoes it', async () => {
+    const { fixture, marks } = setup();
+    await vi.waitFor(() => { fixture.detectChanges(); expect(fixture.nativeElement.querySelector('[data-testid="add-mark"]')).toBeTruthy(); });
+    const image = fixture.nativeElement.querySelector('.full-page-image > img') as HTMLImageElement;
+    Object.defineProperty(image, 'naturalWidth', { value: 1000 });
+    Object.defineProperty(image, 'naturalHeight', { value: 2000 });
+    fixture.nativeElement.querySelector('[data-testid="add-mark"]').click(); fixture.detectChanges();
+    const component = fixture.componentInstance as unknown as { placeMark(point: { x: number; y: number }): void };
+    component.placeMark({ x: .5, y: .5 }); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-testid="save-mark"]')).toBeTruthy();
+    fixture.nativeElement.querySelector('[data-testid="save-mark"]').click();
+    await vi.waitFor(() => { fixture.detectChanges(); expect(marks.create).toHaveBeenCalledOnce();
+      expect(fixture.nativeElement.querySelector('[data-testid="save-mark"]')).toBeNull(); });
+    expect(fixture.nativeElement.querySelector('app-page-mark-overlay svg')).toBeTruthy();
+    fixture.nativeElement.querySelector('[data-testid="undo-mark"]').click();
+    await vi.waitFor(() => expect(marks.delete).toHaveBeenCalledOnce());
+  });
 
   it('opens signature creation without OCR and Cancel leaves no saved overlay', async () => {
     const { fixture, signatures } = setup();

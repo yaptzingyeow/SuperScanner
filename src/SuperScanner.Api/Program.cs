@@ -66,6 +66,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<IDocumentRepository, EfDocumentRepository>();
 builder.Services.AddScoped<IDocumentExportRepository, EfDocumentExportRepository>();
 builder.Services.AddScoped<IPageSignatureRepository, EfPageSignatureRepository>();
+builder.Services.AddScoped<IPageMarkRepository, EfPageMarkRepository>();
 builder.Services.AddSingleton<SuperScanner.Infrastructure.Signatures.SignatureImageNormalizer>();
 builder.Services.AddSingleton(new DocumentExportPolicy(builder.Configuration.GetValue("DocumentExport:RetentionDays", 7)));
 builder.Services.AddScoped<CreateDocumentExport>();
@@ -181,6 +182,7 @@ PageManagementEndpoints.Map(app);
 DocumentExportEndpoints.Map(app);
 DocumentPreviewEndpoints.Map(app);
 PageSignatureEndpoints.Map(app);
+PageMarkEndpoints.Map(app);
 CropEndpoints.Map(app);
 OcrEndpoints.Map(app);
 TextEditingEndpoints.Map(app);

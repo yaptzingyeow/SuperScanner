@@ -39,6 +39,8 @@ public sealed class DocumentExportEndpointsTests : IDisposable
             services.AddSingleton<IOcrRepository>(ocr);
             services.RemoveAll<IPageSignatureRepository>();
             services.AddSingleton<IPageSignatureRepository, EmptySignatures>();
+            services.RemoveAll<IPageMarkRepository>();
+            services.AddSingleton<IPageMarkRepository, EmptyMarks>();
             services.RemoveAll<IAuditWriter>();
             services.AddSingleton<IAuditWriter>(audit);
             services.RemoveAll<IObjectStore>();
@@ -52,6 +54,12 @@ public sealed class DocumentExportEndpointsTests : IDisposable
     {
         public Task<IReadOnlyList<PageSignature>> GetActiveForDocumentAsync(Guid id, CancellationToken ct) =>
             Task.FromResult<IReadOnlyList<PageSignature>>([]);
+    }
+
+    private sealed class EmptyMarks : IPageMarkRepository
+    {
+        public Task<IReadOnlyList<PageMark>> GetActiveForDocumentAsync(Guid id, CancellationToken ct) =>
+            Task.FromResult<IReadOnlyList<PageMark>>([]);
     }
 
     [Fact]
@@ -354,7 +362,8 @@ public sealed class PostgreSqlDocumentExportEndpointsTests : IAsyncLifetime
             scope.ServiceProvider.GetRequiredService<IClock>(),
             scope.ServiceProvider.GetRequiredService<IAuditWriter>(), new FailingQueue(queue),
             new SuperScanner.Application.Documents.DocumentExportPolicy(7),
-            scope.ServiceProvider.GetRequiredService<IPageSignatureRepository>());
+            scope.ServiceProvider.GetRequiredService<IPageSignatureRepository>(),
+            scope.ServiceProvider.GetRequiredService<IPageMarkRepository>());
         await Assert.ThrowsAsync<IOException>(() => handler.HandleAsync("user-a", document.Id, default));
         await using var verification = factory.Services.CreateAsyncScope();
         var saved = verification.ServiceProvider.GetRequiredService<AppDbContext>();
