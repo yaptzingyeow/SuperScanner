@@ -1,0 +1,87 @@
+<main class="text-page">
+  <a class="back" [routerLink]="['/documents', documentId]">← Back to document</a>
+  <header>
+    <p class="eyebrow">TEXT EDITOR</p>
+    <h1>{{ title() || 'Edit text' }} · Page {{ page()?.position || '' }}</h1>
+    <p>Add text directly, or recognize and select words to replace or delete them.</p>
+  </header>
+
+  @if (loading()) { <p role="status">Opening page…</p> }
+  @if (error()) { <p class="error" role="alert">{{ error() }}</p><button type="button" (click)="load()">Retry</button> }
+  @if (page() && imageUrl()) {
+    <div class="page-actions"><button type="button" class="primary add-text" data-testid="add-text" [disabled]="signatureBusy()" (click)="addText()">+ Add text</button>
+      <button type="button" class="primary" data-testid="add-signature" [disabled]="signatureBusy()" (click)="openSignatureCreator()">+ Add signature</button></div>
+    @if (signatureError()) { <p role="alert" class="error">{{ signatureError() }}</p><button type="button" [disabled]="signatureBusy()" (click)="refreshSignatures()">Reload saved signatures</button> }
+    <p role="status" aria-live="polite">{{ signatureNotice() }}</p>
+    @if (signatureDraft(); as draft) {
+      <section class="signature-toolbar" aria-label="Signature placement controls">
+        <strong>Place your signature</strong><span>Drag to move · corner handles resize · arrow keys move · Shift + arrows resize</span>
+        <div class="signature-fields">
+          <label>Left (%)<input type="number" min="0" max="100" step="0.1" [value]="draft.box.x * 100" [disabled]="signatureBusy()" (change)="signatureNumber('x', $event)" /></label>
+          <label>Top (%)<input type="number" min="0" max="100" step="0.1" [value]="draft.box.y * 100" [disabled]="signatureBusy()" (change)="signatureNumber('y', $event)" /></label>
+          <label>Width (%)<input type="number" min="0.5" max="100" step="0.1" [value]="draft.box.width * 100" [disabled]="signatureBusy()" (change)="signatureNumber('width', $event)" /></label>
+        </div>
+        <div><button type="button" class="primary" data-testid="save-signature" [disabled]="signatureBusy()" (click)="saveSignature()">{{ signatureBusy() ? 'Saving…' : 'Save signature' }}</button>
+          <button type="button" data-testid="cancel-signature" [disabled]="signatureBusy()" (click)="cancelSignature()">Cancel</button></div>
+      </section>
+    } @else if (selectedSignature()) {
+      <section class="signature-toolbar" aria-label="Saved signature actions"><strong>Signature selected</strong>
+        <button type="button" data-testid="move-signature" [disabled]="signatureBusy()" (click)="moveSignature()">Move / resize</button>
+        <button type="button" data-testid="delete-signature" [disabled]="signatureBusy()" (click)="deleteSignature()">Delete signature</button></section>
+    }
+    <section class="workspace" aria-label="Full-page text editing workspace">
+      <div class="instructions" aria-live="polite">
+        @if (!ocr()) {
+          <p>Checking text recognition status…</p>
+        } @else if (ocr()!.state === 'NotRequested') {
+          <strong>Step 1: Recognize text</strong>
+          <p>We have not recognized this page yet. Select Recognize text to make its words selectable. This may use the OCR service.</p>
+          <button class="primary" type="button" data-testid="recognize-text" [disabled]="busy()" (click)="recognize()">Recognize text</button>
+        } @else if (ocr()!.state === 'Failed') {
+          <strong>Text recognition failed</strong>
+          <p>Try again before selecting words on this page.</p>
+          <button class="primary" type="button" data-testid="recognize-text" [disabled]="busy() || !ocr()!.canRetry" (click)="recognize()">Retry recognition</button>
+        } @else if (ocr()!.state === 'Queued' || ocr()!.state === 'Processing') {
+          <strong>Recognizing text…</strong>
+          <p role="status">Please wait. This page will become selectable when recognition finishes.</p>
+        } @else {
+          <strong>Step 2: Select words</strong>
+          <p>Drag across words on the large image, then choose Replace or Delete. Use the zoom controls for smaller print.</p>
+        }
+      </div>
+
+      <div class="zoom-controls" aria-label="Image zoom controls">
+        <button type="button" [disabled]="zoom() === 1" (click)="setZoom(zoom() - .5)">− Zoom out</button>
+        <span>{{ zoom() * 100 }}%</span>
+        <button type="button" data-testid="zoom-in" [disabled]="zoom() === 3" (click)="setZoom(zoom() + .5)">+ Zoom in</button>
+      </div>
+      @if (zoom() > 1) {
+        <p class="pan-hint">Drag the page to move around. Hold Space and drag to pan from selectable text.</p>
+      }
+      <div class="page-scroll" [class.can-pan]="zoom() > 1" [class.is-panning]="panning()"
+        (pointerdown)="beginPan($event)" (pointermove)="movePan($event)"
+        (pointerup)="endPan($event)" (pointercancel)="endPan($event)">
+        <div class="full-page-image" [style.width.%]="zoom() * 100">
+          <img [src]="imageUrl()" alt="Full page preview for selecting text" draggable="false" />
+          @if (ocr()?.state === 'Ready') {
+            <app-ocr-text-overlay [pageId]="pageId" [ocr]="ocr()!"
+              [style.pointer-events]="spaceHeld() ? 'none' : null"
+              (editSelection)="beginTextEdit($event)"
+              (deleteSelection)="beginTextEdit($event, 'delete')" />
+          }
+          <app-page-signature-overlay [signatures]="signatures()" [selectedId]="selectedSignatureId()" [draft]="signatureDraft()"
+            [panMode]="spaceHeld()" [disabled]="signatureBusy()" (selected)="selectSignature($event)" (boxChange)="changeSignatureBox($event)" />
+        </div>
+      </div>
+    </section>
+  }
+</main>
+@if (signatureCreatorOpen()) {
+  <div class="signature-modal" role="dialog" aria-modal="true" aria-label="Add your signature" cdkTrapFocus [cdkTrapFocusAutoCapture]="true"><app-signature-creator
+    (confirmed)="signatureCreated($event)" (cancelled)="signatureCreatorOpen.set(false)" /></div>
+}
+@if (selection(); as chosen) {
+  <app-text-replacement-editor [documentId]="documentId" [selection]="chosen" [mode]="editMode()"
+    [imageUrl]="imageUrl()" [otherPolygons]="otherPolygons()"
+    (closed)="closeTextEdit()" (completed)="textEditCompleted()" />
+}

@@ -1,0 +1,222 @@
+import { HttpClient } from '@angular/common/http';
+import { TestBed } from '@angular/core/testing';
+import { ActivatedRoute, provideRouter } from '@angular/router';
+import { of } from 'rxjs';
+import { vi } from 'vitest';
+import { API_BASE_URL } from '../core/api/security.interceptor';
+import { DocumentDetail, DocumentPage, PageOcr } from './document.models';
+import { DocumentsApiService } from './documents-api.service';
+import { PageTextEditorComponent } from './page-text-editor.component';
+import { PageSignatureService } from './page-signature.service';
+import { SignatureCreatorComponent } from './signature-creator.component';
+import { By } from '@angular/platform-browser';
+
+describe('PageTextEditorComponent', () => {
+  const page: DocumentPage = {
+    id: 'page-1', position: 1, pageNumber: 1, sourceUploadId: 'upload-1',
+    sourcePageIndex: 1, state: 'Ready', hasPreview: true, hasOriginal: true,
+    canCrop: true, cropStatus: 'Ready', cropRevision: 0, appliedCropRevision: 0,
+    previewRevision: 'preview-1', filter: 'Original', appliedFilter: 'Original',
+  };
+  const document: DocumentDetail = {
+    id: 'document-1', title: 'Agreement', status: 'Ready', revision: 1,
+    pageOrderRevision: 1, pages: [page], imports: [], latestExport: null,
+  };
+  const notRequested: PageOcr = {
+    state: 'NotRequested', elementCount: 0, canRetry: false, elements: [],
+  };
+  const ready: PageOcr = {
+    resultId: 'ocr-1', state: 'Ready', elementCount: 1, canRetry: false,
+    elements: [{ id: 'block-1', kind: 'Block', text: 'Yap', confidence: .98,
+      textType: 'Printed', readingOrder: 1, polygon: [], children: [
+      { id: 'line-1', kind: 'Line', text: 'Yap', confidence: .98,
+        textType: 'Printed', readingOrder: 1, polygon: [], children: [
+        { id: 'word-1', kind: 'Word', text: 'Yap', confidence: .98,
+          textType: 'Printed', readingOrder: 1, children: [], polygon: [
+            { x: .1, y: .1 }, { x: .2, y: .1 }, { x: .2, y: .2 }, { x: .1, y: .2 },
+          ] },
+        ] },
+      ] }],
+  };
+
+  function setup(initialOcr: PageOcr = notRequested, savedSignatures: object[] = []) {
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true,
+      value: vi.fn(() => 'blob:full-page') });
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
+    const api = {
+      getDocument: vi.fn().mockResolvedValue(document),
+      getPageOcr: vi.fn().mockResolvedValue(initialOcr),
+      requestPageOcr: vi.fn().mockResolvedValue({ ...initialOcr, state: 'Queued' }),
+    };
+    const http = { get: vi.fn(() => of(new Blob(['preview'], { type: 'image/jpeg' }))) };
+    const signatures = { list: vi.fn().mockResolvedValue(savedSignatures), image: vi.fn().mockResolvedValue(new Blob(['ink'])),
+      create: vi.fn().mockResolvedValue({ id: 'signature-1', pageId: 'page-1', box: { x: .2, y: .2, width: .3, height: .1 }, imageAspectRatio: 3, revision: 0, imageUrl: '/api/signature' }),
+      update: vi.fn(), delete: vi.fn().mockResolvedValue(undefined) };
+    TestBed.configureTestingModule({
+      imports: [PageTextEditorComponent],
+      providers: [provideRouter([]),
+        { provide: API_BASE_URL, useValue: '/api' },
+        { provide: DocumentsApiService, useValue: api },
+        { provide: HttpClient, useValue: http },
+        { provide: PageSignatureService, useValue: signatures },
+        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: {
+          get: (name: string) => name === 'documentId' ? 'document-1' : 'page-1',
+        } } } },
+      ],
+    });
+    const fixture = TestBed.createComponent(PageTextEditorComponent);
+    fixture.detectChanges();
+    return { fixture, api, http, signatures };
+  }
+
+  it('opens signature creation without OCR and Cancel leaves no saved overlay', async () => {
+    const { fixture, signatures } = setup();
+    await vi.waitFor(() => { fixture.detectChanges(); expect(fixture.nativeElement.querySelector('[data-testid="add-signature"]')).toBeTruthy(); });
+    fixture.nativeElement.querySelector('[data-testid="add-signature"]').click(); fixture.detectChanges();
+    const creator = fixture.debugElement.query(By.directive(SignatureCreatorComponent)).componentInstance as SignatureCreatorComponent;
+    creator.cancelled.emit(); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('app-signature-creator')).toBeNull();
+    expect(signatures.create).not.toHaveBeenCalled();
+  });
+
+  it('saves a placement and keeps a conflict draft with clear recovery instructions', async () => {
+    const { fixture, signatures } = setup();
+    await vi.waitFor(() => { fixture.detectChanges(); expect(fixture.nativeElement.querySelector('[data-testid="add-signature"]')).toBeTruthy(); });
+    fixture.nativeElement.querySelector('[data-testid="add-signature"]').click(); fixture.detectChanges();
+    const component = fixture.componentInstance as unknown as { signatureCreated(blob: Blob): Promise<void> };
+    const image = { naturalWidth: 300, naturalHeight: 100, onload: null as (() => void) | null, onerror: null, set src(_: string) { queueMicrotask(() => this.onload?.()); } };
+    const imageSpy = vi.spyOn(globalThis, 'Image').mockImplementation(function() { return image as unknown as HTMLImageElement; });
+    await component.signatureCreated(new Blob(['ink'], { type: 'image/png' })); fixture.detectChanges(); imageSpy.mockRestore();
+    expect(fixture.nativeElement.querySelector('[data-testid="save-signature"]')).toBeTruthy();
+    signatures.create.mockRejectedValueOnce({ status: 409 });
+    fixture.nativeElement.querySelector('[data-testid="save-signature"]').click();
+    await vi.waitFor(() => { fixture.detectChanges(); expect(fixture.nativeElement.textContent).toContain('Your draft is still here'); });
+    expect(fixture.nativeElement.querySelector('[data-testid="save-signature"]')).toBeTruthy();
+    const firstKey = signatures.create.mock.calls[0][4];
+    fixture.nativeElement.querySelector('[data-testid="save-signature"]').click();
+    await vi.waitFor(() => { fixture.detectChanges(); expect(fixture.nativeElement.querySelector('[data-testid="save-signature"]')).toBeNull(); });
+    expect(signatures.create.mock.calls[1][4]).toBe(firstKey);
+    expect(fixture.nativeElement.querySelector('app-page-signature-overlay img')).toBeTruthy();
+  });
+
+  it('reloads saved signatures, cancels a move, and deletes only after confirmation', async () => {
+    const saved = { id: 'signature-1', pageId: 'page-1', box: { x: .2, y: .2, width: .3, height: .1 }, imageAspectRatio: 3, revision: 2, imageUrl: '/api/signature' };
+    const { fixture, signatures } = setup(notRequested, [saved]);
+    await vi.waitFor(() => { fixture.detectChanges(); expect(fixture.nativeElement.querySelector('[data-testid="signature-body"]')).toBeTruthy(); });
+    fixture.nativeElement.querySelector('[data-testid="signature-body"]').click(); fixture.detectChanges();
+    fixture.nativeElement.querySelector('[data-testid="move-signature"]').click(); fixture.detectChanges();
+    const input = fixture.nativeElement.querySelector('.signature-fields input') as HTMLInputElement;
+    input.value = '40'; input.dispatchEvent(new Event('change')); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.signature').style.left).toBe('40%');
+    fixture.nativeElement.querySelector('[data-testid="cancel-signature"]').click(); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.signature').style.left).toBe('20%');
+    expect(signatures.update).not.toHaveBeenCalled();
+    const confirmation = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValue(true);
+    fixture.nativeElement.querySelector('[data-testid="delete-signature"]').click(); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.signature')).toBeTruthy();
+    expect(signatures.delete).not.toHaveBeenCalled();
+    fixture.nativeElement.querySelector('[data-testid="delete-signature"]').click();
+    await vi.waitFor(() => { fixture.detectChanges(); expect(fixture.nativeElement.querySelector('.signature')).toBeNull(); });
+    expect(signatures.delete).toHaveBeenCalledWith('document-1', 'page-1', 'signature-1', 2);
+    confirmation.mockRestore();
+  });
+
+  it('shows a large page and a manual Recognize text action when OCR is missing', async () => {
+    const { fixture, api, http } = setup();
+    await vi.waitFor(() => { fixture.detectChanges(); expect(fixture.nativeElement.querySelector('.full-page-image img')).toBeTruthy(); });
+    expect(http.get).toHaveBeenCalledWith('/api/documents/document-1/pages/page-1/preview',
+      { responseType: 'blob' });
+    expect(fixture.nativeElement.querySelector('.full-page-image img'), fixture.nativeElement.textContent).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('button[data-testid="recognize-text"]')).toBeTruthy();
+    expect(fixture.nativeElement.textContent).toContain('Recognize text');
+    expect(api.requestPageOcr).not.toHaveBeenCalled();
+  });
+
+  it('opens Add Text without first running OCR', async () => {
+    const { fixture, api } = setup();
+    await vi.waitFor(() => { fixture.detectChanges(); expect(fixture.nativeElement.querySelector('[data-testid="add-text"]')).toBeTruthy(); });
+    (fixture.nativeElement.querySelector('[data-testid="add-text"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('app-text-replacement-editor')).toBeTruthy();
+    expect(api.requestPageOcr).not.toHaveBeenCalled();
+  });
+
+  it('starts OCR only when the user presses Recognize text', async () => {
+    const { fixture, api } = setup();
+    await vi.waitFor(() => { fixture.detectChanges(); expect(fixture.nativeElement.querySelector('button[data-testid="recognize-text"]')).toBeTruthy(); });
+    (fixture.nativeElement.querySelector('button[data-testid="recognize-text"]') as HTMLButtonElement).click();
+    await Promise.resolve();
+    fixture.detectChanges();
+    expect(api.requestPageOcr).toHaveBeenCalledWith('document-1', 'page-1', false);
+    expect(fixture.nativeElement.textContent).toContain('Recognizing text');
+  });
+
+  it('shows instructions and the selectable overlay for an existing Ready OCR result', async () => {
+    const { fixture, api } = setup(ready);
+    await vi.waitFor(() => { fixture.detectChanges(); expect(fixture.nativeElement.querySelector('app-ocr-text-overlay')).toBeTruthy(); });
+    expect(fixture.nativeElement.querySelector('app-ocr-text-overlay')).toBeTruthy();
+    expect(fixture.nativeElement.textContent).toContain('Drag across words');
+    expect(fixture.nativeElement.querySelector('button[data-testid="recognize-text"]')).toBeNull();
+    expect(api.requestPageOcr).not.toHaveBeenCalled();
+  });
+
+  it('zooms the image and its text overlay as one surface', async () => {
+    const { fixture } = setup(ready);
+    await vi.waitFor(() => { fixture.detectChanges(); expect(fixture.nativeElement.querySelector('app-ocr-text-overlay')).toBeTruthy(); });
+    (fixture.nativeElement.querySelector('button[data-testid="zoom-in"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    const surface = fixture.nativeElement.querySelector('.full-page-image') as HTMLElement;
+    expect(surface.style.width).toBe('150%');
+    expect(surface.querySelector('app-ocr-text-overlay')).toBeTruthy();
+  });
+
+  it('pans the zoomed page and lets Space-drag start over selectable words', async () => {
+    const { fixture } = setup(ready);
+    await vi.waitFor(() => { fixture.detectChanges(); expect(fixture.nativeElement.querySelector('app-ocr-text-overlay')).toBeTruthy(); });
+    (fixture.nativeElement.querySelector('[data-testid="zoom-in"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    const viewport = fixture.nativeElement.querySelector('.page-scroll') as HTMLElement;
+    viewport.scrollLeft = 30;
+    viewport.scrollTop = 40;
+    const down = new Event('pointerdown', { bubbles: true });
+    Object.assign(down, { pointerId: 1, button: 0, clientX: 100, clientY: 100 });
+    viewport.dispatchEvent(down);
+    const move = new Event('pointermove', { bubbles: true });
+    Object.assign(move, { pointerId: 1, clientX: 80, clientY: 70 });
+    viewport.dispatchEvent(move);
+    expect(viewport.scrollLeft).toBe(50);
+    expect(viewport.scrollTop).toBe(70);
+    const up = new Event('pointerup', { bubbles: true });
+    Object.assign(up, { pointerId: 1 });
+    viewport.dispatchEvent(up);
+    globalThis.document.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', code: 'Space', bubbles: true }));
+    fixture.detectChanges();
+    const overlay = fixture.nativeElement.querySelector('app-ocr-text-overlay') as HTMLElement;
+    expect(overlay.style.pointerEvents).toBe('none');
+    globalThis.document.dispatchEvent(new KeyboardEvent('keyup', { key: ' ', code: 'Space', bubbles: true }));
+    fixture.detectChanges();
+    expect(overlay.style.pointerEvents).not.toBe('none');
+  });
+
+  for (const action of ['edit-selection', 'delete-selection'] as const) {
+    it(`keeps ${action} clickable after zooming`, async () => {
+      const { fixture } = setup(ready);
+      await vi.waitFor(() => { fixture.detectChanges(); expect(fixture.nativeElement.querySelector('app-ocr-text-overlay')).toBeTruthy(); });
+      (fixture.nativeElement.querySelector('[data-testid="zoom-in"]') as HTMLButtonElement).click();
+      fixture.detectChanges();
+      const words = fixture.nativeElement.querySelector('app-ocr-text-overlay svg') as SVGSVGElement;
+      words.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+      words.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      fixture.detectChanges();
+      const button = fixture.nativeElement.querySelector(`[data-testid="${action}"]`) as HTMLButtonElement;
+      expect(button).toBeTruthy();
+      const down = new Event('pointerdown', { bubbles: true, cancelable: true });
+      Object.assign(down, { pointerId: 1, button: 0, clientX: 100, clientY: 100 });
+      button.dispatchEvent(down);
+      expect(down.defaultPrevented).toBe(false);
+      button.click();
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('app-text-replacement-editor')).toBeTruthy();
+    });
+  }
+});
