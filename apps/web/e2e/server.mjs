@@ -1,11 +1,11 @@
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { createServer, request as proxyRequest } from 'node:http';
-import { extname, join, normalize } from 'node:path';
+import { extname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const root = fileURLToPath(new URL('../dist/web/browser/', import.meta.url));
+const root = process.env['E2E_WEB_ROOT'] ? resolve(process.env['E2E_WEB_ROOT']) : fileURLToPath(new URL('../dist/web/browser/', import.meta.url));
 const host = '127.0.0.1';
-const port = 4300;
+const port = Number(process.env['E2E_WEB_PORT'] ?? 4300);
 const apiUpstream = new URL(process.env['E2E_API_UPSTREAM'] ?? 'http://127.0.0.1:5080');
 const types = new Map([
   ['.css', 'text/css; charset=utf-8'],

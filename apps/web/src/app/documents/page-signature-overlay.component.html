@@ -1,0 +1,18 @@
+@for (signature of entries(); track signature.id; let index = $index) {
+  <div class="signature" [class.selected]="selectedId() === signature.id" [class.editable]="draft()?.id === signature.id"
+    [class.pan-mode]="panMode()" [style.left.%]="signature.box.x * 100" [style.top.%]="signature.box.y * 100"
+    [style.width.%]="signature.box.width * 100" [style.height.%]="signature.box.height * 100">
+    <button class="body" type="button" data-testid="signature-body" [attr.aria-label]="'Select signature ' + (index + 1)" [disabled]="disabled()"
+      (click)="choose(signature.id)" (keydown)="key($event, signature)" (pointerdown)="start($event, signature)"
+      (pointermove)="move($event)" (pointerup)="finish($event)" (pointercancel)="cancel($event)">
+      <img [src]="signature.localImageUrl" alt="Signature overlay" draggable="false" />
+    </button>
+    @if (draft()?.id === signature.id) {
+      @for (corner of corners; track corner) {
+        <button type="button" class="handle" [class]="'handle ' + corner" [attr.data-corner]="corner"
+          [attr.aria-label]="'Resize signature ' + corner + ' corner'" [disabled]="disabled()" (keydown)="key($event, signature)"
+          (pointerdown)="start($event, signature, corner)" (pointermove)="move($event)" (pointerup)="finish($event)" (pointercancel)="cancel($event)"></button>
+      }
+    }
+  </div>
+}

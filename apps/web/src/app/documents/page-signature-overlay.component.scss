@@ -1,0 +1,12 @@
+:host { display: block; position: absolute; inset: 0; pointer-events: none; }
+.signature { position: absolute; pointer-events: auto; }
+.body { position: absolute; inset: 0; padding: 0; border: 1px solid transparent; background: transparent; width: 100%; height: 100%; cursor: pointer; }
+.body img { display: block; width: 100%; height: 100%; pointer-events: none; }
+.selected .body { outline: 2px solid #315be4; outline-offset: 2px; }
+.editable .body { cursor: move; touch-action: none; }
+.handle { position: absolute; width: 44px; height: 44px; padding: 0; background: transparent; border: 0; touch-action: none; }
+.handle::after { content: ''; position: absolute; width: 12px; height: 12px; top: 16px; left: 16px; border-radius: 4px; border: 2px solid #315be4; background: white; }
+.nw { top: -22px; left: -22px; cursor: nwse-resize; } .ne { top: -22px; right: -22px; cursor: nesw-resize; }
+.sw { bottom: -22px; left: -22px; cursor: nesw-resize; } .se { bottom: -22px; right: -22px; cursor: nwse-resize; }
+.body:focus-visible, .handle:focus-visible { outline: 3px solid #f3a528; }
+.pan-mode, .pan-mode .body, .pan-mode .handle { pointer-events: none; }
