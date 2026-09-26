@@ -13,8 +13,8 @@ describe('PageMarkHistory', () => {
     await history.undo(apply);
     expect(history.canRedo).toBe(true);
     await history.redo(apply);
-    expect(apply).toHaveBeenNthCalledWith(1, null, 'a');
-    expect(apply).toHaveBeenNthCalledWith(2, mark('a'), 'a');
+    expect(apply).toHaveBeenNthCalledWith(1, null, 'a', expect.any(String));
+    expect(apply).toHaveBeenNthCalledWith(2, mark('a'), 'a', expect.any(String));
     expect(history.canUndo).toBe(true);
   });
 
@@ -35,7 +35,24 @@ describe('PageMarkHistory', () => {
     const apply = vi.fn().mockResolvedValueOnce(mark('new')).mockResolvedValueOnce(null);
     await history.undo(apply);
     await history.redo(apply);
-    expect(apply).toHaveBeenNthCalledWith(1, mark('old'), 'old');
-    expect(apply).toHaveBeenNthCalledWith(2, null, 'new');
+    expect(apply).toHaveBeenNthCalledWith(1, mark('old'), 'old', expect.any(String));
+    expect(apply).toHaveBeenNthCalledWith(2, null, 'new', expect.any(String));
+  });
+
+  it('reuses the creation request ID when an undo response is lost', async () => {
+    const history = new PageMarkHistory();
+    history.record(mark('old'), null);
+    const keys: string[] = [];
+    const apply = async (_target: PageMarkDto | null, _id: string, ...requestIds: string[]) => {
+      keys.push(requestIds[0]);
+      if (keys.length === 1) throw new Error('response lost');
+      return mark('restored');
+    };
+    await expect(history.undo(apply)).rejects.toThrow('response lost');
+    await history.undo(apply);
+    expect(keys).toHaveLength(2);
+    expect(keys[0]).toMatch(/^[0-9a-f-]{36}$/i);
+    expect(keys[0]).toBe(keys[1]);
+    expect(history.canRedo).toBe(true);
   });
 });

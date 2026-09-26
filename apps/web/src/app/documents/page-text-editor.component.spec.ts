@@ -91,6 +91,23 @@ describe('PageTextEditorComponent', () => {
     await vi.waitFor(() => expect(marks.delete).toHaveBeenCalledOnce());
   });
 
+  it('clears stale undo history when saved marks are reloaded', async () => {
+    const { fixture, marks } = setup();
+    await vi.waitFor(() => { fixture.detectChanges(); expect(fixture.nativeElement.querySelector('[data-testid="add-mark"]')).toBeTruthy(); });
+    const image = fixture.nativeElement.querySelector('.full-page-image > img') as HTMLImageElement;
+    Object.defineProperty(image, 'naturalWidth', { value: 1000 });
+    Object.defineProperty(image, 'naturalHeight', { value: 2000 });
+    fixture.nativeElement.querySelector('[data-testid="add-mark"]').click();
+    (fixture.componentInstance as unknown as { placeMark(point: { x: number; y: number }): void }).placeMark({ x: .5, y: .5 });
+    fixture.detectChanges();
+    fixture.nativeElement.querySelector('[data-testid="save-mark"]').click();
+    await vi.waitFor(() => { fixture.detectChanges(); expect(fixture.nativeElement.querySelector('[data-testid="undo-mark"]').disabled).toBe(false); });
+    await (fixture.componentInstance as unknown as { refreshMarks(): Promise<void> }).refreshMarks();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-testid="undo-mark"]').disabled).toBe(true);
+    expect(marks.delete).not.toHaveBeenCalled();
+  });
+
   it('opens signature creation without OCR and Cancel leaves no saved overlay', async () => {
     const { fixture, signatures } = setup();
     await vi.waitFor(() => { fixture.detectChanges(); expect(fixture.nativeElement.querySelector('[data-testid="add-signature"]')).toBeTruthy(); });

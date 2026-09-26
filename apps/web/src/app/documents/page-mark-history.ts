@@ -1,7 +1,7 @@
 import { PageMarkDto } from './page-mark.models';
 
-type Change = { id: string; before: PageMarkDto | null; after: PageMarkDto | null };
-export type ApplyMarkChange = (target: PageMarkDto | null, currentId: string) => Promise<PageMarkDto | null>;
+type Change = { id: string; before: PageMarkDto | null; after: PageMarkDto | null; pendingRequestId?: string };
+export type ApplyMarkChange = (target: PageMarkDto | null, currentId: string, requestId: string) => Promise<PageMarkDto | null>;
 
 /** Session-only, mark-scoped history. The server remains canonical after every compensation. */
 export class PageMarkHistory {
@@ -20,15 +20,19 @@ export class PageMarkHistory {
   async undo(apply: ApplyMarkChange): Promise<void> {
     if (!this.canUndo) return;
     const change = this.changes[this.cursor - 1];
-    const result = await apply(this.copy(change.before), change.id);
+    change.pendingRequestId ??= crypto.randomUUID();
+    const result = await apply(this.copy(change.before), change.id, change.pendingRequestId);
     if (result && result.id !== change.id) this.remap(change.id, result.id);
+    change.pendingRequestId = undefined;
     this.cursor--;
   }
   async redo(apply: ApplyMarkChange): Promise<void> {
     if (!this.canRedo) return;
     const change = this.changes[this.cursor];
-    const result = await apply(this.copy(change.after), change.id);
+    change.pendingRequestId ??= crypto.randomUUID();
+    const result = await apply(this.copy(change.after), change.id, change.pendingRequestId);
     if (result && result.id !== change.id) this.remap(change.id, result.id);
+    change.pendingRequestId = undefined;
     this.cursor++;
   }
   private remap(oldId: string, newId: string): void {

@@ -431,13 +431,18 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
   protected async refreshMarks(): Promise<void> {
     try {
       const marks = await this.markApi.list(this.documentId, this.pageId);
-      if (!this.destroyed) { this.marks.set(marks); this.markError.set(''); }
+      if (!this.destroyed) {
+        this.marks.set(marks);
+        if (this.markTarget) this.markTarget = marks.find(mark => mark.id === this.markTarget?.id) ?? this.markTarget;
+        this.markHistory.clear(); this.syncMarkHistory();
+        this.markError.set('');
+      }
     } catch { if (!this.destroyed) this.markError.set('Could not load saved marks. Try Reload saved marks.'); }
   }
   private syncMarkHistory(): void {
     this.markCanUndo.set(this.markHistory.canUndo); this.markCanRedo.set(this.markHistory.canRedo);
   }
-  private async applyMarkHistory(target: PageMarkDto | null, currentId: string): Promise<PageMarkDto | null> {
+  private async applyMarkHistory(target: PageMarkDto | null, currentId: string, requestId: string): Promise<PageMarkDto | null> {
     const current = this.marks().find(mark => mark.id === currentId);
     if (target && current) {
       const saved = await this.markApi.update(this.documentId, this.pageId, { ...target, id: current.id,
@@ -446,7 +451,7 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
       return saved;
     }
     if (target && !current) {
-      const saved = await this.markApi.create(this.documentId, this.pageId, target, crypto.randomUUID());
+      const saved = await this.markApi.create(this.documentId, this.pageId, target, requestId);
       this.marks.update(marks => [...marks, saved]);
       return saved;
     }
@@ -464,7 +469,7 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
     if (this.markBusy() || this.markDraft()) return;
     this.markBusy.set(true); this.markError.set('');
     try {
-      await this.markHistory[direction]((target, id) => this.applyMarkHistory(target, id));
+      await this.markHistory[direction]((target, id, requestId) => this.applyMarkHistory(target, id, requestId));
       this.markNotice.set(direction === 'undo' ? 'Mark change undone.' : 'Mark change restored.');
     } catch (error) {
       if ((error as { status?: number }).status === 409) {
