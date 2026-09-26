@@ -92,6 +92,8 @@ builder.Services.Configure<AuditOptions>(builder.Configuration.GetSection(AuditO
 builder.Services.AddScoped<IAuditWriter, HmacAuditWriter>();
 builder.Services.AddSingleton<UploadValidationJobRunner>();
 builder.Services.AddHostedService<UploadValidationWorker>();
+builder.Services.AddScoped<SuperScanner.Infrastructure.Signatures.SignatureAssetCleanup>();
+builder.Services.AddHostedService<SignatureCleanupWorker>();
 builder.Services.AddHealthChecks();
 
 var app = builder.Build();

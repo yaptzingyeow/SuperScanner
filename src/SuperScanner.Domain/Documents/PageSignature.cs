@@ -31,6 +31,13 @@ public sealed class PageSignature
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
     public DateTimeOffset? DeletedAt { get; private set; }
+    public DateTimeOffset? AssetPurgedAt { get; private set; }
+
+    public void MarkAssetPurged(DateTimeOffset now)
+    {
+        if (!DeletedAt.HasValue) throw new InvalidOperationException("Active signature assets cannot be purged.");
+        AssetPurgedAt ??= now;
+    }
 
     public static PageSignature Create(Guid id, Guid documentId, Guid pageId, Guid clientRequestId,
         string assetKey, double imageAspectRatio, SignatureBox box, DateTimeOffset now)

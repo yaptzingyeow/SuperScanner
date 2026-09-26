@@ -141,6 +141,23 @@ public sealed class PageSignatureEndpointsTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Failed_create_with_storage_outage_leaves_durable_cleanup_intent()
+    {
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            await db.Database.ExecuteSqlRawAsync("ALTER TABLE page_signatures ADD CONSTRAINT reject_signature CHECK (false)");
+        }
+        store.FailDelete = true;
+        using var owner = Client();
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, (await Create(owner)).StatusCode);
+        await using var verify = factory.Services.CreateAsyncScope();
+        var saved = verify.ServiceProvider.GetRequiredService<AppDbContext>();
+        Assert.Single(await saved.SignatureAssetWriteIntents.ToListAsync());
+        Assert.Single(store.Objects);
+    }
+
+    [Fact]
     public async Task Removed_page_is_hidden_and_cannot_receive_a_signature()
     {
         await using (var scope = factory.Services.CreateAsyncScope())
@@ -185,6 +202,7 @@ public sealed class PageSignatureEndpointsTests : IAsyncLifetime
     }
     private sealed class MemoryStore : IObjectStore
     {
+        public bool FailDelete { get; set; }
         public Dictionary<string, byte[]> Objects { get; } = [];
         public Task<Stream> OpenReadAsync(string key, CancellationToken ct) => Task.FromResult<Stream>(new MemoryStream(Objects[key]));
         public async Task<ObjectCreationResult> WriteIfAbsentAsync(string key, string mediaType, Stream content, CancellationToken ct)
@@ -192,7 +210,7 @@ public sealed class PageSignatureEndpointsTests : IAsyncLifetime
             using var output = new MemoryStream(); await content.CopyToAsync(output, ct);
             return Objects.TryAdd(key, output.ToArray()) ? ObjectCreationResult.Created : ObjectCreationResult.AlreadyExists;
         }
-        public Task DeleteAsync(string key, CancellationToken ct) { Objects.Remove(key); return Task.CompletedTask; }
+        public Task DeleteAsync(string key, CancellationToken ct) { if (FailDelete) throw new IOException("storage outage"); Objects.Remove(key); return Task.CompletedTask; }
         public Task<Uri> CreatePutUrlAsync(PutObjectRequest request, CancellationToken ct) => throw new NotSupportedException();
         public Task<StoredObjectInfo?> HeadAsync(string key, CancellationToken ct) => throw new NotSupportedException();
         public Task PromoteAsync(string from, string to, CancellationToken ct) => throw new NotSupportedException();

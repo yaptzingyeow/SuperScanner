@@ -71,7 +71,7 @@ public sealed class DocumentExport
                 hasMatchingOcr ? ocr!.SourceObjectKey : null,
                 hasMatchingOcr ? ocr!.SourceFingerprint : null,
                 signaturesByPage is not null && signaturesByPage.TryGetValue(page.Id, out var signatures)
-                    ? signatures.ToArray() : []);
+                    ? signatures.ToArray() : null);
         });
 
         return new DocumentExport

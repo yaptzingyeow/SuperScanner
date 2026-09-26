@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SuperScanner.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using SuperScanner.Infrastructure.Persistence;
 namespace SuperScanner.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260926162700_SignatureAssetPurged")]
+    partial class SignatureAssetPurged
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -843,30 +846,6 @@ namespace SuperScanner.Infrastructure.Persistence.Migrations
                     b.HasIndex("OwnerFirebaseUid", "DocumentId");
 
                     b.ToTable("upload_intents", (string)null);
-                });
-
-            modelBuilder.Entity("SuperScanner.Infrastructure.Signatures.SignatureAssetWriteIntent", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("AssetKey")
-                        .IsRequired()
-                        .HasMaxLength(1024)
-                        .HasColumnType("character varying(1024)");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("DocumentId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedAt");
-
-                    b.ToTable("signature_asset_write_intents", (string)null);
                 });
 
             modelBuilder.Entity("SuperScanner.Domain.Documents.DocumentExport", b =>

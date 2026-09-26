@@ -37,6 +37,8 @@ public sealed class DocumentExportEndpointsTests : IDisposable
             services.AddSingleton<IDocumentExportRepository>(exports);
             services.RemoveAll<IOcrRepository>();
             services.AddSingleton<IOcrRepository>(ocr);
+            services.RemoveAll<IPageSignatureRepository>();
+            services.AddSingleton<IPageSignatureRepository, EmptySignatures>();
             services.RemoveAll<IAuditWriter>();
             services.AddSingleton<IAuditWriter>(audit);
             services.RemoveAll<IObjectStore>();
@@ -44,6 +46,12 @@ public sealed class DocumentExportEndpointsTests : IDisposable
             services.RemoveAll<IProcessingJobQueue>();
             services.AddSingleton<IProcessingJobQueue, Queue>();
         });
+    }
+
+    private sealed class EmptySignatures : IPageSignatureRepository
+    {
+        public Task<IReadOnlyList<PageSignature>> GetActiveForDocumentAsync(Guid id, CancellationToken ct) =>
+            Task.FromResult<IReadOnlyList<PageSignature>>([]);
     }
 
     [Fact]

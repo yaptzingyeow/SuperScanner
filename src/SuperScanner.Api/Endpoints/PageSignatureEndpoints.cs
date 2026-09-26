@@ -99,6 +99,13 @@ public static class PageSignatureEndpoints
         }
         var id = Guid.NewGuid();
         var key = $"documents/{documentId:N}/signatures/{id:N}.png";
+        await using (var journalScope = context.RequestServices.GetRequiredService<IServiceScopeFactory>().CreateAsyncScope())
+        {
+            var journal = journalScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            journal.SignatureAssetWriteIntents.Add(new SignatureAssetWriteIntent
+                { Id = id, DocumentId = documentId, AssetKey = key, CreatedAt = DateTimeOffset.UtcNow });
+            await journal.SaveChangesAsync(ct);
+        }
         var written = false;
         try
         {
@@ -107,6 +114,8 @@ public static class PageSignatureEndpoints
             var now = DateTimeOffset.UtcNow;
             var signature = PageSignature.Create(id, documentId, pageId, requestId, key, image.AspectRatio, box, now);
             db.PageSignatures.Add(signature);
+            var intent = await db.SignatureAssetWriteIntents.SingleAsync(x => x.Id == id, ct);
+            db.SignatureAssetWriteIntents.Remove(intent);
             document.MarkContentChanged(now);
             await AppendAudit(audit, user, documentId, id, "signature_created", now, ct);
             await db.SaveChangesAsync(ct);
@@ -115,16 +124,32 @@ public static class PageSignatureEndpoints
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            await transaction.RollbackAsync(CancellationToken.None);
-            if (written) await store.DeleteAsync(key, CancellationToken.None);
+            try
+            {
+                await transaction.RollbackAsync(CancellationToken.None);
+                if (written) await RecoverFailedWrite(context.RequestServices, store, key);
+            }
+            catch (Exception) { /* Durable journal retries cleanup; do not lose recovery on outage. */ }
             return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
         }
         catch (OperationCanceledException)
         {
-            await transaction.RollbackAsync(CancellationToken.None);
-            if (written) await store.DeleteAsync(key, CancellationToken.None);
+            try
+            {
+                await transaction.RollbackAsync(CancellationToken.None);
+                if (written) await RecoverFailedWrite(context.RequestServices, store, key);
+            }
+            catch (Exception) { /* Durable journal retries cleanup. */ }
             throw;
         }
+    }
+    private static async Task RecoverFailedWrite(IServiceProvider services, IObjectStore store, string key)
+    {
+        await using var scope = services.GetRequiredService<IServiceScopeFactory>().CreateAsyncScope();
+        var verification = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        // A commit acknowledgement can fail after the commit succeeded. Never erase its ink.
+        if (!await verification.PageSignatures.AnyAsync(s => s.AssetKey == key))
+            await store.DeleteAsync(key, CancellationToken.None);
     }
     private static async Task<IResult> Update(Guid documentId, Guid pageId, Guid signatureId, UpdateInput input, ICurrentUser user,
         AppDbContext db, IAuditWriter audit, HttpContext context, CancellationToken ct)
