@@ -98,6 +98,13 @@ public sealed class PageMarkEndpointsTests : IAsyncLifetime
         using var other = Client("other");
         Assert.Equal(HttpStatusCode.NotFound, (await other.GetAsync(Url)).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await Create(other, Guid.NewGuid())).StatusCode);
+        using var ownerBeforeRemoval = Client();
+        var created = await Create(ownerBeforeRemoval, Guid.NewGuid());
+        var markId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+        var update = new { kind = "Cross", box = new { x = .2, y = .3, width = .04, height = .05 },
+            color = "#0000FF", strokeWidth = .08, expectedRevision = 0 };
+        Assert.Equal(HttpStatusCode.NotFound, (await other.PutAsJsonAsync($"{Url}/{markId}", update)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await other.DeleteAsync($"{Url}/{markId}?expectedRevision=0")).StatusCode);
         await using (var scope = factory.Services.CreateAsyncScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -108,6 +115,8 @@ public sealed class PageMarkEndpointsTests : IAsyncLifetime
         using var owner = Client();
         Assert.Equal(HttpStatusCode.NotFound, (await owner.GetAsync(Url)).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await Create(owner, Guid.NewGuid())).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await owner.PutAsJsonAsync($"{Url}/{markId}", update)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await owner.DeleteAsync($"{Url}/{markId}?expectedRevision=0")).StatusCode);
     }
 
     [Fact]
