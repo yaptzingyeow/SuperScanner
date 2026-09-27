@@ -40,7 +40,7 @@ describe('PageTextEditorComponent', () => {
       ] }],
   };
 
-  function setup(initialOcr: PageOcr = notRequested, savedSignatures: object[] = []) {
+  function setup(initialOcr: PageOcr = notRequested, savedSignatures: object[] = [], savedMarks: object[] = []) {
     Object.defineProperty(URL, 'createObjectURL', { configurable: true,
       value: vi.fn(() => 'blob:full-page') });
     Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
@@ -53,7 +53,7 @@ describe('PageTextEditorComponent', () => {
     const signatures = { list: vi.fn().mockResolvedValue(savedSignatures), image: vi.fn().mockResolvedValue(new Blob(['ink'])),
       create: vi.fn().mockResolvedValue({ id: 'signature-1', pageId: 'page-1', box: { x: .2, y: .2, width: .3, height: .1 }, imageAspectRatio: 3, revision: 0, imageUrl: '/api/signature' }),
       update: vi.fn(), delete: vi.fn().mockResolvedValue(undefined) };
-    const marks = { list: vi.fn().mockResolvedValue([]), create: vi.fn().mockImplementation(async (_documentId, _pageId, draft) =>
+    const marks = { list: vi.fn().mockResolvedValue(savedMarks), create: vi.fn().mockImplementation(async (_documentId, _pageId, draft) =>
       ({ ...draft, id: 'mark-1', pageId: 'page-1', revision: 0 })), update: vi.fn(), delete: vi.fn().mockResolvedValue(undefined) };
     TestBed.configureTestingModule({
       imports: [PageTextEditorComponent],
@@ -106,6 +106,107 @@ describe('PageTextEditorComponent', () => {
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('[data-testid="undo-mark"]').disabled).toBe(true);
     expect(marks.delete).not.toHaveBeenCalled();
+  });
+
+  it('reconciles an uncertain create before saving edits made to its draft', async () => {
+    const { fixture, marks } = setup();
+    await vi.waitFor(() => { fixture.detectChanges(); expect(fixture.nativeElement.querySelector('[data-testid="add-mark"]')).toBeTruthy(); });
+    const image = fixture.nativeElement.querySelector('.full-page-image > img') as HTMLImageElement;
+    Object.defineProperty(image, 'naturalWidth', { value: 1000 });
+    Object.defineProperty(image, 'naturalHeight', { value: 2000 });
+    fixture.nativeElement.querySelector('[data-testid="add-mark"]').click();
+    const component = fixture.componentInstance as unknown as {
+      placeMark(point: { x: number; y: number }): void;
+      changeMarkColor(color: string): void;
+    };
+    component.placeMark({ x: .5, y: .5 }); fixture.detectChanges();
+    let firstRequest: { key: string; color: string } | undefined;
+    marks.create.mockImplementation(async (_documentId, _pageId, draft, key) => {
+      if (!firstRequest) {
+        firstRequest = { key, color: draft.color };
+        throw new Error('response lost after commit');
+      }
+      if (key !== firstRequest.key || draft.color !== firstRequest.color) throw { status: 409 };
+      return { ...draft, id: 'mark-1', pageId: 'page-1', revision: 0 };
+    });
+    marks.update.mockImplementation(async (_documentId, _pageId, draft) => ({ ...draft, revision: 1 }));
+    fixture.nativeElement.querySelector('[data-testid="save-mark"]').click();
+    await vi.waitFor(() => { fixture.detectChanges(); expect(fixture.nativeElement.textContent).toContain('draft is still here'); });
+    component.changeMarkColor('#0000FF'); fixture.detectChanges();
+    fixture.nativeElement.querySelector('[data-testid="save-mark"]').click();
+    await vi.waitFor(() => { fixture.detectChanges(); expect(fixture.nativeElement.querySelector('[data-testid="save-mark"]')).toBeNull(); });
+    expect(marks.create).toHaveBeenCalledTimes(2);
+    expect(marks.update).toHaveBeenCalledOnce();
+    expect(marks.update.mock.calls[0][2].color).toBe('#0000FF');
+    expect(fixture.nativeElement.querySelector('app-page-mark-overlay svg')).toBeTruthy();
+  });
+
+  it('requires confirmation before a preserved draft overwrites a newer server mark', async () => {
+    const saved = { id: 'mark-1', pageId: 'page-1', kind: 'Check',
+      box: { x: .1, y: .2, width: .03, height: .04 }, color: '#000000', strokeWidth: .08, revision: 0 };
+    const { fixture, marks } = setup(notRequested, [], [saved]);
+    await vi.waitFor(() => { fixture.detectChanges(); expect(fixture.nativeElement.querySelector('.mark-body')).toBeTruthy(); });
+    fixture.nativeElement.querySelector('.mark-body').click(); fixture.detectChanges();
+    fixture.nativeElement.querySelector('app-page-mark-tools button').click(); fixture.detectChanges();
+    const component = fixture.componentInstance as unknown as { changeMarkColor(color: string): void; refreshMarks(): Promise<void> };
+    component.changeMarkColor('#0000FF'); fixture.detectChanges();
+    marks.update.mockRejectedValueOnce({ status: 409 }).mockImplementation(async (_documentId, _pageId, draft) => ({ ...draft, revision: 2 }));
+    fixture.nativeElement.querySelector('[data-testid="save-mark"]').click();
+    await vi.waitFor(() => { fixture.detectChanges(); expect(fixture.nativeElement.textContent).toContain('changed elsewhere'); });
+    marks.list.mockResolvedValue([{ ...saved, color: '#FF0000', revision: 1 }]);
+    await component.refreshMarks(); fixture.detectChanges();
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+    fixture.nativeElement.querySelector('[data-testid="save-mark"]').click();
+    await Promise.resolve(); fixture.detectChanges();
+    expect(marks.update).toHaveBeenCalledTimes(1);
+    expect(fixture.nativeElement.querySelector('[data-testid="save-mark"]')).toBeTruthy();
+    fixture.nativeElement.querySelector('[data-testid="save-mark"]').click();
+    await vi.waitFor(() => { fixture.detectChanges(); expect(fixture.nativeElement.querySelector('[data-testid="save-mark"]')).toBeNull(); });
+    expect(marks.update.mock.calls[1][2]).toMatchObject({ color: '#0000FF', revision: 1 });
+    confirm.mockRestore();
+  });
+
+  it('does not silently overwrite a mark changed after an uncertain create', async () => {
+    const { fixture, marks } = setup();
+    await vi.waitFor(() => { fixture.detectChanges(); expect(fixture.nativeElement.querySelector('[data-testid="add-mark"]')).toBeTruthy(); });
+    const image = fixture.nativeElement.querySelector('.full-page-image > img') as HTMLImageElement;
+    Object.defineProperty(image, 'naturalWidth', { value: 1000 });
+    Object.defineProperty(image, 'naturalHeight', { value: 2000 });
+    fixture.nativeElement.querySelector('[data-testid="add-mark"]').click();
+    const component = fixture.componentInstance as unknown as { placeMark(point: { x: number; y: number }): void; changeMarkColor(color: string): void };
+    component.placeMark({ x: .5, y: .5 }); fixture.detectChanges();
+    marks.create.mockRejectedValueOnce(new Error('response lost'));
+    fixture.nativeElement.querySelector('[data-testid="save-mark"]').click();
+    await vi.waitFor(() => { fixture.detectChanges(); expect(fixture.nativeElement.textContent).toContain('draft is still here'); });
+    component.changeMarkColor('#0000FF'); fixture.detectChanges();
+    marks.create.mockImplementation(async (_documentId, _pageId, draft) =>
+      ({ ...draft, id: 'mark-1', pageId: 'page-1', color: '#FF0000', revision: 1 }));
+    fixture.nativeElement.querySelector('[data-testid="save-mark"]').click();
+    await vi.waitFor(() => { fixture.detectChanges(); expect(fixture.nativeElement.textContent).toContain('changed elsewhere'); });
+    expect(marks.create).toHaveBeenCalledTimes(2);
+    expect(marks.update).not.toHaveBeenCalled();
+    expect(fixture.nativeElement.querySelector('[data-testid="save-mark"]')).toBeTruthy();
+  });
+
+  it('keeps an uncertain draft when its original mark was deleted elsewhere', async () => {
+    const { fixture, marks } = setup();
+    await vi.waitFor(() => { fixture.detectChanges(); expect(fixture.nativeElement.querySelector('[data-testid="add-mark"]')).toBeTruthy(); });
+    const image = fixture.nativeElement.querySelector('.full-page-image > img') as HTMLImageElement;
+    Object.defineProperty(image, 'naturalWidth', { value: 1000 });
+    Object.defineProperty(image, 'naturalHeight', { value: 2000 });
+    fixture.nativeElement.querySelector('[data-testid="add-mark"]').click();
+    (fixture.componentInstance as unknown as { placeMark(point: { x: number; y: number }): void }).placeMark({ x: .5, y: .5 });
+    fixture.detectChanges();
+    marks.create.mockRejectedValueOnce(new Error('response lost'));
+    fixture.nativeElement.querySelector('[data-testid="save-mark"]').click();
+    await vi.waitFor(() => { fixture.detectChanges(); expect(fixture.nativeElement.textContent).toContain('draft is still here'); });
+    marks.create.mockImplementation(async (_documentId, _pageId, draft) =>
+      ({ ...draft, id: 'mark-1', pageId: 'page-1', revision: 1, isDeleted: true }));
+    fixture.nativeElement.querySelector('[data-testid="save-mark"]').click();
+    await vi.waitFor(() => { fixture.detectChanges(); expect(fixture.nativeElement.textContent).toContain('removed elsewhere'); });
+    expect(fixture.nativeElement.querySelector('[data-testid="save-mark"]')).toBeTruthy();
+    expect(marks.update).not.toHaveBeenCalled();
+    expect(fixture.nativeElement.querySelectorAll('.mark-body')).toHaveLength(1);
   });
 
   it('opens signature creation without OCR and Cancel leaves no saved overlay', async () => {

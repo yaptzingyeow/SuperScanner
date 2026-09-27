@@ -82,7 +82,9 @@ public sealed class PageMarkEndpointsTests : IAsyncLifetime
         Assert.Equal(id, (await (await Create(owner, key)).Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid());
         Assert.Equal(HttpStatusCode.Conflict, (await owner.PutAsJsonAsync($"{Url}/{id}", update)).StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, (await owner.DeleteAsync($"{Url}/{id}?expectedRevision=1")).StatusCode);
-        Assert.Equal(id, (await (await Create(owner, key)).Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid());
+        var deletedRetry = await (await Create(owner, key)).Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(id, deletedRetry.GetProperty("id").GetGuid());
+        Assert.True(deletedRetry.GetProperty("isDeleted").GetBoolean());
         Assert.Empty(await owner.GetFromJsonAsync<JsonElement[]>(Url) ?? []);
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -116,6 +118,26 @@ public sealed class PageMarkEndpointsTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Unauthorized, (await Create(noCheck, Guid.NewGuid())).StatusCode);
         foreach (var input in new[] { Input("Unknown"), Input(color: "blue"), Input(strokeWidth: .5) })
             Assert.Equal(HttpStatusCode.UnprocessableEntity, (await Create(owner, Guid.NewGuid(), input)).StatusCode);
+    }
+
+    [Fact]
+    public async Task Legacy_mark_without_original_hash_still_reuses_its_create_identity()
+    {
+        using var owner = Client();
+        var key = Guid.NewGuid();
+        var created = await Create(owner, key);
+        var id = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+        var update = new { kind = "Cross", box = new { x = .2, y = .3, width = .04, height = .05 },
+            color = "#f00000", strokeWidth = .12, expectedRevision = 0 };
+        Assert.Equal(HttpStatusCode.OK, (await owner.PutAsJsonAsync($"{Url}/{id}", update)).StatusCode);
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE page_marks SET \"CreateRequestHash\" = NULL WHERE \"Id\" = {id}");
+        }
+        var retry = await Create(owner, key);
+        Assert.Equal(HttpStatusCode.OK, retry.StatusCode);
+        Assert.Equal(id, (await retry.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid());
     }
 
     private sealed class Identity : IRequestIdentityVerifier

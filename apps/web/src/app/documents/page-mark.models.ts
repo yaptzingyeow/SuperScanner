@@ -9,6 +9,7 @@ export interface PageMarkDto {
   color: string;
   strokeWidth: number;
   revision: number;
+  isDeleted?: boolean;
 }
 export type PageMarkDraft = Omit<PageMarkDto, 'revision' | 'pageId'> & { revision?: number };
 

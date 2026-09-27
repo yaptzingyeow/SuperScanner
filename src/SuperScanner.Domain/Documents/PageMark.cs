@@ -53,9 +53,7 @@ public sealed class PageMark
     }
 
     public bool MatchesOriginalCreate(PageMarkKind kind, SignatureBox box, PageMarkStyle style) =>
-        CreateRequestHash is null
-            ? DeletedAt is null && Kind == kind && Box == box && Style == style
-            : CreateRequestHash == HashRequest(kind, box, style);
+        CreateRequestHash is null || CreateRequestHash == HashRequest(kind, box, style);
 
     private static string HashRequest(PageMarkKind kind, SignatureBox box, PageMarkStyle style)
     {

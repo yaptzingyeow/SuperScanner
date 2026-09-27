@@ -32,7 +32,7 @@ public static class PageMarkEndpoints
     private static object Dto(PageMark mark) => new
     {
         mark.Id, mark.PageId, kind = mark.Kind.ToString(), mark.Box,
-        mark.Style.Color, mark.Style.StrokeWidth, mark.Revision
+        mark.Style.Color, mark.Style.StrokeWidth, mark.Revision, isDeleted = mark.DeletedAt is not null
     };
     private static void NoCache(HttpContext context)
     {
