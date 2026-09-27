@@ -8,3 +8,7 @@
 .mark-toolbar button { min-height: 40px; padding: 7px 12px; border: 1px solid #b99d68; border-radius: 8px; background: white; color: #302b20; font: inherit; font-weight: 650; cursor: pointer; }
 .mark-toolbar button.primary { border-color: #165e47; background: #165e47; color: white; }
 .mark-toolbar button:disabled { opacity: .5; cursor: default; }
+.mark-colors { display: flex; align-items: center; gap: 6px; }
+.mark-toolbar .mark-swatch { width: 40px; height: 40px; padding: 0; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 0 1px #8b806d; }
+.mark-toolbar .mark-swatch.selected { box-shadow: 0 0 0 3px #174e91; }
+.mark-toolbar .mark-swatch:focus-visible { outline: 3px solid #174e91; outline-offset: 4px; }

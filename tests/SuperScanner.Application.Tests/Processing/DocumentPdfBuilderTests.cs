@@ -43,6 +43,11 @@ public sealed class DocumentPdfBuilderTests
         var content = System.Text.Encoding.ASCII.GetString(page.Contents.CreateSingleContent().Stream.Value);
         Assert.Contains("0 0.667 0 RG", content);
         Assert.Contains("1 0 0 RG", content);
+        // The preview uses top-down coordinates; PDF content uses bottom-up Y.
+        // On a 72×36 pt page, the green check starts at top-down (24.48,18.36),
+        // hence the PDF path starts at (24.48,17.64).
+        Assert.Contains("24.48 17.64 m\n33.12 13.32 l\n47.52 22.68 l", content);
+        Assert.Contains("52.128 30.672 m\n55.872 26.928 l", content);
         Assert.Matches(@"(?m)^S$", content);
     }
     [Fact]

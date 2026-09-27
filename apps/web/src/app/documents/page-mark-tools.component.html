@@ -5,7 +5,15 @@
     <div class="mark-fields">
       <label>Mark <select [value]="mark.kind" [disabled]="busy()" (change)="kind.emit($any($event.target).value)">
         <option value="Check">✓ Tick</option><option value="Cross">× Cross</option></select></label>
-      <label>Color <input type="color" [value]="mark.color" [disabled]="busy()" (change)="colorChanged($event)" /></label>
+      <div class="mark-colors" role="group" aria-label="Quick mark colors">
+        @for (swatch of presets; track swatch.name) {
+          <button type="button" class="mark-swatch" [class.selected]="mark.color.toUpperCase() === swatch.hex"
+            [attr.data-testid]="'mark-color-' + swatch.name.toLowerCase()"
+            [attr.aria-label]="swatch.name + ' mark'" [attr.aria-pressed]="mark.color.toUpperCase() === swatch.hex"
+            [style.background-color]="swatch.hex" [disabled]="busy()" (click)="color.emit(swatch.hex)"></button>
+        }
+      </div>
+      <label>Custom color <input type="color" [value]="mark.color" [disabled]="busy()" (change)="colorChanged($event)" /></label>
       <label>Size {{ size() }}% <input type="range" min="50" max="300" step="10" [value]="size()" [disabled]="busy()" (input)="sizeChanged($event)" /></label>
       <label>Thickness {{ (mark.strokeWidth * 100).toFixed(0) }}% <input type="range" min="2" max="20" step="1" [value]="mark.strokeWidth * 100" [disabled]="busy()" (input)="strokeChanged($event)" /></label>
     </div>

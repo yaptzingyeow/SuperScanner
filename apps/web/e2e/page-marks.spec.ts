@@ -41,6 +41,10 @@ test('place, style, save, reload and undo a transparent tick without OCR', async
   const surfaceBox = (await surface.boundingBox())!;
   await surface.click({ position: { x: 25, y: 25 } });
   await expect(page.getByTestId('save-mark')).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByTestId('mark-color-blue')).toBeVisible();
+  await page.screenshot({ path: '../../.task-tools/page-marks-mobile-draft.png', fullPage: true });
+  await page.setViewportSize({ width: 1280, height: 720 });
   await page.locator('app-page-mark-tools input[type="color"]').fill('#0000ff');
   await page.getByTestId('save-mark').click();
   await expect(page.getByText('Mark saved. Export a new PDF to include it.')).toBeVisible();

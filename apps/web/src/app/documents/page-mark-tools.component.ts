@@ -4,6 +4,12 @@ import { PageMarkDraft, PageMarkKind } from './page-mark.models';
 @Component({ selector: 'app-page-mark-tools', standalone: true,
   templateUrl: './page-mark-tools.component.html', styleUrl: './page-mark-tools.component.scss' })
 export class PageMarkToolsComponent {
+  protected readonly presets = [
+    { name: 'Black', hex: '#000000' },
+    { name: 'Blue', hex: '#2563EB' },
+    { name: 'Red', hex: '#DC2626' },
+    { name: 'Green', hex: '#16A34A' },
+  ] as const;
   readonly draft = input<PageMarkDraft | null>(null);
   readonly selected = input(false);
   readonly placing = input(false);
