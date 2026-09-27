@@ -19,7 +19,7 @@
         [canUndo]="markCanUndo()" [canRedo]="markCanRedo()" (undo)="undoMark()" (redo)="redoMark()"
         (place)="beginMarkPlacement()" (kind)="changeMarkKind($event)" (color)="changeMarkColor($event)"
         (strokeWidth)="changeMarkStroke($event)" (sizePercent)="changeMarkSize($event)"
-        (save)="saveMark()" (cancel)="cancelMark()" (edit)="editMark()" (remove)="deleteMark()" />
+        (save)="saveMark()" (cancel)="cancelMark()" (edit)="editMark()" (duplicate)="duplicateMark()" (remove)="deleteMark()" />
     }
     @if (signatureError()) { <p role="alert" class="error">{{ signatureError() }}</p><button type="button" [disabled]="signatureBusy()" (click)="refreshSignatures()">Reload saved signatures</button> }
     <p role="status" aria-live="polite">{{ signatureNotice() }}</p>

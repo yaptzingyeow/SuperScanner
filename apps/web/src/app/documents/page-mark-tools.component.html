@@ -21,6 +21,7 @@
       <button type="button" [disabled]="busy()" (click)="cancel.emit()">Cancel</button></div>
   } @else if (selected()) {
     <button type="button" [disabled]="busy()" (click)="edit.emit()">Move / style</button>
+    <button type="button" data-testid="duplicate-mark" [disabled]="busy()" (click)="duplicate.emit()">Duplicate mark</button>
     <button type="button" [disabled]="busy()" (click)="remove.emit()">Delete selected mark</button>
   }
   <div class="mark-actions"><button type="button" data-testid="undo-mark" [disabled]="busy() || !canUndo()" (click)="undo.emit()">Undo mark</button>

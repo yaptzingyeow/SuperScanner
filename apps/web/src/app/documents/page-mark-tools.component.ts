@@ -24,6 +24,7 @@ export class PageMarkToolsComponent {
   readonly cancel = output<void>();
   readonly remove = output<void>();
   readonly edit = output<void>();
+  readonly duplicate = output<void>();
   readonly undo = output<void>();
   readonly redo = output<void>();
   readonly place = output<void>();

@@ -377,6 +377,16 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
     this.markNeedsOverwriteConfirmation = false; this.markTargetMissing = false; this.markAwaitingReload = false;
     this.markNotice.set('Drag to move, use the corner handles to resize, then Save.');
   }
+  protected duplicateMark(): void {
+    const mark = this.selectedMark(); if (!mark || this.markBusy()) return;
+    this.markTarget = undefined; this.markCreateAttempt = undefined;
+    this.markRequestId = crypto.randomUUID();
+    this.markNeedsOverwriteConfirmation = false; this.markTargetMissing = false; this.markAwaitingReload = false;
+    this.markDraft.set({ id: 'draft', kind: mark.kind, box: { ...mark.box },
+      color: mark.color, strokeWidth: mark.strokeWidth });
+    this.selectedMarkId.set('draft'); this.placingMark.set(false); this.markError.set('');
+    this.markNotice.set('Duplicate ready. Drag it to another position, then Save. The original stays in place.');
+  }
   protected changeMarkBox(change: { id: string; box: SignatureBox }): void {
     const draft = this.markDraft();
     if (draft?.id === change.id && !this.markBusy()) this.markDraft.set({ ...draft, box: change.box });

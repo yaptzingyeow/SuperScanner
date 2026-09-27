@@ -91,6 +91,51 @@ describe('PageTextEditorComponent', () => {
     await vi.waitFor(() => expect(marks.delete).toHaveBeenCalledOnce());
   });
 
+  it('duplicates a selected mark with the same style, then saves its moved copy without changing the original', async () => {
+    const original = { id: 'mark-original', pageId: 'page-1', kind: 'Cross',
+      box: { x: .1, y: .2, width: .03, height: .04 }, color: '#DC2626', strokeWidth: .12, revision: 2 };
+    const { fixture, marks } = setup(notRequested, [], [original]);
+    marks.create.mockImplementation(async (_documentId, _pageId, draft) =>
+      ({ ...draft, id: `mark-copy-${marks.create.mock.calls.length}`, pageId: 'page-1', revision: 0 }));
+    await vi.waitFor(() => { fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('.mark-body')).toBeTruthy(); });
+    fixture.nativeElement.querySelector('.mark-body').click(); fixture.detectChanges();
+    fixture.nativeElement.querySelector('[data-testid="duplicate-mark"]').click(); fixture.detectChanges();
+
+    const copy = fixture.nativeElement.querySelector('.mark.editable') as HTMLElement;
+    expect(fixture.nativeElement.querySelectorAll('.mark')).toHaveLength(2);
+    expect(copy.style.left).toBe('10%');
+    expect(copy.style.top).toBe('20%');
+    expect(copy.querySelector('path')?.getAttribute('stroke')).toBe('#DC2626');
+    expect(copy.querySelector('path')?.getAttribute('stroke-width')).toBe('12');
+
+    const component = fixture.componentInstance as unknown as {
+      changeMarkBox(change: { id: string; box: { x: number; y: number; width: number; height: number } }): void;
+    };
+    component.changeMarkBox({ id: 'draft', box: { x: .5, y: .6, width: .03, height: .04 } });
+    fixture.detectChanges();
+    fixture.nativeElement.querySelector('[data-testid="save-mark"]').click();
+    await vi.waitFor(() => { fixture.detectChanges();
+      expect(fixture.nativeElement.querySelectorAll('.mark')).toHaveLength(2);
+      expect(fixture.nativeElement.querySelector('.mark.editable')).toBeNull(); });
+    expect(marks.create).toHaveBeenCalledOnce();
+    expect(marks.create.mock.calls[0][2]).toMatchObject({ kind: 'Cross', color: '#DC2626',
+      strokeWidth: .12, box: { x: .5, y: .6, width: .03, height: .04 } });
+    const positions = [...fixture.nativeElement.querySelectorAll('.mark')].map((mark: HTMLElement) => mark.style.left);
+    expect(positions).toEqual(['10%', '50%']);
+
+    fixture.nativeElement.querySelector('[data-testid="duplicate-mark"]').click(); fixture.detectChanges();
+    component.changeMarkBox({ id: 'draft', box: { x: .7, y: .3, width: .03, height: .04 } });
+    fixture.detectChanges();
+    fixture.nativeElement.querySelector('[data-testid="save-mark"]').click();
+    await vi.waitFor(() => { fixture.detectChanges();
+      expect(fixture.nativeElement.querySelectorAll('.mark')).toHaveLength(3);
+      expect(fixture.nativeElement.querySelector('.mark.editable')).toBeNull(); });
+    expect(marks.create).toHaveBeenCalledTimes(2);
+    expect([...fixture.nativeElement.querySelectorAll('.mark')].map((mark: HTMLElement) => mark.style.left))
+      .toEqual(['10%', '50%', '70%']);
+  });
+
   it('clears stale undo history when saved marks are reloaded', async () => {
     const { fixture, marks } = setup();
     await vi.waitFor(() => { fixture.detectChanges(); expect(fixture.nativeElement.querySelector('[data-testid="add-mark"]')).toBeTruthy(); });
