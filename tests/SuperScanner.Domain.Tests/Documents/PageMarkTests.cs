@@ -51,4 +51,18 @@ public sealed class PageMarkTests
         Assert.Equal(1, mark.Revision);
         Assert.Throws<InvalidOperationException>(() => mark.Delete(0, Now.AddMinutes(2)));
     }
+
+    [Fact]
+    public void Create_request_matching_uses_original_payload_after_update_and_delete()
+    {
+        var originalStyle = new PageMarkStyle("#000000", .08);
+        var mark = PageMark.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+            PageMarkKind.Check, Box, originalStyle, Now);
+        mark.Update(PageMarkKind.Cross, new SignatureBox(.4, .5, .08, .08),
+            new PageMarkStyle("#FF0000", .2), 0, Now.AddMinutes(1));
+        mark.Delete(1, Now.AddMinutes(2));
+
+        Assert.True(mark.MatchesOriginalCreate(PageMarkKind.Check, Box, originalStyle));
+        Assert.False(mark.MatchesOriginalCreate(PageMarkKind.Cross, mark.Box, mark.Style));
+    }
 }

@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace SuperScanner.Domain.Documents;
@@ -27,6 +29,7 @@ public sealed class PageMark
     public Guid DocumentId { get; private set; }
     public Guid PageId { get; private set; }
     public Guid ClientRequestId { get; private set; }
+    public string? CreateRequestHash { get; private set; }
     public PageMarkKind Kind { get; private set; }
     public SignatureBox Box { get; private set; } = null!;
     public PageMarkStyle Style { get; private set; } = null!;
@@ -44,8 +47,20 @@ public sealed class PageMark
         ArgumentNullException.ThrowIfNull(box);
         ArgumentNullException.ThrowIfNull(style);
         return new PageMark { Id = id, DocumentId = documentId, PageId = pageId,
-            ClientRequestId = clientRequestId, Kind = kind, Box = box, Style = style,
+            ClientRequestId = clientRequestId, CreateRequestHash = HashRequest(kind, box, style),
+            Kind = kind, Box = box, Style = style,
             CreatedAt = now, UpdatedAt = now };
+    }
+
+    public bool MatchesOriginalCreate(PageMarkKind kind, SignatureBox box, PageMarkStyle style) =>
+        CreateRequestHash is null
+            ? DeletedAt is null && Kind == kind && Box == box && Style == style
+            : CreateRequestHash == HashRequest(kind, box, style);
+
+    private static string HashRequest(PageMarkKind kind, SignatureBox box, PageMarkStyle style)
+    {
+        var canonical = FormattableString.Invariant($"{(int)kind}|{box.X:R}|{box.Y:R}|{box.Width:R}|{box.Height:R}|{style.Color}|{style.StrokeWidth:R}");
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
     }
 
     public void Update(PageMarkKind kind, SignatureBox box, PageMarkStyle style, long expectedRevision, DateTimeOffset now)

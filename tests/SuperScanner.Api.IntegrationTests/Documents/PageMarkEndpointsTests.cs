@@ -79,8 +79,10 @@ public sealed class PageMarkEndpointsTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Conflict, (await Create(owner, key, Input("Cross"))).StatusCode);
         var update = new { kind = "Cross", box = new { x = .2, y = .3, width = .04, height = .05 }, color = "#f00000", strokeWidth = .12, expectedRevision = 0 };
         Assert.Equal(HttpStatusCode.OK, (await owner.PutAsJsonAsync($"{Url}/{id}", update)).StatusCode);
+        Assert.Equal(id, (await (await Create(owner, key)).Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid());
         Assert.Equal(HttpStatusCode.Conflict, (await owner.PutAsJsonAsync($"{Url}/{id}", update)).StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, (await owner.DeleteAsync($"{Url}/{id}?expectedRevision=1")).StatusCode);
+        Assert.Equal(id, (await (await Create(owner, key)).Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid());
         Assert.Empty(await owner.GetFromJsonAsync<JsonElement[]>(Url) ?? []);
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();

@@ -74,7 +74,7 @@ public static class PageMarkEndpoints
         var existing = await db.PageMarks.SingleOrDefaultAsync(x => x.DocumentId == documentId && x.ClientRequestId == requestId, ct);
         if (existing is not null)
         {
-            if (existing.PageId != pageId || existing.DeletedAt is not null || existing.Kind != kind || existing.Box != box || existing.Style != style)
+            if (existing.PageId != pageId || !existing.MatchesOriginalCreate(kind, box!, style!))
                 return Results.Conflict(new { code = "mark_request_conflict" });
             return Results.Ok(Dto(existing));
         }

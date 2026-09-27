@@ -309,6 +309,10 @@ namespace SuperScanner.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("ClientRequestId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("CreateRequestHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 

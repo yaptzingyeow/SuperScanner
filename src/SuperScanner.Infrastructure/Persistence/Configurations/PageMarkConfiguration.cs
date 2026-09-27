@@ -11,6 +11,7 @@ public sealed class PageMarkConfiguration : IEntityTypeConfiguration<PageMark>
         builder.ToTable("page_marks");
         builder.HasKey(x => x.Id);
         builder.Property(x => x.Kind).HasConversion<string>().HasMaxLength(16).IsRequired();
+        builder.Property(x => x.CreateRequestHash).HasMaxLength(64);
         builder.Property(x => x.Revision).IsConcurrencyToken();
         builder.OwnsOne(x => x.Box, box =>
         {
