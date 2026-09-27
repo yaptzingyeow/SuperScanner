@@ -153,6 +153,11 @@ describe('PageTextEditorComponent', () => {
     marks.update.mockRejectedValueOnce({ status: 409 }).mockImplementation(async (_documentId, _pageId, draft) => ({ ...draft, revision: 2 }));
     fixture.nativeElement.querySelector('[data-testid="save-mark"]').click();
     await vi.waitFor(() => { fixture.detectChanges(); expect(fixture.nativeElement.textContent).toContain('changed elsewhere'); });
+    const prematureConfirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    fixture.nativeElement.querySelector('[data-testid="save-mark"]').click();
+    await Promise.resolve(); fixture.detectChanges();
+    expect(marks.update).toHaveBeenCalledTimes(1);
+    prematureConfirm.mockRestore();
     marks.list.mockResolvedValue([{ ...saved, color: '#FF0000', revision: 1 }]);
     await component.refreshMarks(); fixture.detectChanges();
     const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);

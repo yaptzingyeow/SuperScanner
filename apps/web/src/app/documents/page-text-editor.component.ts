@@ -72,6 +72,7 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
   private markTarget?: PageMarkDto;
   private markNeedsOverwriteConfirmation = false;
   private markTargetMissing = false;
+  private markAwaitingReload = false;
   private signatureBlob?: Blob;
   private signatureRequestId = '';
   private signatureTarget?: SignatureView;
@@ -373,7 +374,7 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
   protected editMark(): void {
     const mark = this.selectedMark(); if (!mark || this.markBusy()) return;
     this.markTarget = mark; this.markDraft.set({ ...mark, box: { ...mark.box } });
-    this.markNeedsOverwriteConfirmation = false; this.markTargetMissing = false;
+    this.markNeedsOverwriteConfirmation = false; this.markTargetMissing = false; this.markAwaitingReload = false;
     this.markNotice.set('Drag to move, use the corner handles to resize, then Save.');
   }
   protected changeMarkBox(change: { id: string; box: SignatureBox }): void {
@@ -397,13 +398,17 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
   protected cancelMark(): void {
     if (this.markBusy()) return;
     this.markDraft.set(null); this.markTarget = undefined; this.markCreateAttempt = undefined; this.placingMark.set(false);
-    this.markNeedsOverwriteConfirmation = false; this.markTargetMissing = false;
+    this.markNeedsOverwriteConfirmation = false; this.markTargetMissing = false; this.markAwaitingReload = false;
     this.markNotice.set(''); this.markError.set('');
   }
   protected async saveMark(): Promise<void> {
     const draft = this.markDraft(); if (!draft || this.markBusy()) return;
     if (this.markTargetMissing) {
       this.markError.set('This mark was removed elsewhere. Cancel this draft, then place a new mark.');
+      return;
+    }
+    if (this.markAwaitingReload) {
+      this.markError.set('Reload saved marks before trying Save again. Your draft is safe.');
       return;
     }
     if (this.markNeedsOverwriteConfirmation && !window.confirm('This mark changed elsewhere. Save your draft over its current version?')) return;
@@ -448,11 +453,14 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
       if (this.destroyed) return;
       this.marks.update(marks => [...marks.filter(mark => mark.id !== dto.id), dto]);
       this.markDraft.set(null); this.markTarget = undefined; this.markCreateAttempt = undefined; this.selectedMarkId.set(dto.id);
-      this.markNeedsOverwriteConfirmation = false; this.markTargetMissing = false;
+      this.markNeedsOverwriteConfirmation = false; this.markTargetMissing = false; this.markAwaitingReload = false;
       this.markHistory.record(before, dto); this.syncMarkHistory();
       this.markNotice.set('Mark saved. Export a new PDF to include it.');
     } catch (error) {
-      if ((error as { status?: number }).status === 409 && this.markTarget) this.markNeedsOverwriteConfirmation = true;
+      if ((error as { status?: number }).status === 409 && this.markTarget) {
+        this.markNeedsOverwriteConfirmation = true;
+        this.markAwaitingReload = true;
+      }
       if (!this.destroyed) this.markError.set((error as { status?: number }).status === 409
         ? 'This mark changed elsewhere. Your draft is safe. Reload saved marks and review it.'
         : 'Mark could not be saved. Your draft is still here. Try Save again.');
@@ -487,6 +495,7 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
             if (current.revision !== this.markTarget.revision) this.markNeedsOverwriteConfirmation = true;
             this.markTarget = current;
             this.markTargetMissing = false;
+            this.markAwaitingReload = false;
             if (this.markNeedsOverwriteConfirmation) this.markNotice.set('This mark changed elsewhere. Review your draft; Save will ask before replacing the current version.');
           } else this.markTargetMissing = true;
         }
