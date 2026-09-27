@@ -116,7 +116,7 @@ public sealed class PageMarkEndpointsTests : IAsyncLifetime
         using var owner = Client(); using var noAuth = Client(null); using var noCheck = Client(appCheck: false);
         Assert.Equal(HttpStatusCode.Unauthorized, (await Create(noAuth, Guid.NewGuid())).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await Create(noCheck, Guid.NewGuid())).StatusCode);
-        foreach (var input in new[] { Input("Unknown"), Input(color: "blue"), Input(strokeWidth: .5) })
+        foreach (var input in new[] { Input("Unknown"), Input(color: "blue"), Input(color: "#000000\n"), Input(strokeWidth: .5) })
             Assert.Equal(HttpStatusCode.UnprocessableEntity, (await Create(owner, Guid.NewGuid(), input)).StatusCode);
     }
 

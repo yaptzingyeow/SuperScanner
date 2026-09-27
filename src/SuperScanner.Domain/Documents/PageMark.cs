@@ -13,7 +13,7 @@ public sealed record PageMarkStyle
 
     public PageMarkStyle(string color, double strokeWidth)
     {
-        if (color is null || !Regex.IsMatch(color, "^#[0-9a-fA-F]{6}$"))
+        if (color is null || !Regex.IsMatch(color, @"\A#[0-9a-fA-F]{6}\z"))
             throw new ArgumentException("Mark color must be #RRGGBB.", nameof(color));
         if (!double.IsFinite(strokeWidth) || strokeWidth is < .02 or > .20)
             throw new ArgumentOutOfRangeException(nameof(strokeWidth));

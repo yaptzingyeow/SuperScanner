@@ -10,6 +10,7 @@ public sealed class PageMarkTests
     [Theory]
     [InlineData("red", .08)]
     [InlineData("#12AB", .08)]
+    [InlineData("#000000\n", .08)]
     [InlineData("#000000", double.NaN)]
     [InlineData("#000000", .01)]
     [InlineData("#000000", .21)]
