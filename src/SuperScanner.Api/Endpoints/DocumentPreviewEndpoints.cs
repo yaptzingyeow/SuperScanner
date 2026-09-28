@@ -41,7 +41,9 @@ public static class DocumentPreviewEndpoints
                 "original" => page?.OriginalObjectKey, "crop-source" => page?.CropSourceObjectKey, _ => null
             };
             if (key is null) return Results.NotFound();
-            var mediaType = asset == "original" ? page!.OriginalMediaType : "image/jpeg";
+            var mediaType = asset == "original" ? page!.OriginalMediaType :
+                Path.GetExtension(key).Equals(".png", StringComparison.OrdinalIgnoreCase)
+                    ? "image/png" : "image/jpeg";
             var extension = mediaType switch { "application/pdf" => ".pdf", "image/png" => ".png", "image/jpeg" => ".jpg", "image/heic" => ".heic", _ => ".bin" };
             context.Response.Headers.CacheControl = "private, no-store";
             context.Response.Headers["X-Content-Type-Options"] = "nosniff";

@@ -4,7 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, provideRouter } from '@angular/router';
 import { vi } from 'vitest';
 import { API_BASE_URL } from '../core/api/security.interceptor';
-import { DocumentDetail, DocumentPage, PageOcr } from './document.models';
+import { DocumentDetail, DocumentPage } from './document.models';
 import { DocumentDetailComponent } from './document-detail.component';
 import { DocumentsApiService } from './documents-api.service';
 import { TextEditService } from './text-edit.service';
@@ -116,31 +116,12 @@ describe('DocumentDetailComponent organizer', () => {
     );
   });
 
-  it('opens an edit draft for a printed selection and restores the page on close', async () => {
-    const { fixture, component } = setup();
+  it('keeps text recognition controls out of the document grid', async () => {
+    const { fixture } = setup();
     await fixture.whenStable();
-    document.body.appendChild(fixture.nativeElement);
-    component.beginTextEdit({ pageId: 'p1', ocrResultId: 'ocr-1', wordIds: ['word-1'],
-      phrase: 'Yap', textType: 'Printed', polygon: [] });
     fixture.detectChanges();
-    expect(component.editSelection()?.pageId).toBe('p1');
-    component.closeTextEdit();
-    expect(component.editSelection()).toBeNull();
-    fixture.detectChanges();
-    await Promise.resolve();
-    expect(document.activeElement).toBe(
-      fixture.nativeElement.querySelector('app-page-card[data-page-id="p1"]'));
-    fixture.nativeElement.remove();
-  });
-
-  it('blocks navigation until an unapplied editor draft is confirmed for discard', async () => {
-    const { component } = setup();
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
-    confirm.mockClear();
-    component.editor = { isDirty: () => true };
-    expect(component.canLeave()).toBe(false);
-    expect(component.canLeave()).toBe(true);
-    expect(confirm).toHaveBeenCalledTimes(2);
+    expect(fixture.nativeElement.querySelector('app-ocr-status')).toBeNull();
+    expect(fixture.nativeElement.querySelector('app-ocr-text-overlay')).toBeNull();
   });
 
   it('offers server-authorized undo and reloads the page after switching revisions', async () => {
@@ -165,18 +146,4 @@ describe('DocumentDetailComponent organizer', () => {
       .some((button: HTMLButtonElement) => button.textContent?.includes('Edit history for page'))).toBe(false);
   });
 
-  it('keeps OCR snapshots page-local and removes them when a page disappears', async () => {
-    const { component, api } = setup();
-    await component.load();
-    const ready: PageOcr = {
-      resultId: 'ocr-p2', state: 'Ready', elementCount: 0, canRetry: false, elements: [],
-    };
-
-    component.ocrUpdated('p2', ready);
-    expect(component.ocrByPage()).toEqual({ p2: ready });
-
-    api.getDocument.mockResolvedValueOnce(detail([page('p1', 1)]));
-    await component.load();
-    expect(component.ocrByPage()).toEqual({});
-  });
 });

@@ -10,10 +10,26 @@ public static class TextEditingEndpoints
 {
     public static void Map(IEndpointRouteBuilder endpoints)
     {
+        endpoints.MapGet("/api/text-edit-fonts", (IFontCatalogue catalogue, HttpContext context) =>
+        {
+            context.Response.Headers.CacheControl = "private, max-age=300";
+            return Results.Ok(catalogue.Entries
+                .Where(face => face.Enabled && face.SelectableForNewEdits)
+                .OrderBy(face => face.Category)
+                .ThenBy(face => face.FamilyName, StringComparer.Ordinal)
+                .ThenBy(face => face.Weight)
+                .ThenBy(face => face.Style)
+                .Select(face => new FontCatalogueDto(
+                    face.CatalogueId, face.Version, face.DisplayName, face.FamilyName,
+                    face.Category.ToString(), face.Weight, face.Style.ToString(),
+                    face.WebFamilyName, "/" + face.WebAssetPath.Replace('\\', '/'), true)));
+        }).RequireAuthorization();
+
         var group = endpoints
             .MapGroup("/api/documents/{documentId:guid}/pages/{pageId:guid}/text-edits")
             .RequireAuthorization();
         group.MapPost("/style-proposal", ProposeAsync);
+        group.MapPost("/preview", PreviewAsync);
         group.MapPost("", ApplyAsync);
         group.MapGet("/history", HistoryAsync);
         group.MapPost("/undo", (Guid documentId, Guid pageId,
@@ -30,6 +46,10 @@ public static class TextEditingEndpoints
                 user, command, history, options, context, ct));
         group.MapGet("/{editId:guid}", GetAsync);
     }
+
+    public sealed record FontCatalogueDto(string CatalogueId, string Version,
+        string DisplayName, string FamilyName, string Category, int Weight,
+        string Style, string WebFamilyName, string WebAssetUrl, bool Enabled);
 
     private static async Task<IResult> ProposeAsync(
         Guid documentId,
@@ -107,6 +127,52 @@ public static class TextEditingEndpoints
         Guid? ExpectedRevisionId, Guid[]? WordIds, string? ReplacementText,
         NormalizedBox? ReplacementBox, TextEditStyle? Style, string? IdempotencyKey);
 
+    private static async Task<IResult> PreviewAsync(Guid documentId, Guid pageId,
+        ApplyTextEditRequest request, ICurrentUser user, TextEditPreview preview,
+        IOptions<TextEditingOptions> options, HttpContext context, CancellationToken ct)
+    {
+        context.Response.Headers.CacheControl = "private, no-store";
+        if (!options.Value.Enabled)
+            return Results.Json(new { code = "text_edit_disabled" },
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        if (request.WordIds is null ||
+            request.ReplacementText is null || request.ReplacementBox is null ||
+            request.Style is null)
+            return Results.UnprocessableEntity(new { code = "text_edit_invalid" });
+        try
+        {
+            var result = await preview.RenderAsync(new CreateTextEditRequest(
+                user.FirebaseUid, documentId, pageId, request.OcrResultId,
+                request.ExpectedRevisionId, request.WordIds, request.ReplacementText,
+                request.ReplacementBox, request.Style, "preview"), ct);
+            if (result.DiagnosticReason is not null)
+                context.RequestServices.GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("TextEditPreviewDiagnostics")
+                    .LogWarning("Text edit preview rejected for page {PageId}: {Code}, {Reason}",
+                        pageId, result.FailureCode, result.DiagnosticReason);
+            return result.FailureCode is null && result.Output is not null
+                ? Results.File(result.Output, "image/png")
+                : Results.UnprocessableEntity(new { code = result.FailureCode ?? "text_edit_render_invalid" });
+        }
+        catch (TextSelectionNotFoundException) { return Results.NotFound(); }
+        catch (StaleTextSelectionException)
+        {
+            return Results.Conflict(new { code = "text_selection_stale" });
+        }
+        catch (UnsupportedTextSelectionException)
+        {
+            return Results.UnprocessableEntity(new { code = "text_selection_unsupported" });
+        }
+        catch (InvalidTextSelectionException)
+        {
+            return Results.UnprocessableEntity(new { code = "text_selection_invalid" });
+        }
+        catch (TextEditValidationException exception)
+        {
+            return Results.UnprocessableEntity(new { code = exception.Code });
+        }
+    }
+
     private static async Task<IResult> ApplyAsync(Guid documentId, Guid pageId,
         ApplyTextEditRequest request, ICurrentUser user, IServiceProvider services,
         IOptions<TextEditingOptions> options, HttpContext context, CancellationToken ct)
@@ -115,7 +181,7 @@ public static class TextEditingEndpoints
         if (!options.Value.Enabled)
             return Results.Json(new { code = "text_edit_disabled" },
                 statusCode: StatusCodes.Status503ServiceUnavailable);
-        if (request.OcrResultId == Guid.Empty || request.WordIds is null ||
+        if (request.WordIds is null ||
             request.ReplacementText is null || request.ReplacementBox is null ||
             request.Style is null || request.IdempotencyKey is null)
             return Results.UnprocessableEntity(new { code = "text_edit_invalid" });
@@ -149,8 +215,11 @@ public static class TextEditingEndpoints
         {
             return Results.UnprocessableEntity(new { code = "text_selection_invalid" });
         }
-        catch (Exception exception) when (exception is TextEditValidationException or
-            KeyNotFoundException or ArgumentException)
+        catch (TextEditValidationException exception)
+        {
+            return Results.UnprocessableEntity(new { code = exception.Code });
+        }
+        catch (Exception exception) when (exception is KeyNotFoundException or ArgumentException)
         {
             return Results.UnprocessableEntity(new { code = "text_edit_invalid" });
         }

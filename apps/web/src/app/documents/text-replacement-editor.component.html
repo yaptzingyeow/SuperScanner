@@ -2,7 +2,7 @@
   <header>
     <div>
       <p class="eyebrow">Printed text editor</p>
-      <h2 id="edit-heading">Replace selected text</h2>
+      <h2 id="edit-heading">{{ mode() === 'add' ? 'Add text' : mode() === 'delete' ? 'Delete selected text' : 'Replace selected text' }}</h2>
     </div>
     <button type="button" class="close" aria-label="Close editor" [disabled]="submitting()" (click)="cancel()">×</button>
   </header>
@@ -10,62 +10,113 @@
   @if (proposal(); as suggested) {
     <div class="content">
       <div class="image-pane">
-        <div class="preview-caption">Preview only — the stored image is unchanged until Apply</div>
-        <div class="image-surface">
-          <img [src]="imageUrl()" alt="Scanned page preview" (load)="imageLoaded($event)" />
-          @if (style(); as chosenStyle) {
+        <div class="preview-caption">
+          {{ previewUrl() ? 'Exact rendered result — review before saving' :
+            mode() === 'add' ? 'Transparent text guide — drag or resize it on the page' :
+            'Transparent placement guide — old ink remains visible until you preview the exact result' }}
+        </div>
+        <div class="preview-zoom-controls" aria-label="Preview zoom controls">
+          <button type="button" [disabled]="previewZoom() === 1"
+            (click)="changePreviewZoom(-.5)">− Zoom out</button>
+          <span>{{ previewZoom() * 100 }}%</span>
+          <button type="button" data-testid="preview-zoom-in" [disabled]="previewZoom() === 3"
+            (click)="changePreviewZoom(.5)">+ Zoom in</button>
+          @if (previewUrl()) {
+            <button type="button" data-testid="adjust-placement" (click)="adjustPlacement()">Adjust text or box</button>
+          }
+        </div>
+        @if (previewZoom() > 1) {
+          <p class="pan-hint">Drag the page to move around. Drag the text box to reposition it; hold Space and drag to move the page from the box.</p>
+        }
+        <div class="image-viewport" [class.can-pan]="previewZoom() > 1"
+          [class.is-panning]="panning()" (pointerdown)="beginPan($event)"
+          (pointermove)="movePan($event)" (pointerup)="endPan($event)"
+          (pointercancel)="endPan($event)">
+        <div class="image-surface" [style.width.%]="previewZoom() * 100">
+          <img [src]="previewUrl() || imageUrl()" alt="Scanned page preview"
+            (load)="imageLoaded($event)" />
+          @if (!previewUrl() && style(); as chosenStyle) {
             <app-text-replacement-overlay
+              [style.pointer-events]="spaceHeld() ? 'none' : null"
               [box]="box()" [text]="replacement()" [style]="chosenStyle"
+              [selectedWebFamily]="selectedWebFamily()"
               [originalPolygon]="selection().polygon"
               [otherPolygons]="otherPolygons()"
               (boxChange)="updateBox($event)" />
           }
         </div>
+        </div>
       </div>
       <div class="controls">
-        <p><strong>Original:</strong> {{ suggested.originalText }}</p>
-        <label>Replacement text
+        @if (mode() !== 'add') { <p><strong>Original:</strong> {{ suggested.originalText }}</p> }
+        @if (mode() !== 'delete') { <label>{{ mode() === 'add' ? 'New text' : 'Replacement text' }}
           <input aria-label="Replacement text" type="text" maxlength="4000"
             [ngModel]="replacement()" (ngModelChange)="updateText($event)" />
-        </label>
+        </label> }
+        @if (mode() !== 'delete') {
         @if (warning()) { <p class="warning" role="status">{{ warning() }}</p> }
-        @if (overflow()) { <p class="warning" role="alert">Text does not fit. Enlarge the box or shorten the replacement.</p> }
+        @if (overflow()) { <p class="warning" role="status">This text may need more space. Apply will check the exact fit before changing your page.</p> }
+        <label>Search fonts
+          <input aria-label="Search fonts" type="search" [ngModel]="fontSearch()"
+            (ngModelChange)="fontSearch.set($event)" placeholder="Search font families" />
+        </label>
         <label>Font
-          <select aria-label="Font" [ngModel]="style()?.fontId + ':' + style()?.fontVersion"
+          <select aria-label="Font" [ngModel]="style()?.fontId"
             (ngModelChange)="chooseFont($event)">
-            @for (candidate of suggested.style.candidates; track candidate.catalogueId + candidate.version) {
-              <option [value]="candidate.catalogueId + ':' + candidate.version">
-                {{ candidate.catalogueId === 'noto-serif' ? 'Noto Serif' : 'Noto Sans' }}
-                {{ candidate.version.includes('bold') ? 'Bold' : 'Regular' }}
-              </option>
+            @for (category of fontCategories; track category) {
+              @if (fontsInCategory(category).length) {
+                <optgroup [label]="category === 'SansSerif' ? 'Sans-serif' : category === 'Monospace' ? 'Monospace' : category">
+                  @for (face of fontsInCategory(category); track face.catalogueId) {
+                    <option [value]="face.catalogueId">{{ face.familyName }}</option>
+                  }
+                </optgroup>
+              }
+            }
+            @if (!fontFaces().length) {
+              @for (candidate of suggested.style.candidates; track candidate.catalogueId + candidate.version) {
+                @if (!candidate.version.includes('bold')) {
+                  <option [value]="candidate.catalogueId">{{ fontFamilyName(candidate.catalogueId) }}</option>
+                }
+              }
             }
           </select>
         </label>
         @if (style(); as chosen) {
           <div class="control-grid">
-            <label>Size <input type="number" min="0.001" max="1" step="0.001" [ngModel]="chosen.fontSize"
-              (ngModelChange)="updateStyle('fontSize', +$event)" /></label>
-            <label>Weight <select [ngModel]="chosen.weight" (ngModelChange)="updateStyle('weight', +$event)">
-              <option [ngValue]="400">Regular</option><option [ngValue]="700">Bold</option>
+            <label>Size (px) <input aria-label="Size in pixels" type="number" min="1" step="0.5"
+              [ngModel]="chosen.fontSize * imageSize().height"
+              (ngModelChange)="updateFontSizePixels(+$event)" /></label>
+            <label>Weight <select aria-label="Weight" [ngModel]="chosen.weight" (ngModelChange)="updateStyle('weight', +$event)">
+              @for (weight of fontWeights(); track weight) {
+                <option [ngValue]="weight">{{ weight === 700 ? 'Bold' : 'Regular' }}</option>
+              }
+              @if (!fontFaces().length) {
+                <option [ngValue]="400">Regular</option><option [ngValue]="700">Bold</option>
+              }
             </select></label>
-            <label>Colour <input type="color" [ngModel]="chosen.colorHex"
-              (ngModelChange)="updateStyle('colorHex', $event)" /></label>
-            <label>Letter spacing <input type="number" min="-0.1" max="0.1" step="0.005"
+            <label>Colour <span class="colour-control"><input aria-label="Text colour" type="color"
+              [ngModel]="chosen.colorHex" (ngModelChange)="updateStyle('colorHex', $event)" />
+              <span>{{ chosen.colorHex }}</span></span></label>
+            <label>Letter spacing <input type="number" min="-0.1" max="3" step="0.005"
               [ngModel]="chosen.letterSpacing" (ngModelChange)="updateStyle('letterSpacing', +$event)" /></label>
             <label>Alignment <select [ngModel]="chosen.alignment" (ngModelChange)="updateStyle('alignment', +$event)">
               <option [ngValue]="0">Left</option><option [ngValue]="1">Centre</option><option [ngValue]="2">Right</option>
             </select></label>
           </div>
         }
+        }
         <div class="actions">
           <button type="button" data-testid="cancel-edit" [disabled]="submitting()" (click)="cancel()">Cancel</button>
+          <button type="button" data-testid="preview-edit"
+            [disabled]="submitting() || previewing() || (mode() !== 'delete' && !replacement().trim())"
+            (click)="preview()">{{ previewing() ? 'Rendering…' : 'Preview exact result' }}</button>
           <button type="button" data-testid="apply-edit" class="primary"
-            [disabled]="submitting() || done() || overflow() || !replacement().trim()"
-            (click)="apply()">Apply change</button>
+            [disabled]="submitting() || previewing() || done() || !canApplyPreview()"
+            (click)="apply()">{{ mode() === 'delete' ? 'Delete text' : mode() === 'add' ? 'Add text' : 'Apply change' }}</button>
         </div>
       </div>
     </div>
   } @else {
-    <p>Preparing style and geometry…</p>
+    <p>{{ status() || 'Preparing style and geometry…' }}</p>
   }
 </section>

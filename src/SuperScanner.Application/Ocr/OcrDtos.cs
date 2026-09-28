@@ -39,7 +39,7 @@ public static class OcrDtoMapper
             result.State == OcrResultState.Ready ? result.AggregateConfidence : null,
             result.State == OcrResultState.Ready ? result.ElementCount : 0,
             result.State == OcrResultState.Failed ? result.FailureCode : null,
-            result.State == OcrResultState.Failed && result.FailureRetryable,
+            result.CanRetry,
             result.QueuedAt,
             result.StartedAt,
             result.CompletedAt,

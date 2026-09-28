@@ -37,14 +37,11 @@
               [page]="page"
               [documentId]="doc.id"
               [thumbnailUrl]="images()[page.id]"
-              [ocr]="ocrByPage()[page.id]"
-              [editing]="editSelection()?.pageId === page.id"
               [first]="$first"
               [last]="$last"
               (movePage)="move(page.id, $event)"
               (removePage)="remove(page)"
               (downloadOriginal)="download(page.id)"
-              (editText)="beginTextEdit($event)"
             />
             @if (page.state === 'Ready' && !page.previewRevision.startsWith('crop-')) {
               <button type="button" (click)="openTextHistory(page.id)">Edit history for page {{ page.position }}</button>
@@ -59,13 +56,6 @@
                 }
                 @if (historyError()) { <p role="alert">{{ historyError() }}</p> }
               }
-            }
-            @if (page.state === 'Ready') {
-              <app-ocr-status
-                [documentId]="doc.id"
-                [pageId]="page.id"
-                (statusChange)="ocrUpdated(page.id, $event)"
-              />
             }
           </div>
         }
@@ -100,10 +90,4 @@
     (closed)="closeAddPages()"
     (completed)="pagesAdded()"
   />
-}
-@if (editSelection(); as selection) {
-  <app-text-replacement-editor [documentId]="id" [selection]="selection"
-    [imageUrl]="images()[selection.pageId] || ''"
-    [otherPolygons]="editOtherPolygons()"
-    (closed)="closeTextEdit()" (completed)="textEditCompleted()" />
 }

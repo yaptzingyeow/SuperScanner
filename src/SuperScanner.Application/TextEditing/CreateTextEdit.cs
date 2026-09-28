@@ -53,7 +53,10 @@ public interface ITextEditPreparation
 
 public sealed class TextEditDisabledException : Exception;
 public sealed class TextEditConflictException : Exception;
-public sealed class TextEditValidationException : Exception;
+public sealed class TextEditValidationException(string code = "text_edit_invalid") : Exception
+{
+    public string Code { get; } = code;
+}
 
 public sealed class CreateTextEdit(
     ITextEditCommandRepository repository,
@@ -69,7 +72,10 @@ public sealed class CreateTextEdit(
         ArgumentException.ThrowIfNullOrWhiteSpace(request.OwnerUid);
         ArgumentException.ThrowIfNullOrWhiteSpace(request.IdempotencyKey);
         if (request.IdempotencyKey.Length > 128 || request.WordIds is null ||
-            string.IsNullOrWhiteSpace(request.ReplacementText) ||
+            request.ReplacementText is null ||
+            (request.WordIds.Count == 0 && string.IsNullOrWhiteSpace(request.ReplacementText)) ||
+            (request.WordIds.Count == 0 && request.OcrResultId != Guid.Empty) ||
+            (request.WordIds.Count != 0 && request.OcrResultId == Guid.Empty) ||
             request.ReplacementText.Length > limits.MaxReplacementCharacters ||
             request.ReplacementBox is null || request.Style is null ||
             request.ReplacementBox.Width * request.ReplacementBox.Height > limits.MaxReplacementBoxArea)
@@ -101,25 +107,23 @@ public sealed class CreateTextEdit(
         }
 
         var page = locked.Page;
+        var adding = request.WordIds.Count == 0;
         if (page.ActiveRevisionId != request.ExpectedRevisionId ||
-            locked.OcrResult is not { State: OcrResultState.Ready } ocr ||
-            ocr.Id != request.OcrResultId ||
-            ocr.SourceObjectKey != page.GetProcessedObjectKey())
+            (!adding && (locked.OcrResult is not { State: OcrResultState.Ready } ||
+                locked.OcrResult.Id != request.OcrResultId ||
+                locked.OcrResult.SourceObjectKey != page.GetProcessedObjectKey())))
             throw new StaleTextSelectionException();
         if (await repository.CountPendingAsync(request.PageId, ct) >= limits.MaxQueuedEditsPerPage)
             throw new TextEditConflictException();
 
-        var selection = new OwnedTextSelection(page.ActiveRevisionId, page.GetProcessedObjectKey(),
-            ocr.Id, ocr.State, ocr.SourceObjectKey, ocr.Elements.ToArray());
-        var selected = TextSelectionValidator.Validate(selection, request.WordIds,
-            limits.MaxSelectionWords);
-        if (TextSelectionValidator.OverlapsUnselected(selection.Elements,
-            selected.WordIds, request.ReplacementBox))
-            throw new InvalidTextSelectionException();
-
+        var selected = adding ? new ValidatedTextSelection([], [], "", request.ReplacementBox) :
+            TextSelectionValidator.Validate(new OwnedTextSelection(page.ActiveRevisionId,
+                page.GetProcessedObjectKey(), locked.OcrResult!.Id, locked.OcrResult.State,
+                locked.OcrResult.SourceObjectKey, locked.OcrResult.Elements.ToArray()),
+                request.WordIds, limits.MaxSelectionWords);
         var prepared = await preparation.PrepareAsync(page.GetProcessedObjectKey(),
             request.ReplacementText, request.ReplacementBox, request.Style, ct);
-        if (!prepared.Fits) throw new TextEditValidationException();
+        if (!prepared.Fits) throw new TextEditValidationException("text_edit_overflow");
         if (prepared.SourceSha256Hex.Length != 64 ||
             prepared.SourceSha256Hex.Any(character => !char.IsAsciiHexDigit(character)))
             throw new TextEditValidationException();

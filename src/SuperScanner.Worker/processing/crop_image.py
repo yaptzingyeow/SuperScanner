@@ -51,7 +51,10 @@ def _boundary_result(points, confidence, source, diagnostics_code):
 
 def detect_with_opencv(image):
     height, width = image.shape[:2]
-    scale = min(1.0, 1000.0 / max(width, height))
+    # Boundary detection only needs a coarse mask. Keeping GrabCut at 700 px
+    # prevents high-detail photos from monopolizing a worker while the corner
+    # coordinates remain normalized for the full-resolution crop.
+    scale = min(1.0, 700.0 / max(width, height))
     small = cv2.resize(image, (max(2, round(width*scale)), max(2, round(height*scale))))
     h, w = small.shape[:2]
     gray = cv2.GaussianBlur(cv2.cvtColor(small, cv2.COLOR_BGR2GRAY), (5, 5), 0)
@@ -76,7 +79,7 @@ def detect_with_opencv(image):
     segmentation[:max(1, int(h*.03))] = cv2.GC_BGD
     cv2.setRNGSeed(2)
     cv2.grabCut(small, segmentation, None, np.zeros((1, 65), np.float64),
-                np.zeros((1, 65), np.float64), 3, cv2.GC_INIT_WITH_MASK)
+                np.zeros((1, 65), np.float64), 1, cv2.GC_INIT_WITH_MASK)
     region = np.where((segmentation == cv2.GC_FGD) | (segmentation == cv2.GC_PR_FGD), 255, 0).astype(np.uint8)
     region = cv2.morphologyEx(region, cv2.MORPH_OPEN, np.ones((21, 21), np.uint8))
     masks.append(cv2.morphologyEx(region, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8)))

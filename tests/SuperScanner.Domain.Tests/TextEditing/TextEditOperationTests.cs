@@ -23,9 +23,11 @@ public sealed class TextEditOperationTests
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
-    public void Queue_rejects_empty_replacement(string replacement)
+    public void Queue_allows_empty_replacement_for_selected_words(string replacement)
     {
-        Assert.Throws<ArgumentException>(() => Queued(replacementText: replacement));
+        var edit = Queued(replacementText: replacement);
+
+        Assert.Equal(replacement, edit.ReplacementText);
     }
 
     [Fact]

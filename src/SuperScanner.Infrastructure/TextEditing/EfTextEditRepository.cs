@@ -135,6 +135,11 @@ public sealed class EfTextEditRepository(AppDbContext db) : ITextSelectionReposi
             .SingleOrDefaultAsync(ct);
         if (page is null) return null;
 
+        if (ocrResultId == Guid.Empty)
+            return new OwnedTextSelection(page.ActiveRevisionId,
+                page.GetProcessedObjectKey(), Guid.Empty, OcrResultState.Ready,
+                page.GetProcessedObjectKey(), []);
+
         var ocr = await db.PageOcrResults.AsNoTracking()
             .Include(result => result.Elements)
             .SingleOrDefaultAsync(result => result.Id == ocrResultId && result.PageId == pageId, ct);

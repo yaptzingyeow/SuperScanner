@@ -35,7 +35,7 @@ public sealed class RequestPageOcr(
         }
         else if (result.State == OcrResultState.Failed)
         {
-            if (!retryFailed || !result.FailureRetryable)
+            if (!retryFailed || !result.CanRetry)
                 throw new OcrRetryNotAllowedException();
             result.Retry(clock.UtcNow);
             await queue.RetryFailedAsync(JobKey(pageId, fingerprint), ct);

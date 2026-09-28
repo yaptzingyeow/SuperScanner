@@ -8,6 +8,26 @@ namespace SuperScanner.Application.Tests.TextEditing;
 
 public sealed class CreateTextEditTests
 {
+    [Fact]
+    public async Task Delete_queues_selected_words_with_empty_replacement()
+    {
+        var fixture = Fixture();
+        await fixture.Service.HandleAsync(Command() with { ReplacementText = "" }, default);
+        Assert.Equal("", fixture.Repository.Edits.Single().ReplacementText);
+        Assert.Equal("Name", fixture.Repository.Edits.Single().OriginalText);
+    }
+
+    [Fact]
+    public async Task Add_queues_without_ocr_or_selected_words()
+    {
+        var fixture = Fixture();
+        await fixture.Service.HandleAsync(Command() with {
+            OcrResultId = Guid.Empty, WordIds = [], ReplacementText = "New label"
+        }, default);
+        Assert.Empty(fixture.Repository.Edits.Single().SelectedOcrElementIds);
+        Assert.Equal("", fixture.Repository.Edits.Single().OriginalText);
+    }
+
     private readonly Guid documentId = Guid.NewGuid();
     private readonly Guid pageId = Guid.NewGuid();
     private readonly Guid ocrId = Guid.NewGuid();
@@ -103,7 +123,8 @@ public sealed class CreateTextEditTests
     {
         var fixture = Fixture();
         fixture.Preparation.Fits = false;
-        await Assert.ThrowsAsync<TextEditValidationException>(() => fixture.Service.HandleAsync(Command(), default));
+        var error = await Assert.ThrowsAsync<TextEditValidationException>(() => fixture.Service.HandleAsync(Command(), default));
+        Assert.Equal("text_edit_overflow", error.Code);
         Assert.Empty(fixture.Repository.Edits);
         Assert.Empty(fixture.Queue.Jobs);
     }
@@ -124,6 +145,19 @@ public sealed class CreateTextEditTests
         var fixture = Fixture(overlap: true);
         await Assert.ThrowsAsync<InvalidTextSelectionException>(() => fixture.Service.HandleAsync(Command(), default));
         Assert.Equal(0, fixture.Preparation.CallCount);
+    }
+
+    [Fact]
+    public async Task Placement_box_can_extend_over_a_neighbour_outside_selected_ink()
+    {
+        var fixture = Fixture(adjacent: true);
+        var accepted = await fixture.Service.HandleAsync(Command() with
+        {
+            ReplacementBox = new NormalizedBox(.1, .2, .46, .1)
+        }, default);
+
+        Assert.NotEqual(Guid.Empty, accepted.EditId);
+        Assert.Single(fixture.Repository.Edits);
     }
 
     [Fact]
@@ -155,7 +189,7 @@ public sealed class CreateTextEditTests
 
     private FixtureData Fixture(OcrTextType textType = OcrTextType.Printed,
         bool enabled = true, bool overlap = false, bool existingRevision = false,
-        bool derivedSource = false)
+        bool derivedSource = false, bool adjacent = false)
     {
         var document = Document.Create(documentId, "owner", "Document", DateTimeOffset.UtcNow);
         var page = document.AddPage(pageId, 10, DateTimeOffset.UtcNow);
@@ -189,6 +223,16 @@ public sealed class CreateTextEditTests
             elements.Add(OcrElement.Create(Guid.NewGuid(), ocrId, otherLineId,
                 OcrElementKind.Word, "Other", .9, OcrTextType.Printed, 0,
                 [new(.2, .22), new(.3, .22), new(.3, .28), new(.2, .28)]));
+        }
+        if (adjacent)
+        {
+            var adjacentLineId = Guid.NewGuid();
+            elements.Add(OcrElement.Create(adjacentLineId, ocrId, null, OcrElementKind.Line,
+                "Next", .9, OcrTextType.Printed, 1,
+                [new(.44, .2), new(.54, .2), new(.54, .3), new(.44, .3)]));
+            elements.Add(OcrElement.Create(Guid.NewGuid(), ocrId, adjacentLineId,
+                OcrElementKind.Word, "Next", .9, OcrTextType.Printed, 0,
+                [new(.44, .2), new(.54, .2), new(.54, .3), new(.44, .3)]));
         }
         result.Complete("test", "v1", "Name", elements, DateTimeOffset.UtcNow);
         var repository = new FakeRepository(page, result);

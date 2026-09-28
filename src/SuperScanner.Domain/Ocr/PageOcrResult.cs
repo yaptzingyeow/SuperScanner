@@ -19,6 +19,10 @@ public sealed class PageOcrResult
     public string? ProviderModelVersion { get; private set; }
     public string? FailureCode { get; private set; }
     public bool FailureRetryable { get; private set; }
+    // Invalid provider responses may become readable after a parser update.
+    // Allow an explicit user retry without automatically repeating billable calls.
+    public bool CanRetry => State == OcrResultState.Failed &&
+        (FailureRetryable || FailureCode == "ocr_invalid_response");
     public int AttemptCount { get; private set; }
     public int ElementCount { get; private set; }
     public double? AggregateConfidence { get; private set; }
@@ -129,7 +133,7 @@ public sealed class PageOcrResult
 
     public void Retry(DateTimeOffset now)
     {
-        if (State != OcrResultState.Failed || !FailureRetryable)
+        if (!CanRetry)
             throw new InvalidOperationException("OCR failure cannot be retried.");
 
         State = OcrResultState.Queued;

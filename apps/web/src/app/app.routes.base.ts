@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { DocumentDetailComponent } from './documents/document-detail.component';
 import { CropEditorComponent } from './documents/crop-editor.component';
+import { PageTextEditorComponent } from './documents/page-text-editor.component';
 import { DocumentListComponent } from './documents/document-list.component';
 import { NewDocumentComponent } from './documents/new-document.component';
 import { UploadStatusComponent } from './documents/upload-status.component';
@@ -17,9 +18,10 @@ export const foundationRoutes: Routes = [
     children: [
       { path: '', component: NewDocumentComponent },
       { path: 'documents', component: DocumentListComponent },
-      { path: 'documents/:documentId', component: DocumentDetailComponent,
-        canDeactivate: [(component: DocumentDetailComponent) => component.canLeave()] },
+      { path: 'documents/:documentId', component: DocumentDetailComponent },
       { path: 'documents/:documentId/pages/:pageId/crop', component: CropEditorComponent },
+      { path: 'documents/:documentId/pages/:pageId/text', component: PageTextEditorComponent,
+        canDeactivate: [(component: PageTextEditorComponent) => component.canLeave()] },
       {
         path: 'documents/:documentId/uploads/:uploadId',
         component: UploadStatusComponent,

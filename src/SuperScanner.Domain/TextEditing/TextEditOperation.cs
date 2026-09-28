@@ -81,15 +81,17 @@ public sealed class TextEditOperation
         RequireId(documentId, nameof(documentId));
         RequireId(pageId, nameof(pageId));
         RequireId(sourceRevisionId, nameof(sourceRevisionId));
-        RequireId(sourceOcrResultId, nameof(sourceOcrResultId));
         ArgumentException.ThrowIfNullOrWhiteSpace(actorFirebaseUid);
         ArgumentNullException.ThrowIfNull(selectedOcrElementIds);
-        if (selectedOcrElementIds.Count == 0 ||
+        if (sourceOcrResultId == Guid.Empty && selectedOcrElementIds.Count != 0)
+            throw new ArgumentException("Selected words require an OCR result.", nameof(sourceOcrResultId));
+        if ((selectedOcrElementIds.Count == 0 && sourceOcrResultId != Guid.Empty) ||
             selectedOcrElementIds.Any(elementId => elementId == Guid.Empty) ||
             selectedOcrElementIds.Distinct().Count() != selectedOcrElementIds.Count)
             throw new ArgumentException("A unique OCR word selection is required.", nameof(selectedOcrElementIds));
-        ArgumentException.ThrowIfNullOrWhiteSpace(originalText);
-        if (string.IsNullOrWhiteSpace(replacementText) || replacementText.Length > MaximumReplacementLength)
+        if (selectedOcrElementIds.Count != 0) ArgumentException.ThrowIfNullOrWhiteSpace(originalText);
+        if ((selectedOcrElementIds.Count == 0 && string.IsNullOrWhiteSpace(replacementText)) ||
+            replacementText.Length > MaximumReplacementLength)
             throw new ArgumentException("Replacement text is outside the supported length.", nameof(replacementText));
         ArgumentNullException.ThrowIfNull(replacementBox);
         ArgumentNullException.ThrowIfNull(style);

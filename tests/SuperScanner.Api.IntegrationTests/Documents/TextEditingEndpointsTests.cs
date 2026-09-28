@@ -17,6 +17,34 @@ namespace SuperScanner.Api.IntegrationTests.Documents;
 
 public sealed class TextEditingEndpointsTests
 {
+    [Fact]
+    public async Task Font_catalogue_requires_verified_identity_and_returns_only_safe_selectable_faces()
+    {
+        await using var factory = Factory(enabled: true);
+        using var anonymous = Client(factory, authenticated: false);
+        using var noAppCheck = Client(factory, appCheck: false);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync("/api/text-edit-fonts")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await noAppCheck.GetAsync("/api/text-edit-fonts")).StatusCode);
+
+        using var client = Client(factory);
+        var response = await client.GetAsync("/api/text-edit-fonts");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("private", response.Headers.CacheControl?.ToString());
+        var json = await response.Content.ReadAsStringAsync();
+        using var document = System.Text.Json.JsonDocument.Parse(json);
+        var faces = document.RootElement.EnumerateArray().ToArray();
+        Assert.Equal(20, faces.Select(face => face.GetProperty("familyName").GetString()).Distinct().Count());
+        Assert.All(faces, face =>
+        {
+            Assert.True(face.GetProperty("enabled").GetBoolean());
+            Assert.StartsWith("/assets/fonts/", face.GetProperty("webAssetUrl").GetString());
+            Assert.True(face.GetProperty("weight").GetInt32() is 400 or 700);
+        });
+        Assert.DoesNotContain("rendererAssetPath", json);
+        Assert.DoesNotContain("assetSha256Hex", json);
+        Assert.DoesNotContain("licenseNoticePath", json);
+    }
+
     private static readonly Guid DocumentId = Guid.NewGuid();
     private static readonly Guid PageId = Guid.NewGuid();
     private static readonly Guid ResultId = Guid.NewGuid();

@@ -136,7 +136,7 @@ public sealed class DocumentImportProcessor(
                     }
 
                     await previewProcessor.ProcessPageAsync(page.Id, cancellationToken);
-                    await cropProcessor.EnsureDetectionForPageAsync(page.Id, cancellationToken);
+                    await cropProcessor.EnsureOptionalCropForPageAsync(page.Id, cancellationToken);
                 }
                 catch (Exception exception) when (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
                 {

@@ -10,13 +10,14 @@ public sealed class DocumentBoundaryPolicyTests
         var options = new DocumentBoundaryOptions();
         Assert.True(options.IsValid());
         Assert.Equal("OpenCvOnly", options.Mode);
+        Assert.Equal(45, options.InferenceTimeoutSeconds);
         Assert.Equal(0, options.RolloutPercentage);
     }
 
     [Theory]
     [InlineData("Unknown", .78, .58, 20, 0)]
     [InlineData("AiPreferred", .50, .60, 20, 0)]
-    [InlineData("AiPreferred", .78, .58, 26, 0)]
+    [InlineData("AiPreferred", .78, .58, 61, 0)]
     [InlineData("AiPreferred", .78, .58, 20, 101)]
     public void RejectsUnsafeOptions(
         string mode, double high, double medium, int timeout, int rollout)

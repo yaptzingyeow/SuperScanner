@@ -19,6 +19,11 @@ public sealed class FontCatalogueEntryConfiguration : IEntityTypeConfiguration<F
         builder.Property(entry => entry.WebAssetPath).HasMaxLength(1024).IsRequired();
         builder.Property(entry => entry.RendererAssetPath).HasMaxLength(1024).IsRequired();
         builder.Property(entry => entry.Enabled).IsRequired();
+        builder.Ignore(entry => entry.Category);
+        builder.Ignore(entry => entry.Weight);
+        builder.Ignore(entry => entry.Style);
+        builder.Ignore(entry => entry.WebFamilyName);
+        builder.Ignore(entry => entry.SelectableForNewEdits);
         builder.HasIndex(entry => new { entry.CatalogueId, entry.Version }).IsUnique();
     }
 }

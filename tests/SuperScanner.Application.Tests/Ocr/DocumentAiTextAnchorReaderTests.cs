@@ -42,19 +42,29 @@ public sealed class DocumentAiTextAnchorReaderTests
     }
 
     [Fact]
-    public void Read_UsesUtf8ByteOffsetsAfterMultibyteText()
+    public void Read_UsesCharacterOffsetsAfterMultibyteText()
     {
-        var anchor = Anchor(Segment(8, 12));
+        var anchor = Anchor(Segment(7, 11));
 
         Assert.Equal("name", DocumentAiTextAnchorReader.Read("éclair name", anchor));
+    }
+
+    [Theory]
+    [InlineData("A😀 name", 3, 7, "name")]
+    [InlineData("étest", 0, 1, "é")]
+    [InlineData("中 name", 2, 6, "name")]
+    [InlineData("A😀B", 1, 2, "😀")]
+    public void Read_PreservesUnicodeCharacters(string text, long start, long end, string expected)
+    {
+        Assert.Equal(expected, DocumentAiTextAnchorReader.Read(text, Anchor(Segment(start, end))));
     }
 
     [Theory]
     [InlineData(0L, 7L)]
     [InlineData(5L, 4L)]
     [InlineData(-1L, 1L)]
-    [InlineData(1L, 2L)]
-    public void Read_RejectsInvalidRangeOrUtf8Boundary(long start, long end)
+    [InlineData(0L, 6L)]
+    public void Read_RejectsInvalidCharacterRange(long start, long end)
     {
         var anchor = Anchor(Segment(start, end));
 

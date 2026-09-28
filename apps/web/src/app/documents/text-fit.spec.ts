@@ -48,4 +48,18 @@ describe('fitSingleLine', () => {
     const result = fitSingleLine(measure, draft('It’s—fine', 0.3));
     expect(result.graphemeCount).toBe(9);
   });
+
+  it('keeps large requested spacing when the box is wide enough', () => {
+    const result = fitSingleLine(measure, { ...draft('AB', 0.8),
+      letterSpacing: 1.55, minimumLetterSpacing: 1.55 });
+    expect(result.fits).toBe(true);
+    expect(result.letterSpacing).toBe(1.55);
+  });
+
+  it('reports overflow without silently shrinking large requested spacing', () => {
+    const result = fitSingleLine(measure, { ...draft('AB', 0.05),
+      letterSpacing: 1.55, minimumLetterSpacing: 1.55 });
+    expect(result.overflow).toBe(true);
+    expect(result.letterSpacing).toBe(1.55);
+  });
 });

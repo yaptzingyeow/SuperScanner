@@ -1,8 +1,8 @@
 :host, .overlay { display: block; position: absolute; inset: 0; }
 .overlay { touch-action: none; container-type: size; }
-.source-mask { position: absolute; background: #fff; pointer-events: none; }
-.replacement { position: absolute; box-sizing: border-box; border: 2px solid #087453; background: #fff; cursor: move; outline-offset: 2px; }
-.replacement-text { display: block; width: 100%; height: 100%; white-space: nowrap; overflow: hidden; line-height: 1; }
+.source-mask { position: absolute; background: rgb(8 116 83 / 10%); outline: 1px dashed #087453; pointer-events: none; }
+.replacement { position: absolute; box-sizing: border-box; border: 2px solid #087453; background: transparent; cursor: move; outline-offset: 2px; }
+.replacement-text { position: absolute; display: block; width: 100%; white-space: nowrap; overflow: hidden; line-height: 1; }
 .handle { position: absolute; width: 10px; height: 10px; background: #fff; border: 2px solid #087453; border-radius: 50%; transform: translate(-50%, -50%); }
 .n { left: 50%; top: 0; cursor: ns-resize; } .ne { left: 100%; top: 0; cursor: nesw-resize; }
 .e { left: 100%; top: 50%; cursor: ew-resize; } .se { left: 100%; top: 100%; cursor: nwse-resize; }

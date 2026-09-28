@@ -58,4 +58,28 @@ describe('CropEditorComponent guidance', () => {
     component.applyCropState(state('FullImage', 0, 'manual_required'));
     expect(component.guidance()).toBe('manual');
   });
+
+  it('shows a live grayscale preview before saving', () => {
+    createComponent();
+    const fixture = TestBed.createComponent(CropEditorComponent);
+    const component = fixture.componentInstance as unknown as {
+      sourceUrl: { set(value: string): void };
+      state: { set(value: CropState): void };
+      selectFilter(value: string): void;
+    };
+    component.sourceUrl.set('blob:source');
+    component.state.set(state('Manual', 1, 'manual'));
+    component.selectFilter('Grayscale');
+    fixture.detectChanges();
+    expect((fixture.nativeElement.querySelector('.stage img') as HTMLImageElement).style.filter).toContain('grayscale');
+  });
+
+  it('makes clear that cropping a Ready scan is optional', () => {
+    createComponent();
+    const fixture = TestBed.createComponent(CropEditorComponent);
+    const component = fixture.componentInstance as unknown as { state: { set(value: CropState): void } };
+    component.state.set({ ...state('Manual', 1, 'manual'), status: 'Ready' });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('already Ready');
+  });
 });

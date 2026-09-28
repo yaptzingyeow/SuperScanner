@@ -39,6 +39,20 @@ public sealed class DocumentAiResultMapperTests
     }
 
     [Fact]
+    public void Map_PreservesNonAsciiTextAtProviderCharacterOffsets()
+    {
+        var document = LoadFixture();
+        document.Text = "Printéd Note\nSecond";
+
+        var result = DocumentAiResultMapper.Map(document);
+
+        Assert.Equal("Printéd", result.Elements.Single(element => element.ClientId == "p1-b1-l1-w1").Text);
+        Assert.Equal("Note", result.Elements.Single(element => element.ClientId == "p1-b1-l1-w2").Text);
+        Assert.Equal("Second", result.Elements.Single(element => element.ClientId == "p2-b1").Text);
+        Assert.Same(result, OcrResultValidator.Validate(result, new(100, 1000)));
+    }
+
+    [Fact]
     public void Map_RejectsAbsoluteVerticesWhenPageDimensionsAreZero()
     {
         var document = LoadFixture();

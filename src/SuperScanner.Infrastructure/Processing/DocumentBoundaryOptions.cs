@@ -9,7 +9,7 @@ public sealed class DocumentBoundaryOptions
     public double MaskThreshold { get; init; } = .52;
     public double HighConfidence { get; init; } = .78;
     public double MediumConfidence { get; init; } = .58;
-    public int InferenceTimeoutSeconds { get; init; } = 20;
+    public int InferenceTimeoutSeconds { get; init; } = 45;
     public int RolloutPercentage { get; init; }
 
     public bool IsValid() =>
@@ -20,6 +20,6 @@ public sealed class DocumentBoundaryOptions
         && MediumConfidence is >= 0 and <= 1
         && HighConfidence >= MediumConfidence
         && MediumConfidence >= .45
-        && InferenceTimeoutSeconds is >= 1 and <= 25
+        && InferenceTimeoutSeconds is >= 1 and <= 60
         && RolloutPercentage is >= 0 and <= 100;
 }

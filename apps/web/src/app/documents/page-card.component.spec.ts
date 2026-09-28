@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { DocumentPage, PageOcr } from './document.models';
+import { DocumentPage } from './document.models';
 import { PageCardComponent } from './page-card.component';
 
 describe('PageCardComponent', () => {
@@ -39,7 +39,7 @@ describe('PageCardComponent', () => {
     expect(fixture.nativeElement.querySelector('[aria-label="Move page 2 earlier"]')).toBeTruthy();
   });
 
-  it('shows the selection overlay only for a Ready OCR result with a preview', async () => {
+  it('opens a full-page editor for a Ready page without selectable text on the grid thumbnail', async () => {
     await TestBed.configureTestingModule({
       imports: [PageCardComponent],
       providers: [provideRouter([])],
@@ -48,30 +48,20 @@ describe('PageCardComponent', () => {
     fixture.componentRef.setInput('page', { ...page, state: 'Ready' });
     fixture.componentRef.setInput('documentId', 'doc-1');
     fixture.componentRef.setInput('thumbnailUrl', 'blob:preview');
-    fixture.componentRef.setInput('ocr', readyOcr());
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('app-ocr-text-overlay')).toBeTruthy();
-
-    fixture.componentRef.setInput('ocr', { ...readyOcr(), state: 'Processing' });
-    fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('app-ocr-text-overlay')).toBeNull();
-
-    fixture.componentRef.setInput('ocr', readyOcr());
-    fixture.componentRef.setInput('thumbnailUrl', undefined);
-    fixture.detectChanges();
+    const link = fixture.nativeElement.querySelector('[data-testid="open-text-editor"]') as HTMLAnchorElement;
+    expect(link?.getAttribute('href')).toBe('/documents/doc-1/pages/p1/text');
     expect(fixture.nativeElement.querySelector('app-ocr-text-overlay')).toBeNull();
   });
 
-  it('hides OCR selection while its page is being edited', async () => {
+  it('offers the page editor before OCR has been requested', async () => {
     await TestBed.configureTestingModule({ imports: [PageCardComponent], providers: [provideRouter([])] }).compileComponents();
     const fixture = TestBed.createComponent(PageCardComponent);
     fixture.componentRef.setInput('page', { ...page, state: 'Ready' });
     fixture.componentRef.setInput('documentId', 'doc-1');
     fixture.componentRef.setInput('thumbnailUrl', 'blob:preview');
-    fixture.componentRef.setInput('ocr', readyOcr());
-    fixture.componentRef.setInput('editing', true);
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('app-ocr-text-overlay')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid="open-text-editor"]')).toBeTruthy();
   });
 
   it('lets a portrait preview determine its full uncropped height', async () => {
@@ -83,18 +73,11 @@ describe('PageCardComponent', () => {
     fixture.componentRef.setInput('page', { ...page, state: 'Ready' });
     fixture.componentRef.setInput('documentId', 'doc-1');
     fixture.componentRef.setInput('thumbnailUrl', 'blob:a4-preview');
-    fixture.componentRef.setInput('ocr', readyOcr());
     fixture.detectChanges();
 
     const thumbnail = fixture.nativeElement.querySelector('.thumbnail');
     expect(getComputedStyle(thumbnail).aspectRatio).not.toBe('3/4');
     expect(thumbnail.querySelector('.preview-surface img')).toBeTruthy();
-    expect(thumbnail.querySelector('.preview-surface app-ocr-text-overlay')).toBeTruthy();
+    expect(thumbnail.querySelector('.preview-surface app-ocr-text-overlay')).toBeNull();
   });
-
-  function readyOcr(): PageOcr {
-    return {
-      resultId: 'r1', state: 'Ready', elementCount: 0, canRetry: false, elements: [],
-    };
-  }
 });

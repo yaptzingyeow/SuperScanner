@@ -24,11 +24,6 @@ img {
   width: 100%;
   height: auto;
 }
-app-ocr-text-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-}
 .preview-pending {
   display: grid;
   place-content: center;
@@ -104,6 +99,14 @@ app-ocr-text-overlay {
 }
 .primary-actions {
   margin-top: 14px;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+.edit-text-action {
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #165e47;
+  color: #fff;
 }
 a,
 button {

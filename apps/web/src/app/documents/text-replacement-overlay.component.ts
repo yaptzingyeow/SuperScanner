@@ -16,6 +16,7 @@ export class TextReplacementOverlayComponent implements OnChanges {
   readonly box = input.required<TextEditBox>();
   readonly text = input.required<string>();
   readonly style = input.required<TextEditStyle>();
+  readonly selectedWebFamily = input<string | null>(null);
   readonly originalPolygon = input.required<OcrPoint[]>();
   readonly otherPolygons = input<OcrPoint[][]>([]);
   readonly boxChange = output<TextEditBox>();
@@ -29,8 +30,8 @@ export class TextReplacementOverlayComponent implements OnChanges {
       Math.max(...xs) > box.x && Math.min(...ys) < box.y + box.height &&
       Math.max(...ys) > box.y;
   }));
-  protected readonly fontFamily = computed(() =>
-    this.style().fontId === 'noto-serif' ? 'Noto Serif' : 'Noto Sans');
+  protected readonly fontFamily = computed(() => this.selectedWebFamily() ??
+    (this.style().fontId === 'noto-serif' ? 'SuperScanner Noto Serif v1' : 'SuperScanner Noto Sans v1'));
   protected readonly sourceArea = computed(() => {
     const points = this.originalPolygon();
     const left = Math.min(...points.map((point) => point.x));

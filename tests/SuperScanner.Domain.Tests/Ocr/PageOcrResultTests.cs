@@ -85,7 +85,7 @@ public sealed class PageOcrResultTests
     public void Retry_RejectsPermanentFailure()
     {
         var result = CreateQueued();
-        result.Fail("ocr_invalid_response", false, Now.AddSeconds(1));
+        result.Fail("ocr_unsupported_media", false, Now.AddSeconds(1));
 
         Assert.Throws<InvalidOperationException>(() => result.Retry(Now.AddSeconds(2)));
     }

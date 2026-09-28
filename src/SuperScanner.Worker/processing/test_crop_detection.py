@@ -1,5 +1,6 @@
 """Focused boundary regression checks; run with the crop runtime Python."""
 import unittest
+from unittest.mock import patch
 import cv2
 import numpy as np
 from crop_image import detect
@@ -7,6 +8,22 @@ from boundary.contracts import BoundaryPoint, DocumentBoundaryResult
 
 
 class PaperDetectionTests(unittest.TestCase):
+    def test_grabcut_uses_bounded_preview_and_single_iteration(self):
+        image = np.full((2000, 1500, 3), 220, np.uint8)
+        image[:, :300] = 40
+        observed = {}
+
+        def capture(source, mask, rectangle, background, foreground, iterations, mode):
+            observed["shape"] = source.shape[:2]
+            observed["iterations"] = iterations
+            mask[:] = cv2.GC_PR_FGD
+
+        with patch("crop_image.cv2.grabCut", side_effect=capture):
+            detect(image)
+
+        self.assertLessEqual(max(observed["shape"]), 700)
+        self.assertEqual(observed["iterations"], 1)
+
     def test_boundary_result_serializes_provider_neutral_fields(self):
         result = DocumentBoundaryResult(
             points=(BoundaryPoint(.1, .1), BoundaryPoint(.9, .1),

@@ -51,6 +51,22 @@ public sealed class DocumentPdfBuilderTests
         Assert.Matches(@"(?m)^S$", content);
     }
     [Fact]
+    public async Task Build_AcceptsPngTextEditedPageAlongsideJpegPages()
+    {
+        await using var f = await Fixture.CreateAsync();
+        using var edited = new MagickImage(MagickColors.White, 96, 48);
+        f.Store.Objects["revision-1"] = edited.ToByteArray(MagickFormat.Png);
+
+        await f.BuildAsync();
+
+        var export = await f.ReloadAsync();
+        Assert.Equal(DocumentExportState.Ready, export.State);
+        using var pdf = PdfReader.Open(new MemoryStream(f.Store.Objects[export.OutputObjectKey!]), PdfDocumentOpenMode.Import);
+        Assert.Equal(3, pdf.PageCount);
+        Assert.Equal(72, pdf.Pages[0].Width.Point);
+        Assert.Equal(36, pdf.Pages[0].Height.Point);
+    }
+    [Fact]
     public async Task Build_DrawsTransparentSignatureAtSnapshottedBounds()
     {
         await using var f = await Fixture.CreateAsync();

@@ -12,7 +12,7 @@
     <ProjectReference Include="..\SuperScanner.Infrastructure\SuperScanner.Infrastructure.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="..\..\assets\fonts\**\*" Link="assets\fonts\%(Filename)%(Extension)"
+    <Content Include="..\..\assets\fonts\**\*" Link="assets\fonts\%(RecursiveDir)%(Filename)%(Extension)"
              CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>

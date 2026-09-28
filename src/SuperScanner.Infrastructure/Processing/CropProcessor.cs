@@ -23,6 +23,31 @@ public sealed class CropProcessor(
     OcrJobScheduler? ocrScheduler = null)
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+    public async Task EnsureOptionalCropForPageAsync(Guid pageId, CancellationToken ct)
+    {
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        var page = (await CropDocumentStatus.LockWorkerPageAsync(db, pageId, ct)).Page;
+        if (page.PreviewObjectKey is not null &&
+            (page.CropSourceObjectKey is null || page.CropStatus is "Detecting" or "NeedsCrop"))
+        {
+            page.EnableOptionalCrop();
+            await db.SaveChangesAsync(ct);
+            await CropDocumentStatus.RefreshAsync(db, page.DocumentId, ct);
+        }
+        await transaction.CommitAsync(ct);
+        if (ocrScheduler is not null && page.PreviewObjectKey is not null && page.State == PageState.Ready)
+        {
+            try
+            {
+                await ocrScheduler.EnsureQueuedAsync(pageId, page.PreviewObjectKey, "image/jpeg", ct);
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException || !ct.IsCancellationRequested)
+            {
+                logger.LogWarning(exception, "Could not queue OCR for Ready page {PageId}; the scan remains available.", pageId);
+            }
+        }
+    }
+
     public async Task EnsureDetectionForPageAsync(Guid pageId, CancellationToken ct)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(ct);

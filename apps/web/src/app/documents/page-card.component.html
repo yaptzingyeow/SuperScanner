@@ -6,10 +6,6 @@
     @if (thumbnailUrl) {
       <div class="preview-surface">
         <img [src]="thumbnailUrl" [alt]="'Thumbnail of page ' + page.position" />
-        @if (ocr?.state === 'Ready' && !editing) {
-          <app-ocr-text-overlay [pageId]="page.id" [ocr]="ocr!"
-            (editSelection)="editText.emit($event)" />
-        }
       </div>
     } @else {
       <div class="preview-pending"><span>▧</span><small>Preview pending</small></div>
@@ -36,6 +32,10 @@
     <div class="primary-actions">
       @if (page.canCrop) {
         <a [routerLink]="['/documents', documentId, 'pages', page.id, 'crop']">Crop & filters</a>
+      }
+      @if (page.state === 'Ready' && page.hasPreview) {
+        <a class="edit-text-action" data-testid="open-text-editor"
+          [routerLink]="['/documents', documentId, 'pages', page.id, 'text']">✎ Edit text</a>
       }
       @if (page.hasOriginal) {
         <button type="button" (click)="downloadOriginal.emit()">Original</button>

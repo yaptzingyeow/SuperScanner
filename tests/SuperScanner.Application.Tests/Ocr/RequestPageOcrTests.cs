@@ -77,12 +77,36 @@ public sealed class RequestPageOcrTests
         var fingerprint = OcrSourceFingerprint.Create(repository.Source!.SourceObjectKey!);
         var failed = PageOcrResult.Queue(Guid.NewGuid(), pageId,
             repository.Source.SourceObjectKey!, fingerprint, "en", Now);
-        failed.Fail("ocr_invalid_response", requestRetry, Now.AddSeconds(1));
+        failed.Fail("ocr_unsupported_media", requestRetry, Now.AddSeconds(1));
         repository.Results.Add(failed);
         var command = new RequestPageOcr(repository, new RecordingQueue(), new FixedClock(Now));
 
         await Assert.ThrowsAsync<OcrRetryNotAllowedException>(() =>
             command.HandleAsync("owner", documentId, pageId, !requestRetry, default));
+    }
+
+    [Fact]
+    public async Task Retry_ReactivatesLegacyInvalidResponseOnlyOnExplicitRequest()
+    {
+        var repository = ReadyRepository();
+        var fingerprint = OcrSourceFingerprint.Create(repository.Source!.SourceObjectKey!);
+        var failed = PageOcrResult.Queue(Guid.NewGuid(), pageId,
+            repository.Source.SourceObjectKey!, fingerprint, "en", Now);
+        failed.Fail("ocr_invalid_response", false, Now.AddSeconds(1));
+        repository.Results.Add(failed);
+        var queue = new RecordingQueue();
+        queue.SeedFailed($"page:{pageId}:ocr:{fingerprint}", failed.Id.ToString());
+        var command = new RequestPageOcr(repository, queue, new FixedClock(Now.AddMinutes(1)));
+
+        Assert.True(OcrDtoMapper.Map(failed).CanRetry);
+        await Assert.ThrowsAsync<OcrRetryNotAllowedException>(() =>
+            command.HandleAsync("owner", documentId, pageId, false, default));
+        var result = await command.HandleAsync("owner", documentId, pageId, true, default);
+
+        Assert.Equal("Queued", result.State);
+        Assert.Equal(failed.Id, result.ResultId);
+        Assert.Equal(1, queue.RetryCalls);
+        Assert.Single(repository.Results);
     }
 
     private MemoryOcrRepository ReadyRepository() => new(new OcrPageSource(

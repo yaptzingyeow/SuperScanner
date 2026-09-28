@@ -37,6 +37,18 @@ public sealed class TextStyleEstimatorTests
         Assert.NotEmpty(estimate.Candidates);
     }
 
+    [Fact]
+    public async Task Expanded_catalogue_recommends_distinct_selectable_families()
+    {
+        using var image = new MagickImage(MagickColors.White, 200, 100);
+        var estimate = await CreateEstimator(image.ToByteArray(MagickFormat.Png))
+            .EstimateAsync("private/source.png", [Word()], CancellationToken.None);
+
+        Assert.True(estimate.Candidates.Count >= 20);
+        Assert.Equal(3, estimate.Candidates.Take(3)
+            .Select(candidate => candidate.CatalogueId).Distinct().Count());
+    }
+
     private static TextStyleEstimator CreateEstimator(byte[] bytes)
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

@@ -37,6 +37,7 @@ export class OcrTextOverlayComponent implements OnChanges, OnDestroy {
   readonly pageId = input.required<string>();
   readonly ocr = input.required<PageOcr>();
   readonly editSelection = output<OcrEditSelection>();
+  readonly deleteSelection = output<OcrEditSelection>();
 
   protected readonly selectedIds = signal<ReadonlySet<string>>(new Set());
   protected readonly words = computed(() => flattenSelectableWords(this.ocr().elements));
@@ -45,6 +46,21 @@ export class OcrTextOverlayComponent implements OnChanges, OnDestroy {
     return this.words().filter((word) => ids.has(word.id));
   });
   protected readonly summary = computed(() => summarizeSelection(this.selectedWords()));
+  protected readonly actionPosition = computed(() => {
+    const points = this.selectedWords().flatMap((word) => word.polygon);
+    if (!points.length) return { top: '0%', left: '0%', transform: 'none' };
+    const minX = Math.min(...points.map((point) => point.x));
+    const maxX = Math.max(...points.map((point) => point.x));
+    const minY = Math.min(...points.map((point) => point.y));
+    const maxY = Math.max(...points.map((point) => point.y));
+    const below = minY < .12;
+    const anchorRight = minX > .5;
+    return {
+      top: `${(below ? maxY : minY) * 100}%`,
+      left: `${(anchorRight ? maxX : minX) * 100}%`,
+      transform: `${anchorRight ? 'translateX(-100%)' : ''}${below ? '' : ' translateY(calc(-100% - .4rem))'}`.trim(),
+    };
+  });
   protected readonly focusedIndex = signal(-1);
   protected readonly activeWordDomId = computed(() => {
     const word = this.words()[this.focusedIndex()];
@@ -149,7 +165,7 @@ export class OcrTextOverlayComponent implements OnChanges, OnDestroy {
     return points.map((point) => `${point.x},${point.y}`).join(' ');
   }
 
-  protected requestEdit(): void {
+  protected requestEdit(kind: 'replace' | 'delete' = 'replace'): void {
     const selected = this.selectedWords();
     const summary = this.summary();
     const ocrResultId = this.ocr().resultId;
@@ -159,7 +175,7 @@ export class OcrTextOverlayComponent implements OnChanges, OnDestroy {
     const right = Math.max(...points.map((point) => point.x));
     const top = Math.min(...points.map((point) => point.y));
     const bottom = Math.max(...points.map((point) => point.y));
-    this.editSelection.emit({
+    const selection: OcrEditSelection = {
       pageId: this.pageId(),
       ocrResultId,
       wordIds: selected.map((word) => word.id),
@@ -169,7 +185,9 @@ export class OcrTextOverlayComponent implements OnChanges, OnDestroy {
         { x: left, y: top }, { x: right, y: top },
         { x: right, y: bottom }, { x: left, y: bottom },
       ],
-    });
+    };
+    if (kind === 'delete') this.deleteSelection.emit(selection);
+    else this.editSelection.emit(selection);
   }
 
   ngOnDestroy(): void {

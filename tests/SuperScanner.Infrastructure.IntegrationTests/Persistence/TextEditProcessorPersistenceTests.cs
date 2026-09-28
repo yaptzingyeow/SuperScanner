@@ -13,6 +13,21 @@ namespace SuperScanner.Infrastructure.IntegrationTests.Persistence;
 
 public sealed class TextEditProcessorPersistenceTests : IAsyncLifetime
 {
+    [Fact]
+    public async Task Add_text_without_ocr_activates_a_new_revision()
+    {
+        var fixture = await SeedAsync(add: true);
+        await using var db = new AppDbContext(fixture.Options);
+        await new TextEditProcessor(db, fixture.Store, new Renderer(), new Clock())
+            .RunAsync(fixture.EditId, default);
+        await using var verify = new AppDbContext(fixture.Options);
+        var edit = await verify.TextEditOperations.SingleAsync();
+        var page = await verify.Pages.SingleAsync();
+        Assert.Equal(TextEditState.Succeeded, edit.State);
+        Assert.Equal(Guid.Empty, edit.SourceOcrResultId);
+        Assert.Equal(edit.ResultRevisionId, page.ActiveRevisionId);
+    }
+
     private readonly PostgreSqlContainer postgres = new PostgreSqlBuilder("postgres:17-alpine").Build();
     public Task InitializeAsync() => postgres.StartAsync();
     public Task DisposeAsync() => postgres.DisposeAsync().AsTask();
@@ -203,7 +218,7 @@ public sealed class TextEditProcessorPersistenceTests : IAsyncLifetime
             (await verify.Pages.SingleAsync()).ActiveRevisionId);
     }
 
-    private async Task<Fixture> SeedAsync()
+    private async Task<Fixture> SeedAsync(bool add = false)
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseNpgsql(postgres.GetConnectionString()).Options;
@@ -235,13 +250,15 @@ public sealed class TextEditProcessorPersistenceTests : IAsyncLifetime
             [new(.1, .2), new(.4, .2), new(.4, .3), new(.1, .3)]);
         ocr.Complete("test", "v1", "Name", [word], Now);
         var edit = TextEditOperation.Queue(editId, documentId, pageId, "owner",
-            sourceRevisionId, ocrId, [wordId], "Name", "Tan BB",
+            sourceRevisionId, add ? Guid.Empty : ocrId,
+            add ? [] : [wordId], add ? "" : "Name", "Tan BB",
             new NormalizedBox(.1, .2, .8, .1),
             new TextEditStyle("noto-sans", "archive-main-regular", .04,
                 400, "#000000", 0, .5, 0, TextAlignment.Left), 1, null,
             "apply-1", new string('a', 64), TextEditRenderer.RendererVersion,
             TextLayoutEngine.LayoutVersion, Now);
-        db.AddRange(sourceRevision, ocr, edit);
+        if (add) db.AddRange(sourceRevision, edit);
+        else db.AddRange(sourceRevision, ocr, edit);
         await db.SaveChangesAsync();
         return new Fixture(options, store, documentId, pageId, editId, sourceRevisionId);
     }
@@ -250,7 +267,7 @@ public sealed class TextEditProcessorPersistenceTests : IAsyncLifetime
         Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
 
     private static string OutputKey(Fixture fixture) =>
-        $"page-revisions/{fixture.DocumentId:N}/{fixture.PageId:N}/{fixture.EditId:N}.jpg";
+        $"page-revisions/{fixture.DocumentId:N}/{fixture.PageId:N}/{fixture.EditId:N}.png";
 
     private static readonly DateTimeOffset Now = new(2026, 9, 23, 0, 0, 0, TimeSpan.Zero);
     private sealed class Clock : IClock { public DateTimeOffset UtcNow => Now; }

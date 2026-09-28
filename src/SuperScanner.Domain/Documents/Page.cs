@@ -51,6 +51,16 @@ public sealed class Page
         BeginCrop(true, null);
     }
 
+    public void EnableOptionalCrop()
+    {
+        if (PreviewObjectKey is null) throw new InvalidOperationException("Preview is not available.");
+        CropSourceObjectKey ??= PreviewObjectKey;
+        CropStatus = "Ready";
+        Filter = "Original";
+        AppliedFilter = "Original";
+        MarkReady();
+    }
+
     public void BeginCrop(bool detect, string? pointsJson)
     {
         if (CropSourceObjectKey is null) throw new InvalidOperationException("Crop source is not available.");

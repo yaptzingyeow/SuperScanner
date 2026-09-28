@@ -40,16 +40,9 @@ public sealed class TextEditPreparation(
         if (image.Width is 0 or > 20_000 || image.Height is 0 or > 20_000 ||
             (long)image.Width * image.Height > 40_000_000)
             throw new InvalidDataException("Text-edit source exceeds the pixel limit.");
-        var request = new TextLayoutRequest(replacement, box, (int)image.Width,
-            (int)image.Height, style.FontSize, style.LetterSpacing,
-            options.MinimumLetterSpacing, options.MinimumFontScale);
-        var fit = TextLayoutEngine.Fit(request, (text, pixels) =>
-        {
-            var metrics = new Drawables().Font(fontPath).FontPointSize(pixels)
-                .FontTypeMetrics(text)
-                ?? throw new InvalidDataException("Font metrics are unavailable.");
-            return new TextMeasurement(metrics.TextWidth, metrics.TextHeight);
-        });
+        if (string.IsNullOrWhiteSpace(replacement)) return new PreparedTextEdit(hash, true);
+        var fit = MagickTextLayout.Fit(replacement, box, (int)image.Width,
+            (int)image.Height, style, fontPath, options);
         return new PreparedTextEdit(hash, fit.Fits);
     }
 }

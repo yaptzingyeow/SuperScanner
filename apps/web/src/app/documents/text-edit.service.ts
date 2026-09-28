@@ -24,6 +24,12 @@ export class TextEditService {
     return firstValueFrom(this.http.post<TextEditAccepted>(this.url(documentId, pageId), request));
   }
 
+  preview(documentId: string, pageId: string,
+    request: CreateTextEditRequest): Promise<Blob> {
+    return firstValueFrom(this.http.post(`${this.url(documentId, pageId)}/preview`,
+      request, { responseType: 'blob' }));
+  }
+
   get(documentId: string, pageId: string, editId: string): Promise<TextEditStatus> {
     return firstValueFrom(this.http.get<TextEditStatus>(`${this.url(documentId, pageId)}/${editId}`));
   }

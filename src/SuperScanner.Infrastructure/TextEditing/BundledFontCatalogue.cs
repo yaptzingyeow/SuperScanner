@@ -55,14 +55,22 @@ public sealed class BundledFontCatalogue : IFontCatalogue
                     Convert.FromHexString(hash), Convert.FromHexString(expectedHash)))
                 throw new InvalidOperationException($"Font asset hash mismatch: {assetPath}.");
             var license = Field("licenseIdentifier");
+            var noticePath = Path.GetFullPath(Path.Combine(root, Field("licenseNoticePath")));
             if (license != "OFL-1.1" ||
-                !File.ReadAllText(Path.Combine(fontsDirectory, "OFL.txt"))
+                !noticePath.StartsWith(expectedDirectory, StringComparison.OrdinalIgnoreCase) ||
+                !File.Exists(noticePath) ||
+                !File.ReadAllText(noticePath)
                     .Contains("SIL OPEN FONT LICENSE Version 1.1", StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("Bundled font licence is invalid.");
             entries.Add(FontCatalogueEntry.Create(
                 Guid.NewGuid(), Field("catalogueId"), Field("version"), Field("displayName"),
                 Field("familyName"), expectedHash, license, webPath, assetPath,
-                face.GetProperty("enabled").GetBoolean()));
+                face.GetProperty("enabled").GetBoolean(),
+                Enum.Parse<FontCategory>(Field("category"), ignoreCase: false),
+                face.GetProperty("weight").GetInt32(),
+                Enum.Parse<FontFaceStyle>(Field("style"), ignoreCase: false),
+                Field("webFamilyName"),
+                face.GetProperty("selectableForNewEdits").GetBoolean()));
         }
         if (entries.Count == 0 || entries.Select(entry => (entry.CatalogueId, entry.Version)).Distinct().Count() != entries.Count)
             throw new InvalidOperationException("Font manifest is empty or contains duplicate faces.");

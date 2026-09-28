@@ -9,6 +9,19 @@ namespace SuperScanner.Application.Tests.TextEditing;
 public sealed class TextEditPreparationTests
 {
     [Fact]
+    public async Task Rotation_that_exceeds_box_is_rejected_before_queueing()
+    {
+        using var image = new MagickImage(MagickColors.White, 600, 800);
+        var preparation = Create(image.ToByteArray(MagickFormat.Png),
+            new TextEditingOptions { MinimumFontScale = 1 });
+        var result = await preparation.PrepareAsync("private/source.png", "A long replacement",
+            new NormalizedBox(.1, .1, .4, .04),
+            new TextEditStyle("noto-sans", "archive-main-regular", .025,
+                400, "#000000", 0, .75, 20, TextAlignment.Left), default);
+        Assert.False(result.Fits);
+    }
+
+    [Fact]
     public async Task Source_hash_is_actual_image_bytes_and_short_text_fits()
     {
         using var image = new MagickImage(MagickColors.White, 600, 800);

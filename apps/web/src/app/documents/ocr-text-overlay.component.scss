@@ -35,9 +35,7 @@ polygon.focused {
 .selection-summary {
   position: absolute;
   z-index: 2;
-  left: .5rem;
-  right: .5rem;
-  bottom: .5rem;
+  width: min(18rem, 70vw);
   display: flex;
   flex-wrap: wrap;
   gap: .35rem .75rem;
@@ -48,6 +46,17 @@ polygon.focused {
   box-shadow: 0 .35rem 1rem rgb(15 23 42 / 18%);
   color: #172554;
   font-size: .75rem;
+}
+
+.selection-summary button {
+  border: 0;
+  border-radius: .45rem;
+  background: #165e47;
+  color: white;
+  padding: .5rem .75rem;
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
 }
 
 .selected-phrase {

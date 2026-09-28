@@ -42,19 +42,20 @@ public sealed class TextEditProcessor(
             page.ActiveRevision is null || page.ActiveRevision.Id != edit.SourceRevisionId)
             throw new TextEditProcessingException("text_edit_stale_revision", false);
         var sourceRevision = page.ActiveRevision;
-        var ocr = await db.PageOcrResults.Include(result => result.Elements)
+        var adding = edit.SelectedOcrElementIds.Count == 0;
+        var ocr = adding ? null : await db.PageOcrResults.Include(result => result.Elements)
             .SingleOrDefaultAsync(result => result.Id == edit.SourceOcrResultId &&
                 result.PageId == page.Id, ct);
-        if (ocr is null || ocr.State != OcrResultState.Ready ||
-            ocr.SourceObjectKey != sourceRevision.ObjectKey)
+        if (!adding && (ocr is null || ocr.State != OcrResultState.Ready ||
+            ocr.SourceObjectKey != sourceRevision.ObjectKey))
             throw new TextEditProcessingException("text_edit_stale_ocr", false);
         var selectedIds = edit.SelectedOcrElementIds.ToHashSet();
-        var selected = ocr.Elements.Where(element => selectedIds.Contains(element.Id) &&
+        var selected = (ocr?.Elements ?? []).Where(element => selectedIds.Contains(element.Id) &&
             element.Kind == OcrElementKind.Word && element.TextType == OcrTextType.Printed)
             .ToArray();
         if (selected.Length != selectedIds.Count)
             throw new TextEditProcessingException("text_edit_stale_ocr", false);
-        var protectedPolygons = ocr.Elements.Where(element =>
+        var protectedPolygons = (ocr?.Elements ?? []).Where(element =>
             element.Kind == OcrElementKind.Word && !selectedIds.Contains(element.Id))
             .Select(element => element.Polygon).ToArray();
 
@@ -98,10 +99,10 @@ public sealed class TextEditProcessor(
                 StringComparison.OrdinalIgnoreCase))
             throw new TextEditProcessingException("text_edit_render_invalid", false);
 
-        var key = $"page-revisions/{edit.DocumentId:N}/{edit.PageId:N}/{edit.Id:N}.jpg";
+        var key = $"page-revisions/{edit.DocumentId:N}/{edit.PageId:N}/{edit.Id:N}.png";
         await using (var output = new MemoryStream(result.Output, writable: false))
         {
-            var creation = await store.WriteIfAbsentAsync(key, "image/jpeg", output, ct);
+            var creation = await store.WriteIfAbsentAsync(key, "image/png", output, ct);
             if (creation == ObjectCreationResult.AlreadyExists)
             {
                 await using var existing = await store.OpenReadAsync(key, ct);

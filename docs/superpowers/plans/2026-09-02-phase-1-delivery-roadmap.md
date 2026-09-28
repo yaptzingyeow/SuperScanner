@@ -18,6 +18,8 @@ Deliver an Angular and ASP.NET Core baseline in which a Firebase-authenticated u
 
 Deliver browser-camera capture, stability guidance, page-edge detection, manual corner adjustment, multi-page organization, safe PDF/image import, server-side perspective correction, filters, immutable derived versions, and image-based PDF export.
 
+**Deferred enhancement:** After successful validation and automatic processing, pages should become **Ready** automatically. Crop and filter controls remain available as optional corrections instead of a mandatory step. Only pages whose automatic boundary processing fails or is below the accepted confidence threshold should enter **NeedsCrop**.
+
 **Working release:** A useful private scanner without OCR editing.
 
 **Spec coverage:** Sections 7, 11.1, 13 boundary/dewarp handling, 14.2, and acceptance criteria 1, 6, 7, and 8.

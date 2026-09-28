@@ -115,6 +115,21 @@ builder.Services.AddScoped<ITextEditCommandRepository, EfTextEditRepository>();
 builder.Services.AddScoped<ITextEditReadRepository, EfTextEditRepository>();
 builder.Services.AddScoped<ITextRevisionSwitchRepository, EfTextEditRepository>();
 builder.Services.AddScoped<SwitchPageRevision>();
+builder.Services.AddSingleton<ITextGlyphPainter, MagickGlyphPainter>();
+builder.Services.AddSingleton<ITextEditRenderer>(services => new TextEditRenderer(
+    services.GetRequiredService<IFontCatalogue>(), AppContext.BaseDirectory,
+    services.GetRequiredService<IOptions<TextEditingOptions>>().Value,
+    services.GetRequiredService<ITextGlyphPainter>()));
+builder.Services.AddScoped<TextEditPreview>(services =>
+{
+    var options = services.GetRequiredService<IOptions<TextEditingOptions>>().Value;
+    return new TextEditPreview(services.GetRequiredService<ITextSelectionRepository>(),
+        services.GetRequiredService<IObjectStore>(),
+        services.GetRequiredService<ITextEditRenderer>(),
+        new TextEditLimits(options.Enabled, options.MaxSelectionWords,
+            options.MaxReplacementCharacters, options.MaxReplacementBoxArea,
+            options.MaxQueuedEditsPerPage));
+});
 builder.Services.AddScoped<ITextEditPreparation>(services => new TextEditPreparation(
     services.GetRequiredService<IObjectStore>(),
     services.GetRequiredService<IFontCatalogue>(), AppContext.BaseDirectory,

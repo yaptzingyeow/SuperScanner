@@ -6,10 +6,6 @@ namespace SuperScanner.Infrastructure.Ocr;
 
 public static class DocumentAiTextAnchorReader
 {
-    private static readonly UTF8Encoding StrictUtf8 = new(
-        encoderShouldEmitUTF8Identifier: false,
-        throwOnInvalidBytes: true);
-
     public static string Read(string text, Document.Types.TextAnchor? anchor)
     {
         ArgumentNullException.ThrowIfNull(text);
@@ -17,27 +13,28 @@ public static class DocumentAiTextAnchorReader
         if (anchor is null || anchor.TextSegments.Count == 0)
             return string.Empty;
 
-        var bytes = Encoding.UTF8.GetBytes(text);
+        // Document AI anchors count Unicode characters, not UTF-8 bytes or
+        // .NET UTF-16 code units. Translate scalar boundaries before slicing.
+        var offsets = new List<int> { 0 };
+        var offset = 0;
+        foreach (var rune in text.EnumerateRunes())
+        {
+            offset += rune.Utf16SequenceLength;
+            offsets.Add(offset);
+        }
         var result = new StringBuilder();
 
         foreach (var segment in anchor.TextSegments)
         {
             var start = segment.StartIndex;
             var end = segment.EndIndex;
-            if (start < 0 || end < start || end > bytes.LongLength ||
-                start > int.MaxValue || end - start > int.MaxValue)
+            if (start < 0 || end < start || end >= offsets.Count)
             {
                 throw InvalidResponse();
             }
 
-            try
-            {
-                result.Append(StrictUtf8.GetString(bytes, (int)start, (int)(end - start)));
-            }
-            catch (DecoderFallbackException)
-            {
-                throw InvalidResponse();
-            }
+            var utf16Start = offsets[(int)start];
+            result.Append(text, utf16Start, offsets[(int)end] - utf16Start);
         }
 
         return result.ToString();

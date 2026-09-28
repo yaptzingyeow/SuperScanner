@@ -57,6 +57,33 @@ public sealed class TextLayoutEngineTests
         Assert.Equal(9, result.GraphemeCount);
     }
 
+    [Fact]
+    public void Wide_box_preserves_explicit_large_letter_spacing()
+    {
+        var result = TextLayoutEngine.Fit(Request("AB", 0.8) with
+        { LetterSpacing = 1.55, MinimumLetterSpacing = 1.55 }, Measure);
+        Assert.True(result.Fits);
+        Assert.Equal(1.55, result.LetterSpacing);
+    }
+
+    [Fact]
+    public void Narrow_box_reports_overflow_without_reducing_explicit_large_spacing()
+    {
+        var result = TextLayoutEngine.Fit(Request("AB", 0.05) with
+        { LetterSpacing = 1.55, MinimumLetterSpacing = 1.55 }, Measure);
+        Assert.True(result.Overflow);
+        Assert.Equal(1.55, result.LetterSpacing);
+    }
+
+    [Fact]
+    public void Text_style_accepts_three_but_rejects_larger_letter_spacing()
+    {
+        static TextEditStyle Style(double spacing) => new("noto-sans", "archive-main-regular",
+            .05, 400, "#202020", spacing, .75, 0, TextAlignment.Left);
+        Assert.Equal(3, Style(3).LetterSpacing);
+        Assert.Throws<ArgumentOutOfRangeException>(() => Style(3.01));
+    }
+
     private static TextLayoutRequest Request(string text, double boxWidth) => new(
         text, new NormalizedBox(0.1, 0.2, boxWidth, 0.2), 1000, 1000,
         0.05, 0, -0.02, 0.7);

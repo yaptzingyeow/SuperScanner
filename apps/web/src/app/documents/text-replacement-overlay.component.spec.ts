@@ -71,7 +71,7 @@ describe('TextReplacementOverlayComponent', () => {
     ]]);
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('Other text overlaps');
-    expect(fixture.nativeElement.textContent).toContain('Preview');
+    expect(fixture.nativeElement.textContent).toContain('Placement guide');
   });
 
   it('masks the original word area without changing the source image', () => {
@@ -80,6 +80,13 @@ describe('TextReplacementOverlayComponent', () => {
     expect(mask).toBeTruthy();
     expect(mask.style.left).toBe('20%');
     expect(mask.style.width).toBe('30%');
+  });
+
+  it('positions guide letters at the same vertical fraction as the exact renderer', () => {
+    const { root } = setup();
+    const letters = root.querySelector('.replacement-text') as HTMLElement;
+    expect(letters.style.top).toBe('75%');
+    expect(letters.style.transform).toBe('translateY(-75%)');
   });
 
   it('uses the current surface size for the next drag after a responsive resize', () => {

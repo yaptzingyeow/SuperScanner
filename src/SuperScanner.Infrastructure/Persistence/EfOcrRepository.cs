@@ -51,11 +51,12 @@ public sealed class EfOcrRepository(AppDbContext db) : IOcrRepository
                 .SingleOrDefaultAsync(ct);
         }
 
-        return page is null
-            ? null
-            : new OcrPageSource(page.Id, page.State,
-                page.ActiveRevisionId is null && page.PreviewObjectKey is null
-                    ? null : page.GetProcessedObjectKey(), "image/jpeg");
+        if (page is null) return null;
+        var sourceKey = page.ActiveRevisionId is null && page.PreviewObjectKey is null
+            ? null : page.GetProcessedObjectKey();
+        return new OcrPageSource(page.Id, page.State, sourceKey,
+            sourceKey?.EndsWith(".png", StringComparison.OrdinalIgnoreCase) == true
+                ? "image/png" : "image/jpeg");
     }
 
     public async Task<PageOcrResult?> FindBySourceAsync(

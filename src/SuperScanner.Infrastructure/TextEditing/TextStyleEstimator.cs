@@ -65,8 +65,9 @@ public sealed class TextStyleEstimator(
         var bestScore = candidates.Count > 0 ? candidates[0].Score : 0;
         var confidence = contrast < 12 ? 0.15 :
             Math.Clamp(0.25 + 0.35 * Math.Min(contrast / 100.0, 1) + 0.2 * bestScore, 0, 0.8);
-        var weight = candidates.Count > 0 &&
-            candidates[0].Version.Contains("bold", StringComparison.OrdinalIgnoreCase) ? 700 : 400;
+        var weight = candidates.Count > 0
+            ? catalogue.Get(candidates[0].CatalogueId, candidates[0].Version).Weight
+            : 400;
         return new TextStyleEstimate(candidates, confidence, colorHex, fontSize,
             weight, 0, angle, "left");
     }
@@ -74,7 +75,7 @@ public sealed class TextStyleEstimator(
     private IReadOnlyList<FontCandidate> RankFonts(string text, double observedWidth, double fontSize)
     {
         var ranked = new List<FontCandidate>();
-        foreach (var face in catalogue.Entries.Where(entry => entry.Enabled))
+        foreach (var face in catalogue.Entries.Where(entry => entry.Enabled && entry.SelectableForNewEdits))
         {
             var path = Path.GetFullPath(Path.Combine(fontRoot, face.RendererAssetPath));
             var expectedRoot = Path.GetFullPath(Path.Combine(fontRoot, "assets/fonts")) + Path.DirectorySeparatorChar;
@@ -93,12 +94,19 @@ public sealed class TextStyleEstimator(
         }
         if (ranked.Count == 0)
         {
-            ranked.AddRange(catalogue.Entries.Where(entry => entry.Enabled)
+            ranked.AddRange(catalogue.Entries.Where(entry => entry.Enabled && entry.SelectableForNewEdits)
                 .Select(entry => new FontCandidate(entry.CatalogueId, entry.Version, 0)));
         }
-        return ranked.OrderByDescending(candidate => candidate.Score)
+        var ordered = ranked.OrderByDescending(candidate => candidate.Score)
             .ThenBy(candidate => candidate.CatalogueId, StringComparer.Ordinal)
             .ThenBy(candidate => candidate.Version, StringComparer.Ordinal).ToArray();
+        // Show distinct families first so the quick recommendations are useful.
+        var firstByFamily = ordered.GroupBy(candidate => candidate.CatalogueId)
+            .Select(group => group.First()).Take(3).ToArray();
+        var chosen = firstByFamily.Select(candidate => (candidate.CatalogueId, candidate.Version))
+            .ToHashSet();
+        return firstByFamily.Concat(ordered.Where(candidate =>
+            !chosen.Contains((candidate.CatalogueId, candidate.Version)))).ToArray();
     }
 
     private static (byte R, byte G, byte B) BorderMedian(byte[] rgb, int width, int height,

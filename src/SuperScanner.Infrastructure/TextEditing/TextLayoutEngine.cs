@@ -43,7 +43,7 @@ public static class TextLayoutEngine
         if (!double.IsFinite(request.FontSizeNormalized) ||
             request.FontSizeNormalized is <= 0 or > 1 ||
             !double.IsFinite(request.LetterSpacing) ||
-            request.LetterSpacing is < -0.1 or > 0.1 ||
+            request.LetterSpacing is < -0.1 or > 3 ||
             !double.IsFinite(request.MinimumLetterSpacing) ||
             request.MinimumLetterSpacing < -0.1 ||
             request.MinimumLetterSpacing > request.LetterSpacing ||

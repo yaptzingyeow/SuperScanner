@@ -61,7 +61,7 @@ public sealed class DocumentsEndpointsTests : IAsyncLifetime
         var original = PageRevision.CreateBase(Guid.NewGuid(), page.Id,
             "previews/original.jpg", new string('a', 64), DateTimeOffset.UtcNow);
         var edited = PageRevision.CreateBase(Guid.NewGuid(), page.Id,
-            "page-revisions/edited.jpg", new string('b', 64), DateTimeOffset.UtcNow);
+            "page-revisions/edited.png", new string('b', 64), DateTimeOffset.UtcNow);
         await using (var scope = _factory!.Services.CreateAsyncScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -76,7 +76,8 @@ public sealed class DocumentsEndpointsTests : IAsyncLifetime
         var url = $"/api/documents/{document.Id}/pages/{page.Id}/preview";
         var editedResponse = await client.GetAsync(url);
         Assert.Equal(HttpStatusCode.OK, editedResponse.StatusCode);
-        Assert.Equal("page-revisions/edited.jpg", Assert.Single(previewStore.Reads));
+        Assert.Equal("page-revisions/edited.png", Assert.Single(previewStore.Reads));
+        Assert.Equal("image/png", editedResponse.Content.Headers.ContentType?.MediaType);
         Assert.Equal("edited", await editedResponse.Content.ReadAsStringAsync());
         Assert.True(editedResponse.Headers.CacheControl!.NoStore);
 
@@ -89,6 +90,7 @@ public sealed class DocumentsEndpointsTests : IAsyncLifetime
         }
         var restored = await client.GetAsync(url);
         Assert.Equal("original", await restored.Content.ReadAsStringAsync());
+        Assert.Equal("image/jpeg", restored.Content.Headers.ContentType?.MediaType);
     }
 
 
@@ -207,7 +209,7 @@ public sealed class DocumentsEndpointsTests : IAsyncLifetime
         {
             Reads.Add(key);
             return Task.FromResult<Stream>(new MemoryStream(System.Text.Encoding.UTF8.GetBytes(
-                key == "page-revisions/edited.jpg" ? "edited" : "original")));
+                key == "page-revisions/edited.png" ? "edited" : "original")));
         }
         public Task<ObjectCreationResult> WriteIfAbsentAsync(string key, string mediaType, Stream content, CancellationToken ct) => throw new NotSupportedException();
         public Task<Uri> CreatePutUrlAsync(PutObjectRequest request, CancellationToken ct) => throw new NotSupportedException();

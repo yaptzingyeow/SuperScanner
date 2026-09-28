@@ -113,14 +113,24 @@ public sealed class DocumentPdfBuilder(
             try
             {
                 var info = new MagickImageInfo(source);
-                if (info.Format != MagickFormat.Jpeg || info.Width == 0 || info.Height == 0)
+                if (info.Format is not (MagickFormat.Jpeg or MagickFormat.Png) || info.Width == 0 || info.Height == 0)
                     throw new BuildFailure("export_decode_failed");
                 var pagePixels = checked((long)info.Width * info.Height);
                 if (pagePixels > limits.MaxPagePixels || pagePixels > limits.MaxTotalPixels - pixels)
                     throw new BuildFailure("export_size_limit");
                 pixels += pagePixels;
                 source.Position = 0;
-                using var image = XImage.FromStream(source);
+                // Text edits are lossless PNGs, including grayscale/indexed/16-bit variants
+                // that PDFsharp cannot read directly. Normalize their encoding, not their pixels.
+                using var normalized = new MemoryStream();
+                if (info.Format == MagickFormat.Png)
+                {
+                    using var decoded = new MagickImage(source);
+                    decoded.Depth = 8;
+                    normalized.Write(decoded.ToByteArray(MagickFormat.Png32));
+                    normalized.Position = 0;
+                }
+                using var image = XImage.FromStream(info.Format == MagickFormat.Png ? normalized : source);
                 page = pdf.AddPage();
                 page.Width = XUnit.FromPoint(image.PixelWidth * 72d / 96);
                 page.Height = XUnit.FromPoint(image.PixelHeight * 72d / 96);

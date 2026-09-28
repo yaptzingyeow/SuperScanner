@@ -61,7 +61,7 @@ public sealed class DocumentImportProcessorTests
     }
 
     [Fact]
-    public async Task Photo_UsesAcceptedSourceAndQueuesPageDetection()
+    public async Task Photo_IsReadyWithoutMandatoryCropOrDetection()
     {
         await using var fixture = await Fixture.CreateAsync("image/png");
         await fixture.ProcessAsync();
@@ -69,11 +69,15 @@ public sealed class DocumentImportProcessorTests
         Assert.Equal("imports/accepted", page.OriginalObjectKey);
         Assert.Equal("image/png", page.OriginalMediaType);
         Assert.NotNull(page.PreviewObjectKey);
-        Assert.Equal("Detecting", page.CropStatus);
-        Assert.Equal(PageState.Processing, page.State);
-        Assert.Equal($"{page.Id}:1", Assert.Single(fixture.Db.ProcessingJobs).Payload);
+        Assert.Equal("Ready", page.CropStatus);
+        Assert.Equal(PageState.Ready, page.State);
+        Assert.Equal(page.PreviewObjectKey, page.CropSourceObjectKey);
+        Assert.Equal("Original", page.AppliedFilter);
+        Assert.Empty(fixture.Db.ProcessingJobs);
         Assert.Equal(1, fixture.Upload.CreatedPageCount);
-        Assert.Equal(1, fixture.Document.Revision); // Membership only; detection is not exportable content.
+        Assert.Equal(1, fixture.Document.Revision); // Import does not create a second revision for optional crop.
+        await fixture.ReloadAsync();
+        Assert.Equal(DocumentStatus.Ready, fixture.Document.Status);
     }
 
     [Fact]
@@ -87,7 +91,8 @@ public sealed class DocumentImportProcessorTests
         {
             Assert.Equal($"page-sources/{fixture.Document.Id:N}/{page.Id:N}/source.png", page.OriginalObjectKey);
             Assert.Equal("image/png", fixture.Store.Objects[page.OriginalObjectKey!].MediaType);
-            Assert.Equal("Detecting", page.CropStatus);
+            Assert.Equal("Ready", page.CropStatus);
+            Assert.Equal(PageState.Ready, page.State);
         });
         Assert.Equal(3, fixture.Upload.CreatedPageCount);
         Assert.Equal(0, fixture.Upload.FailedPageCount);
@@ -104,7 +109,7 @@ public sealed class DocumentImportProcessorTests
         await fixture.ProcessAsync();
         Assert.Equal(ids, fixture.Document.Pages.Select(x => x.Id));
         Assert.Equal(keys, fixture.Store.Objects.Keys.Order());
-        Assert.Equal(3, await fixture.Db.ProcessingJobs.CountAsync());
+        Assert.Empty(fixture.Db.ProcessingJobs);
         Assert.Equal(3, fixture.Pdf.RenderedPages.Count);
         Assert.All(fixture.Store.WriteCounts, pair => Assert.Equal(1, pair.Value));
     }
@@ -135,9 +140,9 @@ public sealed class DocumentImportProcessorTests
 
         await fixture.ProcessAsync();
 
-        Assert.Equal(PageState.Processing, page.State);
+        Assert.Equal(PageState.Ready, page.State);
         Assert.Null(page.FailureCode);
-        Assert.Equal("Detecting", page.CropStatus);
+        Assert.Equal("Ready", page.CropStatus);
     }
 
     [Theory]
@@ -181,37 +186,36 @@ public sealed class DocumentImportProcessorTests
         fixture.Pdf.FailPage = 2;
         await fixture.ProcessAsync();
         var pages = fixture.Document.ActivePages.ToArray();
-        Assert.Equal(new[] { PageState.Processing, PageState.Failed, PageState.Processing }, pages.Select(x => x.State));
+        Assert.Equal(new[] { PageState.Ready, PageState.Failed, PageState.Ready }, pages.Select(x => x.State));
         Assert.Equal("pdf_render_failed", pages[1].FailureCode);
         Assert.Equal(2, fixture.Upload.CreatedPageCount);
         Assert.Equal(1, fixture.Upload.FailedPageCount);
-        Assert.Equal(2, await fixture.Db.ProcessingJobs.CountAsync());
+        Assert.Empty(fixture.Db.ProcessingJobs);
         fixture.Pdf.FailPage = null;
         await fixture.ProcessAsync();
         Assert.Equal(pages.Select(x => x.Id), fixture.Document.ActivePages.Select(x => x.Id));
-        Assert.All(pages, p => Assert.Equal("Detecting", p.CropStatus));
+        Assert.All(pages, p => Assert.Equal("Ready", p.CropStatus));
         Assert.Equal(3, fixture.Upload.CreatedPageCount);
         Assert.Equal(0, fixture.Upload.FailedPageCount);
         Assert.Null(fixture.Upload.ExpansionErrorCode);
     }
 
     [Fact]
-    public async Task Retry_PreservesNeedsCropPageWhileRepairingAnotherPage()
+    public async Task Retry_PreservesReadyPageWhileRepairingAnotherPage()
     {
         await using var fixture = await Fixture.CreateAsync();
         fixture.Pdf.FailPage = 2;
         await fixture.ProcessAsync();
-        var needsCropId = fixture.Document.ActivePages.First().Id;
-        await fixture.CompleteDetectionAsync(needsCropId);
+        var readyId = fixture.Document.ActivePages.First().Id;
         await fixture.ReloadAsync();
-        Assert.Equal(PageState.NeedsCrop, fixture.Document.ActivePages.First(page => page.Id == needsCropId).State);
+        Assert.Equal(PageState.Ready, fixture.Document.ActivePages.First(page => page.Id == readyId).State);
 
         fixture.Pdf.FailPage = null;
         await fixture.ProcessAsync();
 
-        var needsCrop = fixture.Document.ActivePages.First(page => page.Id == needsCropId);
-        Assert.Equal(PageState.NeedsCrop, needsCrop.State);
-        Assert.Equal("NeedsCrop", needsCrop.CropStatus);
+        var ready = fixture.Document.ActivePages.First(page => page.Id == readyId);
+        Assert.Equal(PageState.Ready, ready.State);
+        Assert.Equal("Ready", ready.CropStatus);
         Assert.Equal(3, fixture.Upload.CreatedPageCount);
         Assert.Equal(0, fixture.Upload.FailedPageCount);
     }

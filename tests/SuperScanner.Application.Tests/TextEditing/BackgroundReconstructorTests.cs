@@ -7,6 +7,41 @@ namespace SuperScanner.Application.Tests.TextEditing;
 public sealed class BackgroundReconstructorTests
 {
     [Fact]
+    public void Name_between_form_rules_is_erased_without_changing_either_rule()
+    {
+        var rgb = Paper(100, 60, (_, _) => 245);
+        Ink(rgb, 100, 0, 21, 100, 2, 20);
+        Ink(rgb, 100, 0, 34, 100, 2, 20);
+        Ink(rgb, 100, 35, 25, 6, 8, 10);
+        var result = BackgroundReconstructor.Reconstruct(new BackgroundReconstructionRequest(
+            rgb, 100, 60, [Poly(.30, .35, .40, .25)], [],
+            new NormalizedBox(.28, .32, .46, .31), 2));
+
+        Assert.Null(result.FailureCode);
+        Assert.Equal((byte)245, result.Pixels![(28 * 100 + 38) * 3]);
+        foreach (var y in new[] { 21, 22, 34, 35 })
+        for (var x = 0; x < 100; x++)
+        {
+            Assert.Equal((byte)20, result.Pixels[(y * 100 + x) * 3]);
+            Assert.False(result.RepairMask![y * 100 + x]);
+        }
+    }
+
+    [Fact]
+    public void Blocked_side_samples_use_nearby_paper_and_preserve_neighbour_words()
+    {
+        var rgb = Paper(100, 60, (_, _) => 245);
+        Ink(rgb, 100, 22, 25, 7, 5, 10);
+        Ink(rgb, 100, 35, 25, 6, 8, 10);
+        var result = BackgroundReconstructor.Reconstruct(new BackgroundReconstructionRequest(
+            rgb, 100, 60, [Poly(.30, .35, .40, .25)], [Poly(.21, .40, .08, .12)],
+            new NormalizedBox(.28, .32, .46, .31), 2));
+        Assert.Null(result.FailureCode);
+        Assert.Equal((byte)245, result.Pixels![(28 * 100 + 38) * 3]);
+        Assert.Equal((byte)10, result.Pixels[(28 * 100 + 25) * 3]);
+    }
+
+    [Fact]
     public void Plain_paper_removes_only_selected_foreground()
     {
         var rgb = Paper(100, 60, (_, _) => 245);
@@ -59,6 +94,112 @@ public sealed class BackgroundReconstructorTests
     }
 
     [Fact]
+    public void Placement_box_may_overlap_adjacent_word_without_erasing_its_ink()
+    {
+        var rgb = Paper(100, 60, (_, _) => 245);
+        Ink(rgb, 100, 36, 25, 5, 8, 10);
+        Ink(rgb, 100, 75, 25, 5, 8, 10);
+        var result = BackgroundReconstructor.Reconstruct(new BackgroundReconstructionRequest(
+            rgb, 100, 60, [Poly(.30, .35, .40, .25)],
+            [Poly(.74, .35, .07, .25)],
+            new NormalizedBox(.28, .32, .55, .31), 2));
+
+        Assert.Null(result.FailureCode);
+        Assert.Equal((byte)245, result.Pixels![(28 * 100 + 38) * 3]);
+        Assert.Equal((byte)10, result.Pixels[(28 * 100 + 77) * 3]);
+        Assert.False(result.RepairMask![28 * 100 + 77]);
+    }
+
+    [Fact]
+    public void Adjacent_recognized_word_does_not_make_plain_paper_unsafe()
+    {
+        var rgb = Paper(100, 60, (_, _) => 245);
+        Ink(rgb, 100, 25, 25, 3, 8, 10);
+        Ink(rgb, 100, 36, 25, 5, 8, 10);
+        var result = BackgroundReconstructor.Reconstruct(new BackgroundReconstructionRequest(
+            rgb, 100, 60, [Poly(.30, .35, .40, .25)],
+            [Poly(.24, .35, .04, .25)],
+            new NormalizedBox(.30, .35, .40, .25), 2));
+
+        Assert.Null(result.FailureCode);
+        Assert.Equal((byte)245, result.Pixels![(28 * 100 + 38) * 3]);
+        Assert.Equal((byte)10, result.Pixels[(28 * 100 + 26) * 3]);
+    }
+
+    [Fact]
+    public void Ink_one_pixel_beyond_ocr_polygon_is_repaired_within_padded_box()
+    {
+        var rgb = Paper(100, 60, (_, _) => 245);
+        Ink(rgb, 100, 25, 25, 3, 8, 10);
+        Ink(rgb, 100, 65, 25, 6, 8, 10);
+        var result = BackgroundReconstructor.Reconstruct(new BackgroundReconstructionRequest(
+            rgb, 100, 60, [Poly(.30, .35, .40, .25)],
+            [Poly(.24, .35, .04, .25)],
+            new NormalizedBox(.28, .35, .44, .25), 2));
+
+        Assert.Null(result.FailureCode);
+        Assert.Equal((byte)245, result.Pixels![(28 * 100 + 70) * 3]);
+        Assert.Equal((byte)10, result.Pixels[(28 * 100 + 26) * 3]);
+    }
+
+    [Fact]
+    public void Two_pixel_ocr_under_run_is_cleared_without_touching_a_protected_neighbour()
+    {
+        var rgb = Paper(100, 60, (_, _) => 245);
+        Ink(rgb, 100, 65, 25, 8, 8, 10);
+        Ink(rgb, 100, 77, 25, 3, 8, 10);
+        var result = BackgroundReconstructor.Reconstruct(new BackgroundReconstructionRequest(
+            rgb, 100, 60, [Poly(.30, .35, .40, .25)],
+            [Poly(.76, .35, .05, .25)],
+            new NormalizedBox(.28, .32, .46, .31), 2));
+
+        Assert.Null(result.FailureCode);
+        Assert.Equal((byte)245, result.Pixels![(28 * 100 + 72) * 3]);
+        Assert.Equal((byte)10, result.Pixels[(28 * 100 + 78) * 3]);
+    }
+
+    [Fact]
+    public void Dilation_above_the_first_sampled_row_uses_the_nearest_paper_row()
+    {
+        var rgb = Paper(100, 60, (_, _) => 245);
+        Ink(rgb, 100, 35, 20, 5, 8, 10);
+        var result = BackgroundReconstructor.Reconstruct(new BackgroundReconstructionRequest(
+            rgb, 100, 60, [Poly(.30, .33, .40, .25)], [],
+            new NormalizedBox(.28, .30, .44, .32), 2));
+
+        Assert.Null(result.FailureCode);
+        Assert.Equal((byte)245, result.Pixels![(20 * 100 + 37) * 3]);
+    }
+
+    [Fact]
+    public void Bright_paper_highlight_inside_the_selected_polygon_is_not_old_ink()
+    {
+        var rgb = Paper(100, 60, (_, _) => 210);
+        Ink(rgb, 100, 35, 25, 5, 8, 10);
+        Ink(rgb, 100, 50, 25, 3, 8, 250);
+        var result = BackgroundReconstructor.Reconstruct(new BackgroundReconstructionRequest(
+            rgb, 100, 60, [Poly(.30, .35, .40, .25)], [],
+            new NormalizedBox(.28, .32, .44, .31), 2));
+
+        Assert.Null(result.FailureCode);
+        Assert.Equal((byte)250, result.Pixels![(28 * 100 + 51) * 3]);
+        Assert.Equal((byte)210, result.Pixels[(28 * 100 + 37) * 3]);
+    }
+
+    [Fact]
+    public void Tight_box_cannot_leave_original_ink_outside_the_repair_area()
+    {
+        var rgb = Paper(100, 60, (_, _) => 245);
+        Ink(rgb, 100, 65, 25, 6, 8, 10);
+        var result = BackgroundReconstructor.Reconstruct(new BackgroundReconstructionRequest(
+            rgb, 100, 60, [Poly(.30, .35, .40, .25)], [],
+            new NormalizedBox(.30, .35, .40, .25), 2));
+
+        Assert.Equal("text_edit_unsafe_background", result.FailureCode);
+        Assert.Null(result.Pixels);
+    }
+
+    [Fact]
     public void Dilation_never_crosses_the_approved_box_edge()
     {
         var rgb = Paper(100, 60, (_, _) => 245);
@@ -93,6 +234,30 @@ public sealed class BackgroundReconstructorTests
             rgb, 100, 60, [Poly(.30, .35, .40, .25)], [],
             new NormalizedBox(.28, .32, .46, .31), 2));
         Assert.Equal("text_edit_unsafe_background", result.FailureCode);
+    }
+
+    [Fact]
+    public void Moderate_scanned_paper_grain_does_not_block_a_word_replacement()
+    {
+        var rgb = Paper(100, 60, (x, _) => (byte)(x % 2 == 0 ? 194 : 220));
+        Ink(rgb, 100, 35, 25, 6, 8, 10);
+        var result = BackgroundReconstructor.Reconstruct(new BackgroundReconstructionRequest(
+            rgb, 100, 60, [Poly(.30, .35, .40, .25)], [],
+            new NormalizedBox(.28, .32, .46, .31), 2));
+        Assert.Null(result.FailureCode);
+    }
+
+    [Fact]
+    public void Isolated_paper_grain_outliers_do_not_fail_the_border_check()
+    {
+        var rgb = Paper(100, 60, (_, _) => 210);
+        Ink(rgb, 100, 35, 25, 6, 8, 10);
+        Ink(rgb, 100, 28, 25, 1, 8, 190);
+        Ink(rgb, 100, 77, 25, 1, 8, 230);
+        var result = BackgroundReconstructor.Reconstruct(new BackgroundReconstructionRequest(
+            rgb, 100, 60, [Poly(.30, .35, .40, .25)], [],
+            new NormalizedBox(.28, .32, .46, .31), 2));
+        Assert.Null(result.FailureCode);
     }
 
     private static byte[] Paper(int width, int height, Func<int, int, byte> shade)

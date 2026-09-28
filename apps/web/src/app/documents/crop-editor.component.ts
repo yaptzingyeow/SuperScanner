@@ -35,6 +35,11 @@ export class CropEditorComponent implements OnInit, OnDestroy {
   ];
   protected readonly filter = signal<ScanFilter>('Document');
   protected readonly filterDescription = computed(() => this.filters.find(item => item.id === this.filter())!.description);
+  protected readonly filterPreview = computed(() => ({
+    Original: 'none', Document: 'contrast(1.08) saturate(.9)',
+    Bright: 'brightness(1.2) contrast(1.05)', Grayscale: 'grayscale(1)',
+    BlackAndWhite: 'grayscale(1) contrast(2.8)',
+  })[this.filter()]);
   private filterDirty = false;
 
   protected selectFilter(value: ScanFilter): void {

@@ -1,20 +1,16 @@
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Component, HostListener, OnDestroy, OnInit, ViewChild, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { API_BASE_URL } from '../core/api/security.interceptor';
 import { AddPagesDialogComponent } from './add-pages-dialog.component';
-import { DocumentDetail, DocumentPage, PageOcr } from './document.models';
+import { DocumentDetail, DocumentPage } from './document.models';
 import { DocumentsApiService } from './documents-api.service';
 import { ExportStatusComponent } from './export-status.component';
 import { PageCardComponent } from './page-card.component';
-import { OcrStatusComponent } from './ocr-status.component';
-import { PageEditHistory, TextEditSelection } from './text-edit.models';
+import { PageEditHistory } from './text-edit.models';
 import { TextEditService } from './text-edit.service';
-import { TextReplacementEditorComponent } from './text-replacement-editor.component';
-import { flattenSelectableWords } from './ocr-selection';
-import { OcrPoint } from './document.models';
 
 @Component({
   selector: 'app-document-detail',
@@ -25,14 +21,11 @@ import { OcrPoint } from './document.models';
     PageCardComponent,
     AddPagesDialogComponent,
     ExportStatusComponent,
-    OcrStatusComponent,
-    TextReplacementEditorComponent,
   ],
   templateUrl: './document-detail.component.html',
   styleUrl: './document-detail.component.scss',
 })
 export class DocumentDetailComponent implements OnInit, OnDestroy {
-  @ViewChild(TextReplacementEditorComponent) editor?: TextReplacementEditorComponent;
   private readonly http = inject(HttpClient);
   private readonly documentsApi = inject(DocumentsApiService);
   private readonly textEdits = inject(TextEditService);
@@ -41,34 +34,18 @@ export class DocumentDetailComponent implements OnInit, OnDestroy {
   protected readonly id = this.route.snapshot.paramMap.get('documentId') ?? '';
   protected readonly document = signal<DocumentDetail | null>(null);
   protected readonly images = signal<Record<string, string>>({});
-  protected readonly ocrByPage = signal<Record<string, PageOcr>>({});
   protected readonly error = signal('');
   protected readonly announcement = signal('');
   protected readonly retrying = signal(false);
   protected readonly reordering = signal(false);
   protected readonly showAddPages = signal(false);
-  protected readonly editSelection = signal<TextEditSelection | null>(null);
   protected readonly editHistory = signal<PageEditHistory | null>(null);
   protected readonly historyPageId = signal<string | null>(null);
   protected readonly historyBusy = signal(false);
   protected readonly historyError = signal('');
-  protected readonly editOtherPolygons = signal<OcrPoint[][]>([]);
-  private returnFocus?: HTMLElement;
   private timer?: ReturnType<typeof setTimeout>;
   private destroyed = false;
   private readonly loadedRevisions: Record<string, string> = {};
-
-  canLeave(): boolean {
-    return !this.editor?.isDirty() || window.confirm('Discard your unapplied text changes?');
-  }
-
-  @HostListener('window:beforeunload', ['$event'])
-  beforeUnload(event: BeforeUnloadEvent): void {
-    if (this.editor?.isDirty()) {
-      event.preventDefault();
-      event.returnValue = '';
-    }
-  }
 
   ngOnInit(): void {
     void this.load();
@@ -128,46 +105,6 @@ export class DocumentDetailComponent implements OnInit, OnDestroy {
     void this.load();
   }
 
-  protected ocrUpdated(pageId: string, ocr: PageOcr): void {
-    this.ocrByPage.update((current) => ({ ...current, [pageId]: ocr }));
-  }
-
-  protected beginTextEdit(selection: TextEditSelection): void {
-    this.returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
-    this.editSelection.set({ ...selection, wordIds: [...selection.wordIds],
-      polygon: selection.polygon.map((point) => ({ ...point })) });
-    const selected = new Set(selection.wordIds);
-    this.editOtherPolygons.set(flattenSelectableWords(this.ocrByPage()[selection.pageId]?.elements ?? [])
-      .filter((word) => !selected.has(word.id))
-      .map((word) => word.polygon.map((point) => ({ ...point }))));
-  }
-
-  protected closeTextEdit(): void {
-    const pageId = this.editSelection()?.pageId;
-    this.editSelection.set(null);
-    this.editOtherPolygons.set([]);
-    queueMicrotask(() => {
-      const card = [...document.querySelectorAll<HTMLElement>('app-page-card[data-page-id]')]
-        .find((element) => element.dataset['pageId'] === pageId);
-      if (card) card.focus();
-      else if (this.returnFocus?.isConnected) this.returnFocus.focus();
-    });
-  }
-
-  protected async textEditCompleted(): Promise<void> {
-    const pageId = this.editSelection()?.pageId;
-    this.closeTextEdit();
-    if (!pageId) return;
-    this.ocrByPage.update((current) => {
-      const next = { ...current };
-      delete next[pageId];
-      return next;
-    });
-    delete this.loadedRevisions[pageId];
-    await this.load();
-    this.announcement.set('Text change applied. The latest page preview was loaded.');
-  }
-
   protected async openTextHistory(pageId: string): Promise<void> {
     this.historyPageId.set(pageId);
     this.editHistory.set(null);
@@ -190,9 +127,6 @@ export class DocumentDetailComponent implements OnInit, OnDestroy {
       this.editHistory.set(await this.textEdits.switchRevision(this.id, pageId,
         direction, history.activeRevisionId));
       delete this.loadedRevisions[pageId];
-      this.ocrByPage.update((current) => {
-        const next = { ...current }; delete next[pageId]; return next;
-      });
       await this.load();
       this.announcement.set(direction === 'undo' ? 'Text change undone.' : 'Text change restored.');
     } catch {
@@ -245,9 +179,6 @@ export class DocumentDetailComponent implements OnInit, OnDestroy {
 
   private async loadPreviews(doc: DocumentDetail): Promise<void> {
     const activeIds = new Set(doc.pages.map((page) => page.id));
-    this.ocrByPage.update((current) => Object.fromEntries(
-      Object.entries(current).filter(([pageId]) => activeIds.has(pageId)),
-    ));
     for (const [pageId, url] of Object.entries(this.images())) {
       if (!activeIds.has(pageId)) {
         URL.revokeObjectURL(url);

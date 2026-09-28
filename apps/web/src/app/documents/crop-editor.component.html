@@ -1,6 +1,6 @@
 <section class="crop-page">
   <a class="back" [routerLink]="['/documents', documentId]">← Back to document</a>
-  <header><p class="eyebrow">MAKE IT YOURS</p><h1>Crop & enhance</h1><p>Adjust the paper’s corners, choose a filter, then save your scan.</p></header>
+  <header><p class="eyebrow">MAKE IT YOURS</p><h1>Crop & enhance</h1><p>Your scan is ready to use. Adjust corners or choose a filter only if you want to.</p></header>
   <fieldset class="filter-picker" [disabled]="busy() || !state()">
     <legend>Scan filter</legend>
     <div class="filter-options">
@@ -10,7 +10,7 @@
       }
     </div>
     <p aria-live="polite">{{ filterDescription() }}</p>
-    <small>The image below shows the source for corner selection. Your filter appears after saving.</small>
+    <small>The preview shows an approximation. Save scan to apply the selected filter to the document.</small>
   </fieldset>
   <div class="toolbar">
     <button (click)="submit(true)" [disabled]="busy() || !state()">Auto detect</button>
@@ -20,6 +20,7 @@
   <div aria-live="polite" class="message">
     @if (state()?.status === 'Detecting') { <p>Finding the document edges…</p> }
     @else if (state()?.status === 'Processing') { <p>Saving your flattened document…</p> }
+    @else if (state()?.status === 'Ready' && state()?.appliedRevision === 0) { <p class="guidance accurate"><strong>Your original is already Ready.</strong> Cropping and filters are optional.</p> }
     @else if (guidance() === 'accurate') { <p class="guidance accurate"><strong>Paper detected.</strong> The boundary looks accurate. Check it briefly, then save your scan.</p> }
     @else if (guidance() === 'manual') { <p class="guidance manual"><strong>Adjust the corners.</strong> We couldn’t confidently find every paper edge, so the full photo is selected.</p> }
     @else { <p class="guidance verify"><strong>Please verify the corners.</strong> A boundary was suggested, but folds or shadows may need a small adjustment.</p> }
@@ -29,7 +30,7 @@
   @if (sourceUrl()) {
     <div class="canvas-frame">
       <div #stage class="stage" (pointermove)="move($event, stage)" (pointerup)="end($event, stage)" (pointercancel)="end($event, stage)" (lostpointercapture)="end($event, stage)">
-        <img [src]="sourceUrl()" alt="Original upright document for selecting corners" draggable="false" />
+        <img [src]="sourceUrl()" [style.filter]="filterPreview()" alt="Document preview for selecting corners and filters" draggable="false" />
         <svg viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true">
           <defs><mask id="crop-mask"><rect width="1000" height="1000" fill="white"/><polygon [attr.points]="polygon()" fill="black"/></mask></defs>
           <rect width="1000" height="1000" fill="#071b21" opacity="0.6" mask="url(#crop-mask)"/>

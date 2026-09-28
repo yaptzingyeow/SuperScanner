@@ -212,6 +212,30 @@ describe('OcrTextOverlayComponent', () => {
     expect((emitted[0] as { wordIds: string[] }).wordIds).toEqual(['w1', 'w2', 'w3']);
   });
 
+  it('places the edit action beside the selected words instead of at the bottom of the page', () => {
+    drag(155, 110, 155, 110);
+
+    const action = fixture.nativeElement.querySelector('.selection-summary') as HTMLElement;
+    expect(action.style.top).toBe('20%');
+    expect(action.style.left).toBe('10%');
+    expect(action.querySelector('[data-testid="edit-selection"]')).not.toBeNull();
+  });
+
+  it('keeps the edit action on-page for words near the top-right corner', () => {
+    const corner = ocr('corner-result');
+    corner.elements[0].children[0].children[0].polygon = [
+      { x: .85, y: .02 }, { x: .95, y: .02 },
+      { x: .95, y: .08 }, { x: .85, y: .08 },
+    ];
+    fixture.componentRef.setInput('ocr', corner);
+    fixture.detectChanges();
+    drag(550, 70, 550, 70);
+    const action = fixture.nativeElement.querySelector('.selection-summary') as HTMLElement;
+    expect(action.style.top).toBe('8%');
+    expect(action.style.left).toBe('95%');
+    expect(action.style.transform).toBe('translateX(-100%)');
+  });
+
   it('does not offer editing for handwriting and states why', () => {
     drag(275, 125, 277, 126);
     expect(fixture.nativeElement.querySelector('[data-testid="edit-selection"]')).toBeNull();

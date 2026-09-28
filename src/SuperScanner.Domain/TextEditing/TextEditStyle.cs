@@ -35,7 +35,7 @@ public sealed record TextEditStyle
             throw new ArgumentOutOfRangeException(nameof(weight));
         if (string.IsNullOrWhiteSpace(colorHex) || !ColorPattern.IsMatch(colorHex))
             throw new ArgumentException("A hexadecimal RGB or RGBA colour is required.", nameof(colorHex));
-        if (!double.IsFinite(letterSpacing) || letterSpacing is < -0.1 or > 0.1)
+        if (!double.IsFinite(letterSpacing) || letterSpacing is < -0.1 or > 3)
             throw new ArgumentOutOfRangeException(nameof(letterSpacing));
         if (!double.IsFinite(baseline) || baseline is < 0 or > 1)
             throw new ArgumentOutOfRangeException(nameof(baseline));

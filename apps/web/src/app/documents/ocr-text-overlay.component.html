@@ -33,7 +33,9 @@
       }
     </svg>
     @if (summary(); as selection) {
-      <aside class="selection-summary" aria-live="polite">
+      <aside class="selection-summary" aria-live="polite"
+        [style.top]="actionPosition().top" [style.left]="actionPosition().left"
+        [style.transform]="actionPosition().transform">
         <strong class="selected-phrase">{{ selection.phrase }}</strong>
         <span>{{ selection.wordCount }} {{ selection.wordCount === 1 ? 'word' : 'words' }}</span>
         <span>{{ selection.averageConfidence * 100 | number: '1.0-0' }}% confidence</span>
@@ -42,6 +44,7 @@
           <button type="button" data-testid="edit-selection" (click)="requestEdit()">
             Edit selected text
           </button>
+          <button type="button" data-testid="delete-selection" (click)="requestEdit('delete')">Delete selected text</button>
         } @else {
           <span>Handwritten text editing is not available yet.</span>
         }

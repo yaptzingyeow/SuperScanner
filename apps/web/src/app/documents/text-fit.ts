@@ -45,7 +45,7 @@ export function fitSingleLine(
       !Number.isFinite(draft.fontSizeNormalized) ||
       draft.fontSizeNormalized <= 0 || draft.fontSizeNormalized > 1 ||
       !Number.isFinite(draft.letterSpacing) ||
-      draft.letterSpacing < -0.1 || draft.letterSpacing > 0.1 ||
+      draft.letterSpacing < -0.1 || draft.letterSpacing > 3 ||
       !Number.isFinite(draft.minimumLetterSpacing) ||
       draft.minimumLetterSpacing < -0.1 ||
       draft.minimumLetterSpacing > draft.letterSpacing ||
