@@ -1,0 +1,23 @@
+<div #canvas class="canvas" [class.double]="layout() === 'double'" [class.continuous]="layout() === 'continuous'"
+  [class.pan]="panMode()" [class.panning]="panning()"
+  (pointerdown)="beginPan($event)" (pointermove)="movePan($event)" (pointerup)="endPan($event)" (pointercancel)="endPan($event)">
+  @for (page of visiblePages(); track page.id) {
+    <figure class="page" [attr.data-page-id]="page.id" [class.selected]="page.id === selectedPageId()"
+      [style.width]="pageWidth()">
+      <button type="button" class="page-select" [attr.aria-label]="'Select page ' + page.pageNumber"
+        [attr.aria-pressed]="page.id === selectedPageId()" (click)="selectPage.emit(page.id)">
+        Page {{ page.pageNumber }}
+      </button>
+      <div class="surface">
+        @if (urls()[page.id]; as url) {
+          <img [src]="url" [alt]="'Page ' + page.pageNumber" draggable="false" />
+          @if (ocrFor(page); as ocr) {
+            <app-ocr-text-overlay [pageId]="page.id" [ocr]="ocr" [highlightWordIds]="highlightsFor(page.id)" />
+          }
+        } @else {
+          <div class="placeholder" role="status">{{ page.hasPreview ? 'Loading page...' : 'Preview not available' }}</div>
+        }
+      </div>
+    </figure>
+  }
+</div>

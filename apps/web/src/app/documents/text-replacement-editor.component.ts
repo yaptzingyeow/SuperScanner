@@ -124,8 +124,10 @@ export class TextReplacementEditorComponent implements OnInit, OnDestroy {
         this.initialBox = { ...box };
         this.initialStyle = { ...style };
         this.status.set('Enter text, drag the transparent box, then preview the exact result.');
-      } catch {
-        if (!this.destroyed) this.status.set('Sign in to add text on this page.');
+      } catch (error) {
+        if (!this.destroyed) this.status.set(error instanceof HttpErrorResponse && error.status === 401
+          ? 'Sign in to add text on this page.'
+          : 'Could not start adding text. Please try again.');
       }
       return;
     }

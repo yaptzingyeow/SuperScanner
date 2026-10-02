@@ -18,21 +18,27 @@
         [disabled]="active()"
       />
 
-      <label class="file-picker" for="document-file">
+      <label
+        class="file-picker"
+        for="document-file"
+        (dragover)="onDragOver($event)"
+        (drop)="onDrop($event)"
+      >
         <span class="file-picker__icon" aria-hidden="true">＋</span>
-        <strong>Choose file</strong>
+        <strong>Choose files</strong>
         <span>Browse files on your device</span>
       </label>
       <input
         id="document-file"
         class="visually-hidden"
         type="file"
-        accept="application/pdf,image/jpeg,image/png,image/heic"
+        multiple
+        accept=".pdf,.jpg,.jpeg,.png,.heic"
         (change)="onFileSelected($event)"
         [disabled]="active()"
       />
 
-      @if (selectedFile(); as file) {
+      @for (file of selectedFiles(); track $index) {
         <div class="selected-file">
           <span class="selected-file__type" aria-hidden="true">DOC</span>
           <span
@@ -45,13 +51,20 @@
       <div class="feedback" aria-live="polite" aria-atomic="true">
         @if (errorMessage()) {
           <p class="error">{{ errorMessage() }}</p>
-        } @else if (active()) {
+        }
+        @for (failure of fileErrors(); track $index) {
+          <p class="error">{{ failure.fileName }}: {{ failure.message }}</p>
+        }
+        @if (!errorMessage() && active()) {
           <p>
             {{
               progress().stage === 'uploading' ? 'Uploading securely' : 'Preparing secure upload'
             }}
             · {{ progress().percent }}%
           </p>
+          @for (item of items(); track $index) {
+            <p>{{ item.fileName }} · {{ item.stage }} · {{ item.percent }}%</p>
+          }
           <div
             class="progress"
             role="progressbar"
@@ -64,7 +77,11 @@
         }
       </div>
 
-      <button type="submit" [disabled]="active()">
+      @if (pending()) {
+        <button type="button" (click)="continueToImport()">Continue to import</button>
+      }
+
+      <button type="submit" [disabled]="active() || !!pending()">
         {{ active() ? 'Uploading…' : 'Upload securely' }}
       </button>
     </form>

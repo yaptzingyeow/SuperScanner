@@ -22,6 +22,11 @@ polygon {
   pointer-events: all;
 }
 
+polygon.highlighted {
+  fill: rgb(250 204 21 / 45%);
+  stroke: rgb(202 138 4 / 90%);
+}
+
 polygon.selected {
   fill: rgb(37 99 235 / 28%);
   stroke: rgb(29 78 216 / 90%);

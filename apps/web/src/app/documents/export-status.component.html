@@ -14,6 +14,27 @@
       be excluded.
     }
   </p>
+  <label for="pdf-page-layout">PDF page size</label>
+  <select id="pdf-page-layout" [value]="pageLayout()" (change)="setPageLayout($event)" [disabled]="busy()">
+    <option value="Original">Original size</option>
+    <option value="A4">A4 paper</option>
+  </select>
+  @if (pageLayout() === 'A4') {
+    <p class="hint">Ready pages will fit onto A4 paper with white margins. Portrait or landscape is chosen for each page; content will not be stretched.</p>
+  }
+  <label class="searchable-option" for="include-searchable-text">
+    <input
+      id="include-searchable-text"
+      type="checkbox"
+      [checked]="includeSearchableText()"
+      (change)="setIncludeSearchableText($event)"
+      [disabled]="busy()"
+    />
+    <span>
+      <strong>Make text searchable (optional)</strong>
+      <small>Uses existing Google OCR results to add an invisible text layer. It does not change how the page looks.</small>
+    </span>
+  </label>
   @if (current(); as item) {
     <div class="export-state">
       <span [attr.data-state]="item.state">{{ item.state }}</span>
@@ -54,14 +75,14 @@
           Download PDF
         </button>
       }
-      @if (item.state === 'Failed' || item.isOutdated) {
+      @if (item.state === 'Failed' || item.isOutdated || needsNewLayout(item)) {
         <button
           class="primary"
           type="button"
           [disabled]="!readyCount || busy()"
           (click)="generate()"
         >
-          {{ item.isOutdated ? 'Generate updated PDF' : 'Retry export' }}
+          {{ needsNewLayout(item) ? 'Generate ' + pageLayout() + ' PDF' : item.isOutdated ? 'Generate updated PDF' : 'Retry export' }}
         </button>
       }
     </div>

@@ -27,6 +27,7 @@ describe('ExportStatusComponent', () => {
     searchability: DocumentExport['searchability'] = state === 'Ready' ? 'Searchable' : 'ImageOnly',
   ): DocumentExport => ({
     id: 'export-1',
+    pageLayout: 'Original',
     state,
     documentRevision: 4,
     readyPageCount: 3,
@@ -108,7 +109,43 @@ describe('ExportStatusComponent', () => {
     expect(window.confirm).toHaveBeenCalledWith(
       '3 ready pages will be included. 2 pages will be excluded. Generate the PDF?',
     );
-    expect(api.createExport).toHaveBeenCalledWith('doc-1');
+    expect(api.createExport).toHaveBeenCalledWith('doc-1', 'Original', false);
+  });
+
+  it('adds the optional transparent OCR layer only when selected', async () => {
+    const { fixture, component, api } = setup([page('p1', 'Ready')]);
+    const checkbox = fixture.nativeElement.querySelector('#include-searchable-text') as HTMLInputElement;
+    expect(checkbox.checked).toBe(false);
+    checkbox.checked = true;
+    checkbox.dispatchEvent(new Event('change'));
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    await component.generate();
+
+    expect(api.createExport).toHaveBeenCalledWith('doc-1', 'Original', true);
+    expect(fixture.nativeElement.textContent).toContain('does not change how the page looks');
+  });
+
+  it('sends A4 when chosen and explains fitting before export', async () => {
+    const { fixture, component, api } = setup([page('p1', 'Ready')]);
+    const select = fixture.nativeElement.querySelector('#pdf-page-layout') as HTMLSelectElement;
+    select.value = 'A4';
+    select.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('white margins');
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await component.generate();
+    expect(api.createExport).toHaveBeenCalledWith('doc-1', 'A4', false);
+  });
+
+  it('offers a new PDF when the selected page size differs from a ready export', () => {
+    const item = { ...exported('Ready'), pageLayout: 'Original' as const };
+    const { fixture } = setup([page('p1', 'Ready')], item);
+    const select = fixture.nativeElement.querySelector('#pdf-page-layout') as HTMLSelectElement;
+    select.value = 'A4';
+    select.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Generate A4 PDF');
   });
 
   it('keeps an outdated PDF downloadable and offers an updated export', async () => {

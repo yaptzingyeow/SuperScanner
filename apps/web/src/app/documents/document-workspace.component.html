@@ -1,0 +1,190 @@
+<main class="workspace">
+  <header class="workspace-header">
+    <div class="identity">
+      <a class="back" routerLink="/documents" aria-label="Back to my documents" title="My documents">
+        <app-icon name="back" [size]="20" />
+      </a>
+      <span class="doc-badge" aria-hidden="true"><app-icon name="document" [size]="20" /></span>
+      <div class="titles">
+        <h1>{{ document()?.title ?? 'Loading document…' }}</h1>
+        @if (document(); as doc) {
+          <p class="meta">{{ doc.pages.length }} {{ doc.pages.length === 1 ? 'page' : 'pages' }}</p>
+        }
+      </div>
+    </div>
+    <div class="tabs" role="tablist" aria-label="Workspace">
+      @for (t of tabs; track t.id) {
+        <button type="button" role="tab" [id]="'workspace-tab-' + t.id"
+          [attr.aria-selected]="tab() === t.id" [attr.aria-controls]="'workspace-panel'"
+          [class.active]="tab() === t.id" (click)="selectTab(t.id)"><app-icon [name]="t.icon" /><span>{{ t.label }}</span></button>
+      }
+    </div>
+    <div class="header-actions">
+      <button type="button" class="primary" (click)="selectTab('export')">
+        <app-icon name="export" />
+        Export PDF
+      </button>
+    </div>
+  </header>
+
+  @switch (tab()) {
+    @case ('view') {
+      <div class="toolbar" role="toolbar" aria-label="View tools" data-slot="view-toolbar">
+        <div class="group" role="group" aria-label="Pointer">
+          <span class="group-label" aria-hidden="true">Pointer</span>
+          <div class="group-buttons">
+            <button type="button" [attr.aria-pressed]="pointer() === 'select'" [class.on]="pointer() === 'select'"
+              (click)="pointer.set('select')"><app-icon name="pointer" /><span>Select text</span></button>
+            <button type="button" [attr.aria-pressed]="pointer() === 'pan'" [class.on]="pointer() === 'pan'"
+              (click)="pointer.set('pan')"><app-icon name="hand" /><span>Pan</span></button>
+          </div>
+        </div>
+        <div class="group" role="group" aria-label="Layout">
+          <span class="group-label" aria-hidden="true">Layout</span>
+          <div class="group-buttons">
+            @for (l of layouts; track l.id) {
+              <button type="button" [attr.aria-pressed]="layout() === l.id" [class.on]="layout() === l.id"
+                (click)="layout.set(l.id)"><app-icon [name]="l.icon" /><span>{{ l.label }}</span>@if (l.isNew) {<span class="badge">New</span>}</button>
+            }
+          </div>
+        </div>
+        <div class="group" role="group" aria-label="Zoom">
+          <span class="group-label" aria-hidden="true">Zoom</span>
+          <div class="group-buttons">
+            <button type="button" class="icon-only" aria-label="Zoom out" title="Zoom out" (click)="zoomBy(-zoomStep)"><app-icon name="minus" /></button>
+            <span class="zoom-value" aria-live="polite">{{ zoom() }}%</span>
+            <button type="button" class="icon-only" aria-label="Zoom in" title="Zoom in" (click)="zoomBy(zoomStep)"><app-icon name="plus" /></button>
+            <button type="button" (click)="fitWidth()"><app-icon name="fit" /><span>Fit width</span></button>
+          </div>
+        </div>
+      </div>
+    }
+    @case ('edit') {
+      <div class="toolbar" role="toolbar" aria-label="Edit tools" data-slot="edit-toolbar">
+        <app-edit-toolbar [documentId]="id" [pageId]="selectedPageId()" [tool]="editTool()" [searchOpen]="searchOpen()"
+          (toolChange)="editTool.set($event)" (startTool)="startEditTool($event)" (searchToggle)="toggleSearch()"
+          (pageChanged)="load()" />
+      </div>
+      @if (searchOpen()) {
+        <div class="search-bar" role="search" data-slot="search-bar">
+          <label class="search-field">
+            <app-icon name="search" />
+            <input #searchBox type="search" aria-label="Search in document" placeholder="Search recognized text"
+              data-slot="search" autocomplete="off" [value]="searchQuery()"
+              (input)="onSearchInput($any($event.target).value)" (keydown.enter)="stepSearch(1)" />
+          </label>
+          <span class="search-count" data-slot="search-count" aria-live="polite">{{ searchCountLabel() }}</span>
+          <div class="search-steps">
+            <button type="button" class="step" aria-label="Previous" title="Previous result"
+              [disabled]="!searchResult().hits.length" (click)="stepSearch(-1)"><app-icon name="up" /></button>
+            <button type="button" class="step" aria-label="Next" title="Next result"
+              [disabled]="!searchResult().hits.length" (click)="stepSearch(1)"><app-icon name="down" /></button>
+          </div>
+          <span class="search-status" data-slot="search-status" role="status">
+            {{ recognizing() ? 'Recognizing text…' : unrecognizedLabel() }}{{ recognizeError() ? ' ' + recognizeError() : '' }}
+          </span>
+          @if (recognizable().length && !recognizing()) {
+            <button type="button" class="recognize" data-slot="recognize-for-search" (click)="recognizeForSearch()">
+              <app-icon name="recognize" />
+              Recognize {{ recognizable().length === 1 ? '1 page' : recognizable().length + ' pages' }}
+            </button>
+          }
+          <button type="button" class="step close" aria-label="Close search" title="Close search" (click)="toggleSearch()"><app-icon name="close" /></button>
+        </div>
+      }
+    }
+    @case ('export') {
+      <div class="toolbar" role="toolbar" aria-label="Export options" data-slot="export-toolbar">
+        <div class="group" role="group" aria-label="Export as">
+          <span class="group-label" aria-hidden="true">Export as</span>
+          <div class="group-buttons">
+            @for (k of exportKinds; track k.id) {
+              <button type="button" [attr.aria-pressed]="exportKind() === k.id" [class.on]="exportKind() === k.id"
+                (click)="exportKind.set(k.id)"><app-icon [name]="exportIcons[k.id]" /><span>{{ k.label }}</span></button>
+            }
+          </div>
+        </div>
+      </div>
+    }
+  }
+
+  @if (hasFailedPages()) {
+    <div class="notice" role="alert">
+      <p>Some pages could not be processed.</p>
+      <button type="button" (click)="retry()" [disabled]="retrying()">
+        {{ retrying() ? 'Retrying…' : 'Retry failed pages' }}
+      </button>
+    </div>
+  }
+  @if (error()) {
+    <div class="notice error" role="alert">
+      <p>{{ error() }}</p>
+      <button type="button" (click)="load()">Reload</button>
+    </div>
+  }
+
+  <div class="body" id="workspace-panel" role="tabpanel" [attr.aria-labelledby]="'workspace-tab-' + tab()">
+    @if (document(); as doc) {
+      <app-page-rail
+        [documentId]="doc.id"
+        [pages]="doc.pages"
+        [selectedPageId]="selectedPageId()"
+        [pageOrderRevision]="doc.pageOrderRevision"
+        (selectPage)="selectPage($event)"
+        (pagesChanged)="pagesChanged($event)"
+        (pagesAdded)="pagesAdded($event)"
+      />
+      @if (tab() === 'edit' && loginPrompt(); as tool) {
+        <section class="canvas login-needed" aria-label="Log in required" data-slot="login-prompt">
+          <div class="login-card">
+            <h2>Log in to use {{ tool.label }}</h2>
+            <p>Editing text, adding text, signatures and ticks need an account, so your changes are saved to you.
+              Your documents stay with you when you log in.</p>
+            <div class="login-actions">
+              <button type="button" class="primary" (click)="logIn()">Log in</button>
+              <button type="button" class="secondary" (click)="loginPrompt.set(null)">Not now</button>
+            </div>
+          </div>
+        </section>
+      } @else if (tab() === 'edit' && inlineEditor()) {
+        <section class="canvas editor" aria-label="Page editor">
+          @for (key of [inlineKey()]; track key) {
+            <app-page-text-editor [embedded]="true" [documentId]="doc.id" [pageId]="selectedPageId()" [tool]="inlineTool()"
+              (changed)="load()" (closed)="closeInlineEditor()" />
+          }
+        </section>
+      } @else {
+      <section class="canvas" aria-label="Document pages">
+        <app-page-viewer
+          [documentId]="doc.id"
+          [pages]="doc.pages"
+          [selectedPageId]="selectedPageId()"
+          [layout]="layout()"
+          [zoom]="zoom()"
+          [highlights]="highlights()"
+          [panMode]="tab() === 'view' && pointer() === 'pan'"
+          (selectPage)="selectPage($event)"
+          (zoomChange)="zoom.set($event)"
+        />
+      </section>
+      }
+      @switch (tab()) {
+        @case ('edit') {
+          <aside class="side-panel" aria-label="Edit panel" data-slot="edit-panel">
+            <app-edit-panel [tool]="editTool()" [pageId]="selectedPageId()" [pageNumber]="selectedPageNumber()"
+              (start)="startEditTool($event)" />
+          </aside>
+        }
+        @case ('export') {
+          <aside class="side-panel" aria-label="Export panel" data-slot="export-panel">
+            <app-export-panel [documentId]="doc.id" [documentTitle]="doc.title" [pages]="doc.pages"
+              [selectedPageId]="selectedPageId()" [kind]="exportKind()" [latestExport]="doc.latestExport"
+              (exportChange)="exportChanged($event)" />
+          </aside>
+        }
+      }
+    } @else if (!error()) {
+      <p class="loading" role="status">Loading document…</p>
+    }
+  </div>
+</main>

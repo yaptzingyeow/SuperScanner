@@ -38,6 +38,7 @@ export interface DocumentImport {
 
 export interface DocumentExport {
   id: string;
+  pageLayout: 'Original' | 'A4';
   state: string;
   documentRevision: number;
   readyPageCount: number;
@@ -131,4 +132,22 @@ export interface UploadItemProgress {
   createdPageCount?: number;
   failedPageCount?: number;
   errorCode?: string;
+}
+
+export interface CropPoint { x: number; y: number; }
+
+export type ScanFilterId = 'Magic' | 'Original' | 'Document' | 'Bright' | 'Grayscale' | 'BlackAndWhite' | 'RemoveShadows' | 'CleanDocument' | 'CleanDocumentGentle' | 'CleanDocumentStrong' | 'ContentClean';
+
+export interface CropState {
+  revision: number;
+  appliedRevision: number;
+  status: string;
+  confidence: number | null;
+  source: string | null;
+  modelVersion: string | null;
+  diagnosticsCode: string | null;
+  filter: ScanFilterId;
+  appliedFilter: ScanFilterId;
+  rotation: number;
+  points: CropPoint[] | null;
 }

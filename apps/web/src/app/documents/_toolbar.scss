@@ -1,0 +1,26 @@
+// Grouped, icon-led toolbar shared by the workspace's View / Edit / Export bars.
+.group {
+  display: flex; align-items: center; gap: 8px; padding: 4px 4px 4px 12px;
+  background: #fff; border: 1px solid #e3e5df; border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(20, 32, 26, .04);
+}
+.group-label {
+  font-size: 10.5px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: #8a948e;
+  white-space: nowrap;
+}
+.group-buttons { display: flex; align-items: center; gap: 2px; }
+.group-buttons button {
+  min-height: 40px; display: flex; align-items: center; gap: 7px; padding: 0 11px; border: none;
+  border-radius: 8px; background: transparent; color: #2b3530; font-size: 13px; cursor: pointer;
+  white-space: nowrap; transition: background .15s, color .15s;
+  app-icon { color: #66736c; transition: color .15s; }
+  &:hover:not(.on):not(:disabled) { background: #f2f4ef; app-icon { color: #1e6b50; } }
+  &.on { background: #e3f0e9; color: #14503b; font-weight: 600; app-icon { color: #1e6b50; } }
+  &:focus-visible { outline: 2px solid #1e6b50; outline-offset: 1px; }
+  &:disabled { opacity: .4; cursor: default; }
+  &.icon-only { width: 40px; justify-content: center; padding: 0; }
+}
+.badge {
+  padding: 1px 7px; border-radius: 999px; background: #fff1e0; color: #8a4b0f;
+  font-size: 10.5px; font-weight: 600;
+}

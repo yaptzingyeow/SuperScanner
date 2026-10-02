@@ -1,0 +1,41 @@
+@switch (kind) {
+  @case ('pdf') {
+    <app-export-status [documentId]="documentId" [documentTitle]="documentTitle" [pages]="pages"
+      [initialExport]="latest()" (exportChange)="onExportChange($event)" />
+  }
+  @case ('print') {
+    <section class="panel" aria-labelledby="print-title">
+      <h2 id="print-title">Print</h2>
+      <p>Prints all {{ readyCount }} ready {{ readyCount === 1 ? 'page' : 'pages' }} at their original size.</p>
+      <button type="button" class="primary" [disabled]="busy() || !readyCount" (click)="print()">
+        {{ busy() ? 'Preparing…' : 'Print' }}
+      </button>
+      @if (!readyCount) {
+        <p class="hint">At least one Ready page is required.</p>
+      }
+    </section>
+  }
+  @case ('original') {
+    <section class="panel" aria-labelledby="original-title">
+      <h2 id="original-title">Original file</h2>
+      <p>
+        Downloads the file as it was uploaded
+        @if (selectedNumber(); as n) {
+          for page {{ n }}.
+        } @else {
+          for the selected page.
+        }
+      </p>
+      <button type="button" class="primary" [disabled]="busy() || !selectedPageId || !selectedHasOriginal()" (click)="downloadOriginal()">
+        Download original
+      </button>
+      @if (selectedPageId && !selectedHasOriginal()) {
+        <p class="hint">The original file is no longer available for this page.</p>
+      }
+    </section>
+  }
+}
+@if (error()) {
+  <p class="error" role="alert">{{ error() }}</p>
+}
+<p class="sr-only" aria-live="polite">{{ announcement() }}</p>

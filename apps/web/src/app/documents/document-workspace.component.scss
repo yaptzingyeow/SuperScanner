@@ -1,0 +1,131 @@
+@use 'toolbar';
+
+/* Exactly the screen below the app bar: the header, tabs and toolbar stay put and only the
+   page rail, pages and side panel scroll. */
+:host { display: block; height: calc(100dvh - 72px); }
+
+.workspace {
+  height: 100%; display: flex; flex-direction: column; overflow: hidden;
+  background: #f4f3ee; color: #1b2420; font-family: 'IBM Plex Sans', system-ui, sans-serif;
+}
+
+.workspace-header {
+  min-height: 68px; flex-shrink: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center; gap: 16px; padding: 0 24px; background: #fff; border-bottom: 1px solid #e3e5df;
+}
+.identity { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.back {
+  width: 40px; height: 40px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  border: 1px solid #e3e5df; border-radius: 50%; color: #2b3530; transition: background .15s, border-color .15s;
+  &:hover { background: #f2f4ef; border-color: #cfd6cf; }
+  &:focus-visible { outline: 2px solid #1e6b50; outline-offset: 2px; }
+}
+.doc-badge {
+  width: 40px; height: 40px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  border-radius: 10px; background: linear-gradient(145deg, #e6f2ec, #d3e8dd); color: #1e6b50;
+}
+.titles { display: flex; flex-direction: column; min-width: 0; }
+h1 {
+  margin: 0; font-family: 'Source Serif 4', Georgia, serif; font-size: 19px; font-weight: 600; line-height: 1.25;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.meta { margin: 2px 0 0; font-size: 12px; color: #6b766f; }
+
+/* Segmented View / Edit / Export switch */
+.tabs {
+  display: flex; gap: 2px; padding: 4px; border-radius: 12px; background: #eef0eb;
+  box-shadow: inset 0 0 0 1px #e3e6df;
+}
+.tabs button {
+  height: 38px; display: flex; align-items: center; gap: 8px; padding: 0 18px; border: none; border-radius: 9px;
+  background: transparent; color: #5b6660; font-size: 14px; font-weight: 500; cursor: pointer;
+  transition: background .15s, color .15s, box-shadow .15s;
+  &:hover:not(.active) { color: #1b2420; background: rgba(255, 255, 255, .55); }
+  &.active { background: #fff; color: #14503b; font-weight: 600; box-shadow: 0 1px 3px rgba(20, 32, 26, .14); }
+  &:focus-visible { outline: 2px solid #1e6b50; outline-offset: 1px; }
+}
+
+.header-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.primary {
+  min-height: 42px; display: flex; align-items: center; gap: 8px; padding: 0 18px; border: none;
+  border-radius: 10px; background: #1e6b50; color: #fff; font-size: 14px; font-weight: 600; cursor: pointer;
+  box-shadow: 0 2px 6px rgba(30, 107, 80, .25); transition: background .15s, box-shadow .15s;
+  &:hover { background: #14503b; box-shadow: 0 3px 10px rgba(30, 107, 80, .3); }
+  &:focus-visible { outline: 2px solid #1e6b50; outline-offset: 2px; }
+}
+
+.toolbar {
+  flex-shrink: 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+  gap: 10px; padding: 10px 24px; background: #f8f8f4; border-bottom: 1px solid #e3e5df;
+}
+.zoom-value { min-width: 48px; text-align: center; font-size: 13px; font-weight: 600; color: #2b3530; }
+.badge { margin-left: 2px; }
+
+/* Search (Edit tab): a slim bar under the toolbar */
+.search-bar {
+  flex-shrink: 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px;
+  padding: 8px 24px; background: #fff; border-bottom: 1px solid #e3e5df;
+}
+.search-field {
+  height: 40px; width: min(340px, 100%); display: flex; align-items: center; gap: 8px; padding: 0 12px;
+  border: 1px solid #d5dad3; border-radius: 10px; background: #fff; color: #66736c;
+  &:focus-within { border-color: #1e6b50; box-shadow: 0 0 0 3px rgba(30, 107, 80, .14); }
+  input { flex: 1; min-width: 0; height: 100%; border: none; outline: none; background: transparent; font-size: 14px; color: #1b2420; }
+}
+.search-count { min-width: 64px; text-align: center; font-size: 13px; font-weight: 600; color: #2b3530; }
+.search-steps { display: flex; gap: 2px; }
+.step {
+  width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border: none;
+  border-radius: 8px; background: transparent; color: #44504a; cursor: pointer;
+  &:hover:not(:disabled) { background: #f2f4ef; color: #1e6b50; }
+  &:disabled { opacity: .35; cursor: default; }
+}
+.search-status { font-size: 12.5px; color: #6b766f; }
+.recognize {
+  height: 36px; display: flex; align-items: center; gap: 6px; padding: 0 14px; border: 1px solid #1e6b50;
+  border-radius: 9px; background: #fff; color: #1e6b50; font-size: 13px; font-weight: 600; cursor: pointer;
+  &:hover { background: #e3f0e9; }
+}
+
+.notice {
+  display: flex; align-items: center; justify-content: center; gap: 12px; padding: 8px 24px;
+  background: #fff6e8; border-bottom: 1px solid #f0dcc0; font-size: 14px;
+  p { margin: 0; }
+  button {
+    min-height: 44px; padding: 0 14px; border: 1px solid #1e6b50; border-radius: 8px; background: #fff;
+    color: #1e6b50; font-weight: 600; cursor: pointer;
+  }
+  &.error { background: #fdecea; border-bottom-color: #f2c4bf; }
+}
+
+.body { flex-grow: 1; display: flex; min-height: 0; }
+app-page-rail { flex-shrink: 0; height: 100%; }
+.canvas { flex-grow: 1; min-width: 0; min-height: 0; background: #ecece6; }
+.canvas.editor { overflow: hidden; background: #fff; }
+.canvas.login-needed { display: flex; align-items: center; justify-content: center; padding: 24px; }
+.login-card {
+  max-width: 440px; padding: 28px; border-radius: 12px; background: #fff; box-shadow: 0 8px 28px rgba(18, 28, 23, .12);
+  h2 { margin: 0 0 10px; font-family: 'Source Serif 4', Georgia, serif; font-size: 22px; font-weight: 600; }
+  p { margin: 0 0 20px; font-size: 14px; line-height: 1.55; color: #3f4a44; }
+}
+.login-actions { display: flex; gap: 10px; }
+.secondary {
+  min-height: 44px; padding: 0 18px; border: 1px solid #c9ccc3; border-radius: 8px; background: #fff;
+  color: #1b2420; font-size: 14px; font-weight: 600; cursor: pointer;
+}
+.canvas.editor app-page-text-editor { height: 100%; }
+.side-panel {
+  width: 320px; flex-shrink: 0; padding: 24px; background: #fff; border-left: 1px solid #dcddd6; overflow: auto;
+}
+.loading { margin: auto; color: #5b6660; }
+
+@media (max-width: 900px) {
+  .workspace-header { grid-template-columns: 1fr; padding: 8px 16px; }
+  .tabs { justify-self: start; }
+  .header-actions { justify-content: flex-start; }
+  .toolbar { justify-content: flex-start; padding: 4px 16px; }
+  .body { flex-wrap: wrap; overflow: auto; }
+  app-page-rail { height: auto; }
+  .canvas { flex-basis: 0; min-height: 50vh; }
+  .side-panel { width: 100%; flex-basis: 100%; border-left: none; border-top: 1px solid #dcddd6; overflow: visible; }
+}

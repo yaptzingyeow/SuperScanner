@@ -1,0 +1,6 @@
+@use 'toolbar';
+
+:host { display: contents; }
+.history-note, .history-error { margin: 0 0 0 4px; font-size: 13px; color: #3f4a44; }
+.history-error { color: #a12a1f; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

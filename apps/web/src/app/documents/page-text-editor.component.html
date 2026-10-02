@@ -1,10 +1,17 @@
 <main class="text-page">
-  <a class="back" [routerLink]="['/documents', documentId]">← Back to document</a>
-  <header>
-    <p class="eyebrow">PAGE EDITOR</p>
-    <h1>{{ title() || 'Edit page' }} · Page {{ page()?.position || '' }}</h1>
-    <p>Add a mark or signature directly. To replace scanned words, recognize text first.</p>
-  </header>
+  @if (embedded()) {
+    <div class="embedded-bar">
+      <span>Editing page {{ page()?.position || '' }}</span>
+      <button type="button" class="done" data-testid="done-editing" [disabled]="markBusy()" (click)="done()">Done</button>
+    </div>
+  } @else {
+    <a class="back" [routerLink]="['/documents', documentId]" [queryParams]="workspaceQuery">← Back to document</a>
+    <header>
+      <p class="eyebrow">PAGE EDITOR</p>
+      <h1>{{ title() || 'Edit page' }} · Page {{ page()?.position || '' }}</h1>
+      <p>Add a mark or signature directly. To replace scanned words, recognize text first.</p>
+    </header>
+  }
 
   @if (loading()) { <p role="status">Opening page…</p> }
   @if (error()) { <p class="error" role="alert">{{ error() }}</p><button type="button" (click)="load()">Retry</button> }

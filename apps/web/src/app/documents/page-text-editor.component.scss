@@ -32,6 +32,12 @@ app-ocr-text-overlay { position: absolute; inset: 0; }
 .signature-fields { display: flex; gap: 10px; } .signature-fields label { display: grid; gap: 4px; font-size: .85rem; }
 .signature-fields input { width: 82px; min-height: 36px; padding: 4px 8px; border: 1px solid #a7bdf2; border-radius: 6px; }
 .signature-modal { position: fixed; inset: 0; z-index: 100; overflow-y: auto; background: #17203380; padding: 5vh 16px; }
+:host(.embedded) { height: 100%; overflow: auto; }
+:host(.embedded) .text-page { max-width: none; padding: 12px 16px 24px; }
+:host(.embedded) .page-scroll { max-height: none; min-height: 0; }
+.embedded-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; font-weight: 600; color: #17372b; }
+.embedded-bar .done { min-height: 40px; padding: 0 18px; border: 1px solid #165e47; border-radius: 8px; background: white; color: #165e47; font: inherit; font-weight: 700; cursor: pointer; }
+.embedded-bar .done:disabled { opacity: .55; cursor: default; }
 @media (max-width: 700px) {
   .text-page { padding: 12px; }
   .page-scroll { padding: 8px; min-height: 360px; max-height: calc(100vh - 290px); }

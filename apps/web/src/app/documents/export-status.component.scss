@@ -88,6 +88,30 @@ button:disabled {
 .hint {
   font-size: 12px;
 }
+.searchable-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 13px 14px;
+  border: 1px solid #d9e3de;
+  border-radius: 12px;
+  background: #f8fbf9;
+  cursor: pointer;
+}
+.searchable-option input {
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  accent-color: #155d46;
+}
+.searchable-option span {
+  display: grid;
+  gap: 3px;
+}
+.searchable-option small {
+  color: #5d7168;
+  line-height: 1.4;
+}
 .error {
   color: #9b3325;
 }

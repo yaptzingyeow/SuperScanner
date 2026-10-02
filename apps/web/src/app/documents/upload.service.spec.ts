@@ -190,6 +190,58 @@ describe('UploadService', () => {
     expect(items[1].errorCode).toBe('pdf_invalid');
   });
 
+  it('startDocument creates the document then uploads every file and returns upload ids', async () => {
+    const { service, events } = setup();
+
+    const result = await service.startDocument('Trip', [pdf()]);
+
+    expect(events).toEqual(['create-document', 'create-intent', 'put', 'complete']);
+    expect(result).toEqual({ documentId: 'doc-1', uploadIds: ['up-1'] });
+  });
+
+  it('startDocument rejects an empty file list before creating a document', async () => {
+    const { service, events } = setup();
+
+    await expect(service.startDocument('Trip', [])).rejects.toMatchObject({ code: 'no_files' });
+    expect(events).toEqual([]);
+  });
+
+  it('startDocument omits client-rejected files from the upload ids', async () => {
+    const { service } = setup();
+    const bad = new File(['x'], 'notes.txt', { type: 'text/plain' });
+
+    const result = await service.startDocument('Trip', [bad, pdf()]);
+
+    expect(result.uploadIds).toEqual(['up-1']);
+    expect(service.items().map((item) => item.stage)).toEqual(['error', 'validating']);
+  });
+
+  it('startDocument resolves without polling expansion', async () => {
+    let polls = 0;
+    const { service } = setup();
+    (service as unknown as { api: { getUploadStatus: () => Promise<never> } }).api.getUploadStatus =
+      () => {
+        polls++;
+        return Promise.reject(new Error('must not poll'));
+      };
+
+    const result = await service.startDocument('Trip', [pdf()]);
+
+    expect(result.uploadIds).toEqual(['up-1']);
+    expect(polls).toBe(0);
+  });
+
+  it('startDocument creates no document when every file is invalid', async () => {
+    const { service, events } = setup();
+    const bad = new File(['x'], 'notes.txt', { type: 'text/plain' });
+
+    await expect(service.startDocument('Trip', [bad])).rejects.toMatchObject({
+      code: 'unsupported_type',
+    });
+    expect(events).toEqual([]);
+    expect(service.items()[0]).toMatchObject({ fileName: 'notes.txt', stage: 'error' });
+  });
+
   it('polls expansion until all discovered pages are accounted for', async () => {
     let polls = 0;
     const api = {

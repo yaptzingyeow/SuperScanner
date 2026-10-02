@@ -18,7 +18,7 @@ describe('TextReplacementEditorComponent', () => {
     fontWeight: 400, letterSpacing: 0, baselineAngleDegrees: 0, alignment: 'left' },
   };
 
-  async function setup(proposalError?: unknown, mode: 'replace' | 'delete' | 'add' = 'replace') {
+  async function setup(proposalError?: unknown, mode: 'replace' | 'delete' | 'add' = 'replace', historyError?: unknown) {
     const fonts = { list: vi.fn().mockResolvedValue([
       { catalogueId: 'noto-sans', version: 'archive-main-regular', familyName: 'Noto Sans',
         category: 'SansSerif', weight: 400, webFamilyName: 'SuperScanner Noto Sans v1',
@@ -42,6 +42,7 @@ describe('TextReplacementEditorComponent', () => {
       get: vi.fn().mockResolvedValue({ id: 'edit-1', state: 'Succeeded', resultRevisionId: 'revision-2' }),
     };
     if (proposalError) api.propose.mockRejectedValue(proposalError);
+    if (historyError) api.history.mockRejectedValue(historyError);
     TestBed.configureTestingModule({ imports: [TextReplacementEditorComponent],
       providers: [{ provide: TextEditService, useValue: api },
         { provide: FontCatalogueService, useValue: fonts }] });
@@ -90,6 +91,15 @@ describe('TextReplacementEditorComponent', () => {
     await fixture.whenStable();
     expect(api.preview).toHaveBeenCalledWith('document-1', 'page-1',
       expect.objectContaining({ ocrResultId: '00000000-0000-0000-0000-000000000000', wordIds: [], replacementText: 'New label' }));
+  });
+
+  it('asks to sign in for add text only when the server says the user is signed out', async () => {
+    const signedOut = await setup(undefined, 'add', new HttpErrorResponse({ status: 401 }));
+    expect(signedOut.fixture.nativeElement.textContent).toContain('Sign in to add text on this page.');
+    TestBed.resetTestingModule();
+    const broken = await setup(undefined, 'add', new HttpErrorResponse({ status: 500 }));
+    expect(broken.fixture.nativeElement.textContent).toContain('Could not start adding text. Please try again.');
+    expect(broken.fixture.nativeElement.textContent).not.toContain('Sign in');
   });
 
   it('accepts typed letter spacing up to three before preview', async () => {

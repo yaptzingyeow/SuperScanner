@@ -3,12 +3,15 @@ import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { API_BASE_URL } from '../core/api/security.interceptor';
 import {
+  CropPoint,
+  CropState,
   DocumentDetail,
   DocumentDto,
   DocumentExport,
   DocumentExportPreview,
   PageOcr,
   ReorderPagesRequest,
+  ScanFilterId,
 } from './document.models';
 
 export type { DocumentDto } from './document.models';
@@ -84,9 +87,16 @@ export class DocumentsApiService {
     await firstValueFrom(this.http.delete<void>(`${this.baseUrl}/documents/${id}/pages/${pageId}`));
   }
 
-  createExport(id: string): Promise<DocumentExport> {
+  createExport(
+    id: string,
+    pageLayout: 'Original' | 'A4' = 'Original',
+    includeSearchableText = false,
+  ): Promise<DocumentExport> {
     return firstValueFrom(
-      this.http.post<DocumentExport>(`${this.baseUrl}/documents/${id}/exports`, null),
+      this.http.post<DocumentExport>(`${this.baseUrl}/documents/${id}/exports`, {
+        pageLayout,
+        includeSearchableText,
+      }),
     );
   }
 
@@ -110,6 +120,14 @@ export class DocumentsApiService {
     );
   }
 
+  downloadPageOriginal(documentId: string, pageId: string): Promise<Blob> {
+    return firstValueFrom(
+      this.http.get(`${this.baseUrl}/documents/${documentId}/pages/${pageId}/original`, {
+        responseType: 'blob',
+      }),
+    );
+  }
+
   getPageOcr(documentId: string, pageId: string): Promise<PageOcr> {
     return firstValueFrom(
       this.http.get<PageOcr>(`${this.baseUrl}/documents/${documentId}/pages/${pageId}/ocr`),
@@ -120,6 +138,33 @@ export class DocumentsApiService {
     return firstValueFrom(
       this.http.post<PageOcr>(`${this.baseUrl}/documents/${documentId}/pages/${pageId}/ocr`, {
         retryFailed,
+      }),
+    );
+  }
+
+  getCrop(documentId: string, pageId: string): Promise<CropState> {
+    return firstValueFrom(
+      this.http.get<CropState>(`${this.baseUrl}/documents/${documentId}/pages/${pageId}/crop`),
+    );
+  }
+
+  applyCrop(
+    documentId: string,
+    pageId: string,
+    body: { revision: number; points: CropPoint[]; filter: ScanFilterId; rotation: number },
+  ): Promise<CropState> {
+    return firstValueFrom(
+      this.http.post<CropState>(
+        `${this.baseUrl}/documents/${documentId}/pages/${pageId}/crop/apply`,
+        body,
+      ),
+    );
+  }
+
+  getPagePreview(documentId: string, pageId: string): Promise<Blob> {
+    return firstValueFrom(
+      this.http.get(`${this.baseUrl}/documents/${documentId}/pages/${pageId}/preview`, {
+        responseType: 'blob',
       }),
     );
   }

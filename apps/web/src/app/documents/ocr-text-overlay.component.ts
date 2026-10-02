@@ -36,6 +36,8 @@ export interface OcrEditSelection {
 export class OcrTextOverlayComponent implements OnChanges, OnDestroy {
   readonly pageId = input.required<string>();
   readonly ocr = input.required<PageOcr>();
+  readonly highlightWordIds = input<readonly string[]>([]);
+  protected readonly highlightSet = computed(() => new Set(this.highlightWordIds()));
   readonly editSelection = output<OcrEditSelection>();
   readonly deleteSelection = output<OcrEditSelection>();
 

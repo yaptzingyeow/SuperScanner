@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Component, HostListener, OnDestroy, OnInit, ViewChild, inject, signal } from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit, ViewChild, inject, input, output, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { API_BASE_URL } from '../core/api/security.interceptor';
@@ -26,6 +26,7 @@ import { PageMarkHistory } from './page-mark-history';
   imports: [RouterLink, OcrTextOverlayComponent, TextReplacementEditorComponent, SignatureCreatorComponent, PageSignatureOverlayComponent, PageMarkOverlayComponent, PageMarkToolsComponent, CdkTrapFocus],
   templateUrl: './page-text-editor.component.html',
   styleUrl: './page-text-editor.component.scss',
+  host: { '[class.embedded]': 'embedded()' },
 })
 export class PageTextEditorComponent implements OnInit, OnDestroy {
   @ViewChild(TextReplacementEditorComponent) private editor?: TextReplacementEditorComponent;
@@ -35,8 +36,21 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
   private readonly signatureApi = inject(PageSignatureService);
   private readonly markApi = inject(PageMarkService);
   private readonly base = inject(API_BASE_URL).replace(/\/+$/, '');
-  protected readonly documentId = this.route.snapshot.paramMap.get('documentId') ?? '';
-  protected readonly pageId = this.route.snapshot.paramMap.get('pageId') ?? '';
+  /** Set when the editor is embedded in the workspace; otherwise the route supplies the page. */
+  readonly documentIdInput = input<string | null>(null, { alias: 'documentId' });
+  readonly pageIdInput = input<string | null>(null, { alias: 'pageId' });
+  /** Tool to start once the page has loaded: add, signature, mark or ocr (like ?tool=). */
+  readonly toolInput = input<string | null>(null, { alias: 'tool' });
+  /** Shown inside the workspace Edit tab instead of on its own page. */
+  readonly embedded = input(false);
+  /** The page image changed (a text edit was applied). */
+  readonly changed = output<void>();
+  /** The user chose Done (embedded only). */
+  readonly closed = output<void>();
+  protected documentId = this.route.snapshot.paramMap.get('documentId') ?? '';
+  protected pageId = this.route.snapshot.paramMap.get('pageId') ?? '';
+  /** Closing the editor returns to this page in the workspace Edit tab. */
+  protected workspaceQuery = { tab: 'edit', page: this.pageId };
   protected readonly page = signal<DocumentPage | null>(null);
   protected readonly title = signal('');
   protected readonly imageUrl = signal('');
@@ -81,9 +95,26 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
   private pan?: { pointerId: number; x: number; y: number; left: number; top: number };
   private timer?: ReturnType<typeof setTimeout>;
   private destroyed = false;
+  private pendingTool = this.route.snapshot.queryParamMap?.get('tool') ?? null;
 
   ngOnInit(): void {
+    if (this.embedded()) {
+      this.documentId = this.documentIdInput() ?? this.documentId;
+      this.pageId = this.pageIdInput() ?? this.pageId;
+      this.workspaceQuery = { tab: 'edit', page: this.pageId };
+      this.pendingTool = this.toolInput();
+    }
     void this.load();
+  }
+
+  /** Starts a tool now (page loaded) or once the page has loaded. */
+  startTool(tool: string | null): void {
+    this.pendingTool = tool;
+    if (!this.loading() && this.page()) this.startRequestedTool();
+  }
+
+  protected done(): void {
+    if (this.canLeave()) this.closed.emit();
   }
 
   canLeave(): boolean {
@@ -117,11 +148,23 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
       if (this.imageUrl()) URL.revokeObjectURL(this.imageUrl());
       this.imageUrl.set(URL.createObjectURL(blob));
       await Promise.all([this.refreshOcr(), this.refreshSignatures(), this.refreshMarks()]);
+      this.startRequestedTool();
     } catch {
       if (!this.destroyed) this.error.set('Could not open this page for text editing. Try again.');
     } finally {
       if (!this.destroyed) this.loading.set(false);
     }
+  }
+
+  /** Starts the tool requested by ?tool= once, after the page has loaded. */
+  private startRequestedTool(): void {
+    const tool = this.pendingTool;
+    this.pendingTool = null;
+    if (this.destroyed) return;
+    if (tool === 'add') this.addText();
+    else if (tool === 'signature') this.openSignatureCreator();
+    else if (tool === 'mark') this.beginMarkPlacement();
+    else if (tool === 'ocr') void this.recognize();
   }
 
   protected async recognize(): Promise<void> {
@@ -216,6 +259,7 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
   protected async textEditCompleted(): Promise<void> {
     this.closeTextEdit();
     await this.load();
+    if (!this.destroyed) this.changed.emit();
   }
 
   protected openSignatureCreator(): void {

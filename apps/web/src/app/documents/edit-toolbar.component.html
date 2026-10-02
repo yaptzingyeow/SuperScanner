@@ -1,0 +1,33 @@
+@for (group of groups; track group.label) {
+  <div class="group" role="group" [attr.aria-label]="group.label + ' tools'">
+    <span class="group-label" aria-hidden="true">{{ group.label }}</span>
+    <div class="group-buttons">
+      @for (t of group.tools; track t.id) {
+        <button type="button" [class.on]="tool === t.id" [attr.aria-pressed]="tool === t.id"
+          [disabled]="!pageId" (click)="choose(t)"><app-icon [name]="icons[t.id]" /><span>{{ t.label }}</span></button>
+      }
+      @if (group.label === 'Text') {
+        <button type="button" [class.on]="searchOpen" [attr.aria-expanded]="searchOpen"
+          (click)="searchToggle.emit()"><app-icon name="search" /><span>Search text</span></button>
+      }
+    </div>
+  </div>
+}
+<div class="group" role="group" aria-label="Page history">
+  <span class="group-label" aria-hidden="true">History</span>
+  <div class="group-buttons">
+    <button type="button" class="icon-only" data-testid="undo-edit" title="Undo" aria-label="Undo"
+      [disabled]="!history()?.canUndo || historyBusy()" (click)="switchRevision('undo')"><app-icon name="undo" /></button>
+    <button type="button" class="icon-only" data-testid="redo-edit" title="Redo" aria-label="Redo"
+      [disabled]="!history()?.canRedo || historyBusy()" (click)="switchRevision('redo')"><app-icon name="redo" /></button>
+    <button type="button" [class.on]="historyOpen()" [attr.aria-expanded]="historyOpen()" [disabled]="!pageId"
+      (click)="toggleHistory()"><app-icon name="history" /><span>History</span></button>
+  </div>
+</div>
+@if (historyOpen() && history(); as h) {
+  <p class="history-note" role="status">
+    {{ h.entries.length }} {{ h.entries.length === 1 ? 'saved change' : 'saved changes' }} on this page.
+  </p>
+}
+@if (historyError()) { <p class="history-error" role="alert">{{ historyError() }}</p> }
+<span class="sr-only" role="status" aria-live="polite">{{ announcement() }}</span>

@@ -115,6 +115,38 @@ export class UploadService {
     }
   }
 
+  async startDocument(
+    title: string,
+    files: readonly File[],
+  ): Promise<{ documentId: string; uploadIds: string[] }> {
+    if (this.active) throw new UploadFlowError('upload_active');
+    if (files.length === 0) throw new UploadFlowError('no_files');
+    this.active = true;
+    this.progress.set({ stage: 'preparing', percent: 0 });
+    try {
+      const codes = files.map((file) => this.validationCode(file));
+      if (codes.every((code) => code)) {
+        this.items.set(
+          files.map((file, i) => ({
+            fileName: file.name,
+            stage: 'error' as const,
+            percent: 0,
+            errorCode: codes[i]!,
+          })),
+        );
+        throw new UploadFlowError(codes[0]!);
+      }
+      const document = await this.api.createDocument(title.trim());
+      const items = await this.addFilesInternal(document.id, files, false);
+      const uploadIds = items.flatMap((item) => (item.uploadId ? [item.uploadId] : []));
+      return { documentId: document.id, uploadIds };
+    } catch (error) {
+      throw error instanceof UploadFlowError ? error : new UploadFlowError('request_failed');
+    } finally {
+      this.active = false;
+    }
+  }
+
   async addFiles(documentId: string, files: readonly File[]): Promise<UploadItemProgress[]> {
     if (this.active) throw new UploadFlowError('upload_active');
     this.active = true;
@@ -128,6 +160,7 @@ export class UploadService {
   private async addFilesInternal(
     documentId: string,
     files: readonly File[],
+    poll = true,
   ): Promise<UploadItemProgress[]> {
     const initial = files.map((file) => ({
       fileName: file.name,
@@ -141,7 +174,7 @@ export class UploadService {
       try {
         this.validate(file);
         this.updateItem(index, { stage: 'preparing', percent: 0 });
-        const item = await this.uploadOne(documentId, file, index);
+        const item = await this.uploadOne(documentId, file, index, poll);
         this.updateItem(index, item);
       } catch (error) {
         const safe =
@@ -156,6 +189,7 @@ export class UploadService {
     documentId: string,
     file: File,
     itemIndex: number,
+    poll: boolean,
   ): Promise<Partial<UploadItemProgress>> {
     const request: CreateUploadIntentRequest = {
       fileName: file.name,
@@ -177,6 +211,7 @@ export class UploadService {
 
     await this.api.completeUpload(documentId, intent.uploadId);
     this.updateItem(itemIndex, { stage: 'validating', percent: 100 });
+    if (!poll) return { stage: 'validating', percent: 100 };
     return this.pollExpansion(documentId, intent.uploadId);
   }
 
@@ -224,6 +259,15 @@ export class UploadService {
     this.items.update((items) =>
       items.map((item) => (item.uploadId === uploadId ? { ...item, ...patch } : item)),
     );
+  }
+
+  private validationCode(file: File): string | null {
+    try {
+      this.validate(file);
+      return null;
+    } catch (error) {
+      return error instanceof UploadFlowError ? error.code : 'request_failed';
+    }
   }
 
   private validate(file: File): void {

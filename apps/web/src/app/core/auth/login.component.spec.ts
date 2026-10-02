@@ -4,6 +4,20 @@ import { AuthService } from './auth.service';
 import { LoginComponent } from './login.component';
 
 describe('LoginComponent', () => {
+  it('credits ArkSoft with a link that opens its site in a new tab', () => {
+    TestBed.configureTestingModule({
+      imports: [LoginComponent],
+      providers: [provideRouter([]), { provide: AuthService, useValue: {} }],
+    });
+    const fixture = TestBed.createComponent(LoginComponent);
+    fixture.detectChanges();
+    const link = (fixture.nativeElement as HTMLElement).querySelector<HTMLAnchorElement>('.maker a')!;
+    expect(link.textContent).toBe('ArkSoft');
+    expect(link.getAttribute('href')).toBe('https://arksoft.dev/');
+    expect(link.target).toBe('_blank');
+    expect(link.rel).toContain('noopener');
+  });
+
   it('signs in with email and password then returns to the workspace', async () => {
     const auth = {
       signInWithEmail: vi.fn().mockResolvedValue(undefined),

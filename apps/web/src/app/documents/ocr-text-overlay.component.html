@@ -29,6 +29,7 @@
           [attr.aria-selected]="selectedIds().has(word.id)"
           [class.focused]="activeWordDomId() === 'ocr-word-' + word.id"
           [class.selected]="selectedIds().has(word.id)"
+          [class.highlighted]="highlightSet().has(word.id)"
         />
       }
     </svg>

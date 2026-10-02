@@ -48,6 +48,15 @@ describe('OcrTextOverlayComponent', () => {
     });
   });
 
+  it('renders highlighted words with the search style', () => {
+    fixture.componentRef.setInput('highlightWordIds', ['w1', 'w3']);
+    fixture.detectChanges();
+    const ids = [...fixture.nativeElement.querySelectorAll('polygon.highlighted')]
+      .map((e: Element) => e.getAttribute('data-word-id'));
+    expect(ids).toEqual(['w1', 'w3']);
+    expect(fixture.nativeElement.querySelectorAll('polygon.selected').length).toBe(0);
+  });
+
   it('selects several words with one drag and summarizes them in reading order', () => {
     drag(145, 95, 500, 165);
 

@@ -1,0 +1,57 @@
+<nav class="rail" aria-label="Pages">
+  <h2 class="rail-title">Pages</h2>
+  <ol
+    class="rail-list"
+    cdkDropList
+    [cdkDropListData]="ordered()"
+    [cdkDropListDisabled]="busy()"
+    (cdkDropListDropped)="drop($event)"
+  >
+    @for (page of ordered(); track page.id) {
+      <li class="rail-item" cdkDrag [cdkDragData]="page">
+        <button
+          type="button"
+          class="thumb"
+          [class.selected]="page.id === selectedPageId"
+          [attr.aria-pressed]="page.id === selectedPageId"
+          [attr.aria-label]="'Page ' + page.position"
+          (click)="selectPage.emit(page.id)"
+        >
+          <span class="thumb-frame">
+            @if (thumbnails()[page.id]; as url) {
+              <img [src]="url" [alt]="'Thumbnail of page ' + page.position" />
+            } @else {
+              <span class="thumb-placeholder" aria-hidden="true"></span>
+            }
+          </span>
+          <span class="thumb-number">{{ page.position }}</span>
+        </button>
+        <div class="item-actions">
+          <button type="button" class="icon" [disabled]="$first || busy()"
+            [attr.aria-label]="'Move page ' + page.position + ' earlier'" title="Move earlier"
+            (click)="move(page.id, -1)">&uarr;</button>
+          <button type="button" class="icon" [disabled]="$last || busy()"
+            [attr.aria-label]="'Move page ' + page.position + ' later'" title="Move later"
+            (click)="move(page.id, 1)">&darr;</button>
+          <button type="button" class="icon danger" [disabled]="busy()"
+            [attr.aria-label]="'Remove page ' + page.position" title="Remove page"
+            (click)="remove(page)">&times;</button>
+        </div>
+      </li>
+    }
+  </ol>
+  <button type="button" class="add" (click)="showAdd.set(true)">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+    Add pages
+  </button>
+  @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+  <p class="status" aria-live="polite">{{ message() }}</p>
+</nav>
+@if (showAdd()) {
+  <app-add-pages-dialog
+    [documentId]="documentId"
+    (closed)="showAdd.set(false)"
+    (completed)="onAdded($event)"
+  />
+}

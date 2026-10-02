@@ -290,3 +290,15 @@ main {
     padding: 0 13px;
   }
 }
+
+/* "by ArkSoft" maker line under the product name */
+.brand__text { display: flex; flex-direction: column; line-height: 1.05; }
+.brand__by {
+  margin-top: 2px; font-size: 10px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
+  color: #7b867f;
+}
+@media (max-width: 480px) {
+  .brand__text { display: none; }
+}
+
+.brand__logo { width: 34px; height: 34px; flex-shrink: 0; border-radius: 9px; box-shadow: 0 2px 6px rgba(17, 74, 54, .25); }

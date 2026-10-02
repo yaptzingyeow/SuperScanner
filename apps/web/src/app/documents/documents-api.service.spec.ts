@@ -62,8 +62,9 @@ describe('DocumentsApiService organizer APIs', () => {
     });
     await preview;
 
-    const creation = service.createExport('doc-1');
+    const creation = service.createExport('doc-1', 'A4', false);
     const createRequest = http.expectOne('/api/documents/doc-1/exports');
+    expect(createRequest.request.body).toEqual({ pageLayout: 'A4', includeSearchableText: false });
     expect(createRequest.request.method).toBe('POST');
     createRequest.flush({ id: 'export-1', state: 'Queued' });
     await creation;
@@ -95,5 +96,42 @@ describe('DocumentsApiService organizer APIs', () => {
     expect(post.request.body).toEqual({ retryFailed: true });
     post.flush({ state: 'Queued', elementCount: 0, canRetry: false, elements: [] });
     await request;
+  });
+
+  it('applyCrop posts revision, points, filter and rotation to /crop/apply', async () => {
+    const points = [
+      { x: 0, y: 0 },
+      { x: 1, y: 0 },
+      { x: 1, y: 1 },
+      { x: 0, y: 1 },
+    ];
+    const result = service.applyCrop('doc-1', 'page-2', {
+      revision: 3,
+      points,
+      filter: 'Magic',
+      rotation: 90,
+    });
+    const post = http.expectOne('/api/documents/doc-1/pages/page-2/crop/apply');
+    expect(post.request.method).toBe('POST');
+    expect(post.request.body).toEqual({ revision: 3, points, filter: 'Magic', rotation: 90 });
+    post.flush({ revision: 4, appliedRevision: 4, status: 'Ready', filter: 'Magic', appliedFilter: 'Magic', rotation: 90, points });
+    await expect(result).resolves.toMatchObject({ rotation: 90, revision: 4 });
+  });
+
+  it('getCrop reads the crop state', async () => {
+    const result = service.getCrop('doc-1', 'page-2');
+    const get = http.expectOne('/api/documents/doc-1/pages/page-2/crop');
+    expect(get.request.method).toBe('GET');
+    get.flush({ revision: 1, appliedRevision: 0, status: 'Ready', filter: null, appliedFilter: null, rotation: 0, points: null });
+    await expect(result).resolves.toMatchObject({ rotation: 0 });
+  });
+
+  it('getPagePreview requests a blob', async () => {
+    const result = service.getPagePreview('doc-1', 'page-2');
+    const get = http.expectOne('/api/documents/doc-1/pages/page-2/preview');
+    expect(get.request.method).toBe('GET');
+    expect(get.request.responseType).toBe('blob');
+    get.flush(new Blob(['img'], { type: 'image/jpeg' }));
+    await expect(result).resolves.toBeInstanceOf(Blob);
   });
 });

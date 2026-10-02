@@ -1,0 +1,14 @@
+:host { display: block; }
+.panel { display: grid; gap: 12px; }
+h2 { margin: 0; font-size: 18px; }
+p { margin: 0; color: #3b4640; font-size: 14px; }
+.hint { color: #5b665f; font-size: 13px; }
+.error { margin-top: 12px; padding: 8px 12px; border-radius: 8px; background: #fdecea; color: #8a1f17; }
+.primary {
+  min-height: 44px; padding: 0 16px; border: none; border-radius: 8px; background: #1e6b50; color: #fff;
+  font-weight: 600; cursor: pointer;
+  &:disabled { opacity: 0.5; cursor: default; }
+}
+.sr-only {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+}

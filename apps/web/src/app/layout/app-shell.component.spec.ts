@@ -6,7 +6,7 @@ import { LoginComponent } from '../core/auth/login.component';
 import { AppShellComponent } from './app-shell.component';
 
 describe('AppShellComponent', () => {
-  it('renders the SuperScanner navigation and accessible application landmarks', () => {
+  it('renders the Arks Scanner navigation and accessible application landmarks', () => {
     TestBed.configureTestingModule({
       imports: [AppShellComponent],
       providers: [
@@ -25,7 +25,8 @@ describe('AppShellComponent', () => {
     fixture.detectChanges();
     const root = fixture.nativeElement as HTMLElement;
 
-    expect(root.querySelector('[data-brand]')?.textContent).toContain('SuperScanner');
+    expect(root.querySelector('[data-brand]')?.textContent).toContain('Arks Scanner');
+    expect(root.querySelector('[data-brand]')?.textContent).toContain('by ArkSoft');
     expect(root.querySelector('nav[aria-label="Primary"]')?.textContent).toContain('Scan');
     expect(root.querySelector('nav[aria-label="Primary"]')?.textContent).toContain('My documents');
     expect(root.querySelector('main')).not.toBeNull();

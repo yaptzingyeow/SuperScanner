@@ -12,7 +12,7 @@ export class AddPagesDialogComponent {
   private readonly uploads = inject(UploadService);
   @Input({ required: true }) documentId = '';
   @Output() readonly closed = new EventEmitter<void>();
-  @Output() readonly completed = new EventEmitter<void>();
+  @Output() readonly completed = new EventEmitter<string[]>();
   protected readonly selected = signal<File[]>([]);
   protected readonly running = signal(false);
   protected readonly items = this.uploads.items;
@@ -26,7 +26,9 @@ export class AddPagesDialogComponent {
     this.running.set(true);
     try {
       const results = await this.uploads.addFiles(this.documentId, this.selected());
-      if (results.every((item) => item.stage === 'accepted')) this.completed.emit();
+      if (results.every((item) => item.stage === 'accepted')) {
+        this.completed.emit(results.flatMap((item) => (item.uploadId ? [item.uploadId] : [])));
+      }
     } finally {
       this.running.set(false);
     }

@@ -34,6 +34,7 @@
         <a [routerLink]="['/documents', documentId, 'pages', page.id, 'crop']">Crop & filters</a>
       }
       @if (page.state === 'Ready' && page.hasPreview) {
+        <a [routerLink]="['/documents', documentId, 'pages', page.id, 'clean']">Clean page</a>
         <a class="edit-text-action" data-testid="open-text-editor"
           [routerLink]="['/documents', documentId, 'pages', page.id, 'text']">✎ Edit text</a>
       }

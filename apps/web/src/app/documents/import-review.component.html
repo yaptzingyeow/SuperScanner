@@ -1,0 +1,148 @@
+<section class="import-panel" aria-labelledby="import-title">
+  <header class="panel-header">
+    <div class="heading">
+      <h1 id="import-title">Import pages</h1>
+      <p class="summary">{{ summary() }}</p>
+    </div>
+    <a class="close" [href]="'/documents/' + documentId" aria-label="Close" (click)="close($event)">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+    </a>
+  </header>
+
+  <div class="notices">
+    <div role="status" class="notice-region">
+      @if (failedImports().length > 0) {
+        <p class="notice warn">
+          {{ failedImports().length }} {{ failedImports().length === 1 ? 'file' : 'files' }} could not be imported{{ failedImportNames(failedImports()) ? ': ' + failedImportNames(failedImports()) : '' }}.
+        </p>
+      }
+      @if (skipped().length > 0) {
+        <ul class="notice warn skipped">
+          @for (item of skipped(); track $index) {
+            <li>Page {{ item.pageNumber }} was not changed: {{ item.reason === 'text-edits' ? 'it has text edits. Undo them in Edit first.' : 'this page can’t be adjusted here.' }}</li>
+          }
+        </ul>
+      }
+    </div>
+    @if (error()) { <p role="alert" class="notice error">{{ error() }}</p> }
+    @if (loadError()) {
+      <p role="alert" class="notice error">{{ loadError() }} <button type="button" class="link-button" (click)="retryLoad()">Try again</button></p>
+    }
+  </div>
+
+  <div class="panel-body">
+    <nav class="page-rail" aria-label="Pages">
+      <h2 class="section-label">Pages</h2>
+      @for (page of pages(); track page.id) {
+        <button type="button" class="page-tile" [class.selected]="page.id === selected()?.id"
+          [attr.aria-pressed]="page.id === selected()?.id"
+          [attr.aria-label]="'Page ' + (page.pageNumber || page.position) + ', ' + chip(page)"
+          (click)="selectPage(page)">
+          <span class="thumb">
+            @if (previews()[page.id]; as url) { <img [src]="url" alt="" /> }
+            @else { <span class="thumb-placeholder" aria-hidden="true"></span> }
+            @if (processing(page)) { <span class="spinner small" aria-hidden="true"></span> }
+          </span>
+          <span class="tile-meta">
+            <span class="tile-number">{{ page.pageNumber || page.position }}</span>
+            <span class="chip" [class.attention]="chip(page) !== 'Ready'">{{ chip(page) }}</span>
+          </span>
+        </button>
+      } @empty {
+        <p class="rail-empty">{{ detail() ? 'Pages appear here as they are prepared.' : 'Loading…' }}</p>
+      }
+      <button type="button" class="add-pages" aria-label="Add photos or PDF" [disabled]="working()" (click)="addingPages.set(true)">
+        <span aria-hidden="true">+</span> Add photos or PDF
+      </button>
+    </nav>
+    @if (addingPages()) {
+      <app-add-pages-dialog [documentId]="documentId" (closed)="addingPages.set(false)" (completed)="pagesAdded($event)" />
+    }
+
+    <main class="preview">
+      <div class="preview-toolbar">
+        <button type="button" class="zoom" aria-label="Zoom out" (click)="changeZoom(-1)" [disabled]="zoom() <= zoomMin">−</button>
+        <span class="zoom-value" aria-live="polite">{{ zoom() }}%</span>
+        <button type="button" class="zoom" aria-label="Zoom in" (click)="changeZoom(1)" [disabled]="zoom() >= zoomMax">+</button>
+        @if (canCompare()) {
+          <button type="button" class="compare" [attr.aria-pressed]="compare()" (click)="toggleCompare()" [disabled]="working() || originalLoading()">
+            {{ compare() ? 'Showing original photo' : 'Compare with original' }}
+          </button>
+        }
+      </div>
+      <div class="canvas">
+        @if (currentImage(); as src) {
+          <img class="page-image" [class.stale]="processingMessage() && !compare()" [src]="src" [style.height]="'calc(' + zoom() / 100 + ' * (100cqh - 40px))'"
+            [alt]="compare() ? 'Original photo of the selected page' : 'Preview of the selected page'" />
+          @if (processingMessage() && !compare()) {
+            <div class="processing" role="status"><span class="spinner" aria-hidden="true"></span>{{ processingMessage() }}</div>
+          }
+        } @else if (selected()) {
+          <p class="canvas-message" role="status"><span class="spinner" aria-hidden="true"></span>{{ processingMessage() || 'Loading preview…' }}</p>
+        } @else {
+          <p class="canvas-message">{{ detail() ? 'Preparing your pages…' : 'Opening your pages…' }}</p>
+        }
+      </div>
+    </main>
+
+    <aside class="controls" aria-label="Page settings">
+      <section class="group">
+        <h2 class="section-label">This page</h2>
+        <div class="tool-grid">
+          <button type="button" class="tool" (click)="rotate(-90)" [disabled]="working() || !canRotate()">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9a8 8 0 1 1 2.3 8.7"></path><path d="M4 4v5h5"></path></svg>
+            Rotate left
+          </button>
+          <button type="button" class="tool" (click)="rotate(90)" [disabled]="working() || !canRotate()">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 9a8 8 0 1 0-2.3 8.7"></path><path d="M20 4v5h-5"></path></svg>
+            Rotate right
+          </button>
+          <button type="button" class="tool" (click)="adjustCorners()" [disabled]="working() || !selected()?.canCrop">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2v14a2 2 0 0 0 2 2h14"></path><path d="M18 22V8a2 2 0 0 0-2-2H2"></path></svg>
+            Adjust corners
+          </button>
+        </div>
+        @if (selected() && !canRotate()) {
+          <p class="hint">This page can’t be rotated or re-cropped here.</p>
+        }
+      </section>
+
+      <section class="group">
+        <h2 class="section-label">Look</h2>
+        <div class="look-grid">
+          @for (look of looks; track look.id) {
+            <button type="button" class="look" [class.selected]="isLookSelected(look.id)" [attr.aria-pressed]="isLookSelected(look.id)"
+              [disabled]="working() || !selected()" (click)="chooseLook(look.id)">
+              <span class="swatch" aria-hidden="true" [style.background]="swatches[look.id].paper">
+                @for (width of [70, 100, 85, 95, 60]; track $index) {
+                  <span class="ink" [class.title]="$first" [style.width.%]="width" [style.background]="swatches[look.id].ink"></span>
+                }
+              </span>
+              {{ look.label }}
+            </button>
+          }
+        </div>
+        <p class="hint">{{ lookHelp() }}</p>
+      </section>
+
+      <label class="apply-all" for="apply-all">
+        <input id="apply-all" type="checkbox" [checked]="applyAll()" (change)="toggleApplyAll($event)" />
+        Apply this look to all pages
+      </label>
+    </aside>
+  </div>
+
+  <footer class="panel-footer">
+    <p class="footer-note">
+      @if (detail()) { <span class="doc-name">{{ detail()!.title }}</span> · }
+      Your original photos are always kept. You can change the look later in Edit.
+    </p>
+    <div class="footer-actions">
+      <button type="button" class="secondary" (click)="uploadOriginals()" [disabled]="working() || pages().length === 0">Upload originals without changes</button>
+      <button type="button" class="primary" (click)="confirm()" [disabled]="working() || !detail()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"></path></svg>
+        {{ applying() ? 'Applying your changes…' : 'Confirm' }}
+      </button>
+    </div>
+  </footer>
+</section>

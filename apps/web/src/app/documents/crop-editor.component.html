@@ -1,54 +1,74 @@
-<section class="crop-page">
-  <a class="back" [routerLink]="['/documents', documentId]">← Back to document</a>
-  <header><p class="eyebrow">MAKE IT YOURS</p><h1>Crop & enhance</h1><p>Your scan is ready to use. Adjust corners or choose a filter only if you want to.</p></header>
-  <fieldset class="filter-picker" [disabled]="busy() || !state()">
-    <legend>Scan filter</legend>
-    <div class="filter-options">
-      @for (item of filters; track item.id) {
-        <button type="button" class="filter-option" [class.selected]="filter() === item.id"
-          [attr.aria-pressed]="filter() === item.id" (click)="selectFilter(item.id)">{{ item.label }}</button>
+<section class="scan-studio">
+  <header class="studio-header">
+    <div><span class="eyebrow">ARKS SCANNER</span><h1>Make your scan look its best</h1></div>
+    <a class="close" [routerLink]="returnLink" [queryParams]="returnQuery" [attr.aria-label]="returnsToImport ? 'Back to import' : 'Back to document'">×</a>
+  </header>
+  <div class="studio-body">
+    <aside class="page-rail" aria-label="Current page">
+      @if (sourceUrl()) { <div class="page-thumb"><img [src]="resultUrl() || sourceUrl()" alt="Current page thumbnail"/><span>Current page</span></div> }
+      <a [routerLink]="['/documents', documentId]" [queryParams]="workspaceQuery">All pages</a>
+    </aside>
+    <main class="preview-panel">
+      <div class="preview-toolbar">
+        <span>{{ cropMode() ? 'Adjust the four corners' : showOriginal() ? 'Original photo' : 'Your scan' }}</span>
+        <div class="view-actions">
+          <button type="button" (click)="changeZoom(-.25)" [disabled]="zoom() <= .5" aria-label="Zoom out">−</button>
+          <span>{{ zoom() * 100 }}%</span>
+          <button type="button" (click)="changeZoom(.25)" [disabled]="zoom() >= 3" aria-label="Zoom in">+</button>
+          <button type="button" class="compare" (click)="showOriginal.set(!showOriginal())" [attr.aria-pressed]="showOriginal()" [disabled]="cropMode()">{{ showOriginal() ? 'Show result' : 'Compare original' }}</button>
+        </div>
+      </div>
+      <div class="canvas-frame">
+        @if (sourceUrl()) {
+          @if (cropMode()) {
+            <div #stage class="stage" [style.width.%]="zoom() * 85" (pointermove)="move($event, stage)" (pointerup)="end($event, stage)" (pointercancel)="end($event, stage)" (lostpointercapture)="end($event, stage)">
+              <img [src]="sourceUrl()" alt="Drag the four corners onto the paper edges" draggable="false" />
+              <svg viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true">
+                <defs><mask id="crop-mask"><rect width="1000" height="1000" fill="white"/><polygon [attr.points]="polygon()" fill="black"/></mask></defs>
+                <rect width="1000" height="1000" fill="#071b21" opacity="0.55" mask="url(#crop-mask)"/>
+                <polygon [attr.points]="polygon()" fill="none" stroke="#12c5a0" stroke-width="2" vector-effect="non-scaling-stroke"/>
+              </svg>
+              @for (point of points(); track $index) {
+                <button class="handle" [style.left.%]="point.x * 100" [style.top.%]="point.y * 100" [disabled]="busy()"
+                  [attr.aria-label]="names[$index] + ' corner. Use arrow keys to adjust.'" (pointerdown)="begin($event, $index, stage)" (keydown)="key($event, $index)">{{ $index + 1 }}</button>
+              }
+            </div>
+          } @else {
+            <img class="scan-result" data-testid="shadow-result" [style.width.%]="zoom() * 85" [src]="showOriginal() ? sourceUrl() : resultUrl() || sourceUrl()" [alt]="showOriginal() ? 'Original photo' : 'Processed scan'" />
+          }
+        } @else { <p class="loading" role="status">Opening your page…</p> }
+      </div>
+      <div class="preview-status" aria-live="polite">
+        @if (busy() || resultLoading()) { <span class="spinner"></span><span>{{ state()?.status === 'Detecting' ? 'Finding paper edges…' : 'Updating your scan…' }} You can choose another look while this finishes.</span> }
+        @else if (pendingChanges()) { <span>{{ error() ? 'Changes have not been saved.' : 'Preparing your changes…' }}</span> }
+        @else { <span class="saved-dot"></span><span>Changes saved automatically · Ready to use</span> }
+      </div>
+    </main>
+    <aside class="edit-panel" aria-label="Enhancement controls">
+      <div class="rotate-actions" role="group" aria-label="Rotate page">
+        <button type="button" (click)="rotate(-90)" [disabled]="busy() || !state() || !valid()">Rotate left</button>
+        <button type="button" (click)="rotate(90)" [disabled]="busy() || !state() || !valid()">Rotate right</button>
+      </div>
+      <p class="helper rotation-value">Rotation: {{ rotation() }}°</p>
+      <button type="button" class="crop-toggle" [class.selected]="cropMode()" (click)="cropMode.set(!cropMode()); showOriginal.set(false)">⌗ &nbsp; {{ cropMode() ? 'Close crop' : 'Adjust crop' }}</button>
+      @if (cropMode()) {
+        <p class="helper">Place each corner on the paper edge.</p>
+        <div class="crop-actions"><button type="button" (click)="submit(true)" [disabled]="busy() || !state()">Auto detect</button><button type="button" (click)="reset()" [disabled]="busy()">Full photo</button></div>
+        <button type="button" class="primary apply-crop" (click)="submit(false)" [disabled]="busy() || !valid()">Apply crop</button>
+        @if (!valid()) { <p class="error">Keep the four corners in clockwise order.</p> }
       }
-    </div>
-    <p aria-live="polite">{{ filterDescription() }}</p>
-    <small>The preview shows an approximation. Save scan to apply the selected filter to the document.</small>
-  </fieldset>
-  <div class="toolbar">
-    <button (click)="submit(true)" [disabled]="busy() || !state()">Auto detect</button>
-    <button (click)="reset()" [disabled]="busy() || !state()">Reset</button>
-    <button class="primary" (click)="submit(false)" [disabled]="busy() || !state() || !valid()">{{ state()?.status === 'Processing' ? 'Saving…' : 'Save scan' }}</button>
-  </div>
-  <div aria-live="polite" class="message">
-    @if (state()?.status === 'Detecting') { <p>Finding the document edges…</p> }
-    @else if (state()?.status === 'Processing') { <p>Saving your flattened document…</p> }
-    @else if (state()?.status === 'Ready' && state()?.appliedRevision === 0) { <p class="guidance accurate"><strong>Your original is already Ready.</strong> Cropping and filters are optional.</p> }
-    @else if (guidance() === 'accurate') { <p class="guidance accurate"><strong>Paper detected.</strong> The boundary looks accurate. Check it briefly, then save your scan.</p> }
-    @else if (guidance() === 'manual') { <p class="guidance manual"><strong>Adjust the corners.</strong> We couldn’t confidently find every paper edge, so the full photo is selected.</p> }
-    @else { <p class="guidance verify"><strong>Please verify the corners.</strong> A boundary was suggested, but folds or shadows may need a small adjustment.</p> }
-    @if (!valid()) { <p class="error">Keep the corners in order and leave enough space inside the selection.</p> }
-    @if (error()) { <p role="alert" class="error">{{ error() }}</p><button (click)="reload()" [disabled]="submitting()">Reload status</button> }
-  </div>
-  @if (sourceUrl()) {
-    <div class="canvas-frame">
-      <div #stage class="stage" (pointermove)="move($event, stage)" (pointerup)="end($event, stage)" (pointercancel)="end($event, stage)" (lostpointercapture)="end($event, stage)">
-        <img [src]="sourceUrl()" [style.filter]="filterPreview()" alt="Document preview for selecting corners and filters" draggable="false" />
-        <svg viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true">
-          <defs><mask id="crop-mask"><rect width="1000" height="1000" fill="white"/><polygon [attr.points]="polygon()" fill="black"/></mask></defs>
-          <rect width="1000" height="1000" fill="#071b21" opacity="0.6" mask="url(#crop-mask)"/>
-          <polygon [attr.points]="polygon()" fill="none" stroke="#70efc0" stroke-width="3" vector-effect="non-scaling-stroke"/>
-        </svg>
-        @for (point of points(); track $index) {
-          <button class="handle" [style.left.%]="point.x * 100" [style.top.%]="point.y * 100" [disabled]="busy()"
-            [attr.aria-label]="names[$index] + ' corner. Use arrow keys to adjust.'" (pointerdown)="begin($event, $index, stage)" (keydown)="key($event, $index)">{{ $index + 1 }}</button>
+      <h2>Choose a look</h2>
+      <div class="filter-grid">
+        @for (item of filters; track item.id) {
+          <button type="button" class="filter-option" [class.selected]="filter() === item.id" [attr.aria-pressed]="filter() === item.id" [disabled]="!state()" (click)="selectFilter(item.id)">
+            <span class="filter-art" [attr.data-filter]="item.id"><span class="paper-lines">▰<br/>━━━━<br/>━━━<br/>━━━━</span></span><span>{{ item.label }}</span>
+          </button>
         }
       </div>
-    </div>
-    <details><summary>Precise corner positions</summary><p>Values are percentages of the image. Arrow keys also move a focused handle.</p>
-      <div class="coordinates">@for (point of points(); track $index) {
-        <fieldset><legend>{{ $index + 1 }} · {{ names[$index] }}</legend>
-          <label>X % <input type="number" min="0" max="100" step="0.1" [disabled]="busy()" [value]="percent(point.x)" (change)="coordinate($event, $index, 'x')" /></label>
-          <label>Y % <input type="number" min="0" max="100" step="0.1" [disabled]="busy()" [value]="percent(point.y)" (change)="coordinate($event, $index, 'y')" /></label>
-        </fieldset>
-      }</div>
-    </details>
-  }
+      <p class="helper">{{ filterDescription() }}</p>
+      @if (error()) { <p role="alert" class="error">{{ error() }}</p><button type="button" (click)="submit(false)" [disabled]="busy()">Retry changes</button><button type="button" (click)="reload()" [disabled]="submitting()">Reload status</button> }
+      @if (resultError()) { <p role="alert" class="error">{{ resultError() }}</p><button type="button" (click)="reload()">Reload result</button> }
+    </aside>
+  </div>
+  <footer class="studio-footer"><span>Your original photo is kept. You can change the look anytime.</span><button type="button" class="primary confirm" (click)="finish()" [disabled]="busy() || pendingChanges() || resultLoading() || !state()">Done</button></footer>
 </section>

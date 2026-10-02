@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, inject, signal } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject, signal } from '@angular/core';
 import { DocumentExport, DocumentExportPreview, DocumentPage } from './document.models';
 import { DocumentsApiService } from './documents-api.service';
 
@@ -14,11 +14,23 @@ export class ExportStatusComponent implements OnInit, OnChanges, OnDestroy {
   @Input({ required: true }) documentTitle = 'document';
   @Input() pages: DocumentPage[] = [];
   @Input() initialExport?: DocumentExport | null;
+  @Output() readonly exportChange = new EventEmitter<DocumentExport>();
   protected readonly current = signal<DocumentExport | null>(null);
   protected readonly busy = signal(false);
   protected readonly error = signal('');
   protected readonly announcement = signal('');
   protected readonly preview = signal<DocumentExportPreview | null>(null);
+  protected readonly pageLayout = signal<'Original' | 'A4'>('Original');
+  protected readonly includeSearchableText = signal(false);
+  protected setPageLayout(event: Event): void {
+    this.pageLayout.set((event.target as HTMLSelectElement).value as 'Original' | 'A4');
+  }
+  protected setIncludeSearchableText(event: Event): void {
+    this.includeSearchableText.set((event.target as HTMLInputElement).checked);
+  }
+  protected needsNewLayout(item: DocumentExport): boolean {
+    return item.state === 'Ready' && item.pageLayout !== this.pageLayout();
+  }
   private timer?: ReturnType<typeof setTimeout>;
   private destroyed = false;
 
@@ -44,6 +56,7 @@ export class ExportStatusComponent implements OnInit, OnChanges, OnDestroy {
 
   ngOnInit(): void {
     this.current.set(this.initialExport ?? null);
+    if (this.initialExport) this.pageLayout.set(this.initialExport.pageLayout);
     if (this.initialExport && this.pending(this.initialExport))
       this.schedulePoll(this.initialExport.id, 0);
   }
@@ -55,8 +68,13 @@ export class ExportStatusComponent implements OnInit, OnChanges, OnDestroy {
     this.busy.set(true);
     this.error.set('');
     try {
-      const created = await this.api.createExport(this.documentId);
+      const created = await this.api.createExport(
+        this.documentId,
+        this.pageLayout(),
+        this.includeSearchableText(),
+      );
       this.current.set(created);
+      this.exportChange.emit(created);
       this.announcement.set('PDF generation started.');
       if (this.pending(created)) this.schedulePoll(created.id, 3000);
     } catch {
@@ -101,6 +119,7 @@ export class ExportStatusComponent implements OnInit, OnChanges, OnDestroy {
         updated.searchability !== previous?.searchability ||
         updated.searchablePageCount !== previous?.searchablePageCount;
       this.current.set(updated);
+      this.exportChange.emit(updated);
       if (changed) {
         this.announcement.set(updated.state === 'Ready'
           ? this.readyAnnouncement(updated)

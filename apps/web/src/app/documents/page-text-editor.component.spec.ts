@@ -40,7 +40,7 @@ describe('PageTextEditorComponent', () => {
       ] }],
   };
 
-  function setup(initialOcr: PageOcr = notRequested, savedSignatures: object[] = [], savedMarks: object[] = []) {
+  function setup(initialOcr: PageOcr = notRequested, savedSignatures: object[] = [], savedMarks: object[] = [], tool: string | null = null) {
     Object.defineProperty(URL, 'createObjectURL', { configurable: true,
       value: vi.fn(() => 'blob:full-page') });
     Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
@@ -65,7 +65,7 @@ describe('PageTextEditorComponent', () => {
         { provide: PageMarkService, useValue: marks },
         { provide: ActivatedRoute, useValue: { snapshot: { paramMap: {
           get: (name: string) => name === 'documentId' ? 'document-1' : 'page-1',
-        } } } },
+        }, queryParamMap: { get: (name: string) => name === 'tool' ? tool : null } } } },
       ],
     });
     const fixture = TestBed.createComponent(PageTextEditorComponent);
@@ -409,4 +409,36 @@ describe('PageTextEditorComponent', () => {
       expect(fixture.nativeElement.querySelector('app-text-replacement-editor')).toBeTruthy();
     });
   }
+
+  it('tool=signature opens the signature creator on load', async () => {
+    const { fixture } = setup(notRequested, [], [], 'signature');
+    await vi.waitFor(() => { fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('app-signature-creator')).toBeTruthy(); });
+  });
+
+  it('tool=mark starts mark placement on load', async () => {
+    const { fixture } = setup(notRequested, [], [], 'mark');
+    await vi.waitFor(() => { fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('app-page-mark-tools')).toBeTruthy(); });
+  });
+
+  it('tool=add opens the add-text editor on load', async () => {
+    const { fixture } = setup(notRequested, [], [], 'add');
+    await vi.waitFor(() => { fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('app-text-replacement-editor')).toBeTruthy(); });
+  });
+
+  it('tool=ocr starts recognition on load', async () => {
+    const { fixture, api } = setup(notRequested, [], [], 'ocr');
+    await vi.waitFor(() => expect(api.requestPageOcr).toHaveBeenCalledWith('document-1', 'page-1', false));
+    fixture.detectChanges();
+  });
+
+  it('back link returns to the workspace edit tab for this page', async () => {
+    const { fixture } = setup();
+    await vi.waitFor(() => { fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('a.back')).toBeTruthy(); });
+    expect(fixture.nativeElement.querySelector('a.back').getAttribute('href'))
+      .toBe('/documents/document-1?tab=edit&page=page-1');
+  });
 });

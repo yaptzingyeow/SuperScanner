@@ -1,0 +1,69 @@
+<main class="cleanup-shell">
+  <a [routerLink]="['/documents', documentId]" [queryParams]="workspaceQuery">← Cancel cleanup</a>
+  <h1>Clean page</h1>
+  <p>{{ notice() }}</p>
+  @if (error()) { <p role="alert" class="error">{{ error() }}</p> }
+  @if (originalUrl()) {
+    <div class="toolbar" aria-label="Page view controls">
+      <button type="button" [disabled]="zoom() <= 1" (click)="zoomOut()">− Zoom out</button>
+      <span>Zoom {{ zoom() * 100 }}%</span>
+      <button type="button" [disabled]="zoom() >= 3" (click)="zoomIn()">+ Zoom in</button>
+      <button type="button" [attr.aria-pressed]="panMode()" (click)="panMode.set(!panMode())">{{ panMode() ? 'Pan page on' : 'Pan page' }}</button>
+    </div>
+    <div class="toolbar" aria-label="Cleanup tools">
+      <button type="button" [attr.aria-pressed]="tool() === 'rectangle'" (click)="tool.set('rectangle'); panMode.set(false)">Rectangle</button>
+      <button type="button" [attr.aria-pressed]="tool() === 'brush'" (click)="tool.set('brush'); panMode.set(false)">Brush</button>
+      <button type="button" [attr.aria-pressed]="tool() === 'erase'" (click)="tool.set('erase'); panMode.set(false)">Erase selection</button>
+      @if (tool() === 'brush') {
+        <label>Brush size
+          <select [value]="brushRadius()" (change)="brushRadius.set(+$any($event.target).value)">
+            <option value="0.003">Fine</option><option value="0.008">Medium</option><option value="0.015">Wide</option>
+          </select>
+        </label>
+      }
+    </div>
+    <button type="button" [disabled]="finding() || !!operation()" (click)="findHoles()">
+      {{ finding() ? 'Finding holes…' : 'Find punch holes' }}
+    </button>
+    <div class="comparison">
+      <section><h2>Original</h2>
+        <div class="viewport"><div class="stage" #stage [style.width.%]="zoom() * 100"
+          [class.panning]="panMode()" (pointerdown)="begin($event, stage)"
+          (pointermove)="move($event, stage)" (pointerup)="end($event, stage)"
+          (pointercancel)="cancel($event, stage)">
+          <img [src]="originalUrl()" (load)="onImageLoad($event)" alt="Original page for cleanup" draggable="false" />
+          @for (box of boxes(); track $index) { <div class="mask" [style.left]="boxStyle(box).left" [style.top]="boxStyle(box).top"
+            [style.width]="boxStyle(box).width" [style.height]="boxStyle(box).height"></div> }
+          @if (drawing(); as box) { <div class="mask drawing" [style.left]="boxStyle(box).left" [style.top]="boxStyle(box).top"
+            [style.width]="boxStyle(box).width" [style.height]="boxStyle(box).height"></div> }
+          <svg class="brush-overlay" [attr.viewBox]="'0 0 1000 ' + brushViewHeight()" preserveAspectRatio="none" aria-hidden="true">
+            @for (stroke of strokes(); track $index) {
+              <polyline [attr.points]="strokePoints(stroke)" [attr.stroke-width]="brushUnitRadius(stroke) * 2" />
+              <circle [attr.cx]="stroke.points[0][0] * 1000" [attr.cy]="stroke.points[0][1] * brushViewHeight()"
+                [attr.r]="brushUnitRadius(stroke)" />
+            }
+            @if (activeStroke(); as stroke) {
+              <polyline [attr.points]="strokePoints(stroke)" [attr.stroke-width]="brushUnitRadius(stroke) * 2" />
+              <circle [attr.cx]="stroke.points[0][0] * 1000" [attr.cy]="stroke.points[0][1] * brushViewHeight()"
+                [attr.r]="brushUnitRadius(stroke)" />
+            }
+          </svg>
+        </div></div>
+      </section>
+      @if (previewUrl()) { <section><h2>Preview — not yet applied</h2><img [src]="previewUrl()" alt="Cleanup preview" /></section> }
+    </div>
+    @if ((boxes().length || strokes().length) && !operation()) {
+      <div class="areas"><h2>Selected areas</h2>
+        <button type="button" (click)="undoSelection()">Undo selection</button>
+        <button type="button" (click)="clearSelection()">Clear all</button>
+        @for (box of boxes(); track $index) { <button type="button" (click)="remove($index)">Remove area {{ $index + 1 }}</button> }
+        @for (stroke of strokes(); track $index) { <button type="button" (click)="removeStroke($index)">Remove brush stroke {{ $index + 1 }}</button> }
+      </div>
+    }
+    <div class="actions">
+      @if (!operation()) { <button type="button" [disabled]="!(boxes().length || strokes().length) || busy() || finding()" (click)="preview()">Preview cleanup</button> }
+      @if (operation()) { <button type="button" (click)="discard()" [disabled]="busy()">Discard preview</button> }
+      @if (previewUrl()) { <button class="primary" type="button" [disabled]="busy()" (click)="apply()">Apply to page</button> }
+    </div>
+  } @else if (!error()) { <p role="status">Loading page…</p> }
+</main>
