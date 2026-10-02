@@ -12,11 +12,15 @@ if sys.platform != "win32":
     resource.setrlimit(resource.RLIMIT_CPU, (25, 25))
 import cv2
 import numpy as np
+from shadow_cleanup import remove_shadows, clean_document
+from content_clean import render_content_clean
+from magic_scan import detect_document, render_magic, warp as magic_warp
 from boundary.confidence import ConfidencePolicy
 from boundary.contracts import BoundaryPoint, DocumentBoundaryResult
 from boundary.geometry import estimate_boundary
 from boundary.hybrid import HybridBoundaryDetector
 from boundary.onnx_segmenter import ModelConfigurationError, OnnxDocumentSegmenter
+from boundary.refine_edges import refine_paper_edges, inset_paper_edges
 cv2.setNumThreads(1)
 
 FULL = [{"x": 0, "y": 0}, {"x": 1, "y": 0}, {"x": 1, "y": 1}, {"x": 0, "y": 1}]
@@ -47,6 +51,61 @@ def _boundary_result(points, confidence, source, diagnostics_code):
         source=source,
         model_version=None,
         diagnostics_code=diagnostics_code)
+
+
+def refine_truncated_bottom(image, corners):
+    """Recover a visible lower paper edge when a contour runs into the photo border.
+
+    A long printed rule can look like an edge, so require nearly full-width
+    line support *and* a sustained paper-to-background brightness change.
+    """
+    h, w = image.shape[:2]
+    points = np.asarray(corners, np.float64)
+    if (points[2, 1] + points[3, 1]) / 2 < .97:
+        return corners
+    gray = cv2.GaussianBlur(cv2.cvtColor(image, cv2.COLOR_BGR2GRAY), (5, 5), 0)
+    lines = cv2.HoughLinesP(cv2.Canny(gray, 20, 80), 1, np.pi / 360, 25,
+                            minLineLength=int(.20*w), maxLineGap=int(.06*w))
+    if lines is None:
+        return corners
+    segments = []
+    for entry in lines[:, 0]:
+        x1, y1, x2, y2 = map(int, entry)
+        if x2 < x1:
+            x1, y1, x2, y2 = x2, y2, x1, y1
+        run = x2 - x1
+        if run < .20*w or abs(y2-y1) > .06*run:
+            continue
+        slope = (y2-y1)/run
+        center_y = y1 + slope*(w/2-x1)
+        if .86*h < center_y < .97*h:
+            segments.append((x1, y1, x2, y2, slope, center_y))
+    for anchor in sorted(segments, key=lambda segment: segment[5]):
+        group = [line for line in segments if abs(line[5]-anchor[5]) < .012*h]
+        left = min(line[0] for line in group)
+        right = max(line[2] for line in group)
+        if left > .08*w or right < .85*w:
+            continue
+        dominant = max(group, key=lambda line: line[2]-line[0])
+        x1, y1, _, _, slope, _ = dominant
+        sample_x = np.linspace(.2*w, .8*w, 31)
+        sample_y = y1 + slope*(sample_x-x1)
+        sample_offset = max(5, round(min(w, h)*.028))
+        before = gray[np.clip(np.rint(sample_y-sample_offset).astype(int), 0, h-1), sample_x.astype(int)]
+        after = gray[np.clip(np.rint(sample_y+sample_offset).astype(int), 0, h-1), sample_x.astype(int)]
+        difference = before.astype(np.int16) - after.astype(np.int16)
+        if abs(float(np.median(difference))) < 18 or np.count_nonzero(
+                np.sign(difference) == np.sign(np.median(difference))) < 22:
+            continue
+        revised = points.copy()
+        revised[3, 0] = min(points[3, 0], left/(w-1))
+        revised[2, 0] = max(points[2, 0], right/(w-1))
+        for index in (2, 3):
+            x = revised[index, 0]*(w-1)
+            revised[index, 1] = (y1 + slope*(x-x1))/(h-1)
+        if valid(revised) and max(revised[2, 1], revised[3, 1]) < max(points[2, 1], points[3, 1])-.035:
+            return revised
+    return corners
 
 
 def detect_with_opencv(image):
@@ -161,38 +220,20 @@ def detect_with_opencv(image):
                 score = 0.60*area + 0.25*rectangularity + 0.15*coverage + fold_bonus
                 if score > best_score:
                     best, best_score = points, score
-    if best is not None:
-        current_top_y = (best[0, 1] + best[1, 1]) * h / 2
-        lines = cv2.HoughLinesP(cv2.Canny(gray, 15, 60), 1, np.pi / 180, 25,
-                                minLineLength=int(.18*w), maxLineGap=int(.10*w))
-        segments = []
-        for line in lines if lines is not None else []:
-            x1, y1, x2, y2 = line[0]
-            if x1 > x2:
-                x1, y1, x2, y2 = x2, y2, x1, y1
-            middle_y = (y1+y2)/2
-            if (abs(middle_y-current_top_y) < .04*h
-                    and abs(y2-y1) < .08*max(1, x2-x1)):
-                segments.append((x1, y1, x2, y2))
-        refinements = []
-        for anchor in segments:
-            middle_y = (anchor[1]+anchor[3])/2
-            aligned = [line for line in segments
-                       if abs((line[1]+line[3])/2-middle_y) < .025*h]
-            x1, x2 = min(line[0] for line in aligned), max(line[2] for line in aligned)
-            if (x2-x1 > .45*w and x1 < .35*w and x1/w > best[0, 0] + .03
-                    and abs(x2/w-best[1, 0]) < .12):
-                y1 = int(np.median([line[1] for line in aligned]))
-                y2 = int(np.median([line[3] for line in aligned]))
-                refinements.append((x2-x1, x1, y1, x2, y2))
-        if refinements:
-            _, x1, y1, x2, y2 = max(refinements)
-            refined = best.copy()
-            refined[0], refined[1] = [x1/(w-1), y1/(h-1)], [x2/(w-1), y2/(h-1)]
-            if valid(refined):
-                best = refined
+    # Contour geometry supplies the outer paper corners. A Hough line at the
+    # same height may be a printed header or a second sheet behind the target;
+    # replacing the contour's top side with it can cut off real page content.
     if best is None or best_score < 0.45:
         return _boundary_result(FULL, 0.0, "FullImage", "manual_required")
+    refined = refine_paper_edges(small, best)
+    if valid(refined):
+        best = refined
+    bottom = refine_truncated_bottom(small, best)
+    if valid(bottom):
+        best = bottom
+    inset = inset_paper_edges(best, w, h)
+    if valid(inset):
+        best = inset
     return _boundary_result(
         [{"x": float(x), "y": float(y)} for x, y in best],
         round(min(best_score, 1.0), 3),
@@ -200,9 +241,27 @@ def detect_with_opencv(image):
         "opencv_candidate")
 
 
+def detect_magic(image):
+    """Evidence-scored boundary detection (see magic_scan) in the CLI contract."""
+    h, w = image.shape[:2]
+    quad, score = detect_document(image)
+    if quad is None:
+        # No quad has edge evidence on every side; the older region-based
+        # detector may still find a low-contrast sheet.
+        return detect_with_opencv(image)
+    points = ordered(quad / np.array([w - 1, h - 1], np.float32))
+    if not valid(points):
+        return _boundary_result(FULL, 0.0, "FullImage", "manual_required")
+    return _boundary_result(
+        [{"x": float(x), "y": float(y)} for x, y in points],
+        round(min(score, .99), 3),
+        "OpenCvFallback",
+        "opencv_candidate")
+
+
 def detect(image):
     """Compatibility wrapper retained until the hybrid detector owns the CLI."""
-    payload = detect_with_opencv(image).to_json_dict()
+    payload = detect_magic(image).to_json_dict()
     if payload["source"] == "OpenCvFallback":
         payload["source"] = "Automatic"
     return payload
@@ -246,12 +305,20 @@ def create_boundary_detector(env):
     return HybridBoundaryDetector(
         mode=mode,
         ai_detector=detect_with_ai,
-        opencv_detector=detect_with_opencv,
+        opencv_detector=detect_magic,
         policy=policy)
 
 def apply_filter(image, name):
+    if name == 'Magic':
+        return render_magic(image)
+    if name == 'ContentClean':
+        return render_content_clean(image)
+    if name in ('CleanDocument', 'CleanDocumentGentle', 'CleanDocumentStrong'):
+        return clean_document(image, name)
     if name == "Original":
         return image
+    if name == "RemoveShadows":
+        return remove_shadows(image)
     if name == "Bright":
         table = np.array([round(255 * ((i / 255.0) ** 0.75)) for i in range(256)], dtype=np.uint8)
         return cv2.LUT(image, table)
@@ -296,6 +363,14 @@ def main():
         raise ValueError("Invalid quadrilateral")
     h, w = image.shape[:2]
     p = normalized * np.array([w-1, h-1], dtype=np.float32)
+    filter_name = sys.argv[6] if len(sys.argv) > 6 else "Document"
+    rotation = int(sys.argv[7]) if len(sys.argv) > 7 else 0
+    if rotation not in ROTATIONS:
+        raise ValueError("Invalid rotation")
+    if filter_name == "Magic":
+        flat = render_magic(magic_warp(image, p))
+        write_outputs(rotate_output(flat, rotation))
+        return
     out_w = max(2, round(max(np.linalg.norm(p[1]-p[0]), np.linalg.norm(p[2]-p[3]))))
     out_h = max(2, round(max(np.linalg.norm(p[3]-p[0]), np.linalg.norm(p[2]-p[1]))))
     # Small crops otherwise become small JPEGs that the viewer must enlarge. A
@@ -308,7 +383,25 @@ def main():
     if not np.isfinite(matrix).all():
         raise ValueError("Invalid transformation")
     flat = cv2.warpPerspective(image, matrix, (out_w, out_h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
-    flat = apply_filter(flat, sys.argv[6] if len(sys.argv) > 6 else "Document")
+    flat = apply_filter(flat, filter_name)
+    write_outputs(rotate_output(flat, rotation))
+
+
+ROTATIONS = {
+    0: None,
+    90: cv2.ROTATE_90_CLOCKWISE,
+    180: cv2.ROTATE_180,
+    270: cv2.ROTATE_90_COUNTERCLOCKWISE,
+}
+
+
+def rotate_output(image, degrees):
+    code = ROTATIONS[degrees]
+    return image if code is None else cv2.rotate(image, code)
+
+
+def write_outputs(flat):
+    out_h, out_w = flat.shape[:2]
     preview_path, thumb_path = sys.argv[4:6]
     if not cv2.imwrite(preview_path, flat, [cv2.IMWRITE_JPEG_QUALITY, 94]):
         raise ValueError("Could not save output")

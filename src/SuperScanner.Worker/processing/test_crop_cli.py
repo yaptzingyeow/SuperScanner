@@ -67,5 +67,32 @@ class CropCliTests(unittest.TestCase):
         self.assertNotIn(missing, completed.stderr)
 
 
+class CropRotationTests(unittest.TestCase):
+    def test_apply_rotates_output_clockwise(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "source.jpg"
+            preview = Path(directory) / "preview.jpg"
+            thumb = Path(directory) / "thumb.jpg"
+            image = np.full((200, 400, 3), 128, dtype=np.uint8)
+            image[:100, :200] = (0, 0, 255)  # top-left quadrant is red (BGR)
+            cv2.imwrite(str(source), image, [cv2.IMWRITE_JPEG_QUALITY, 100])
+            corners = json.dumps([{"x": 0, "y": 0}, {"x": 1, "y": 0}, {"x": 1, "y": 1}, {"x": 0, "y": 1}])
+            completed = subprocess.run(
+                [sys.executable, str(SCRIPT), "apply", str(source), corners,
+                 str(preview), str(thumb), "Original", "90"],
+                capture_output=True, text=True, timeout=30, check=False)
+            self.assertEqual(0, completed.returncode, completed.stderr)
+            size = json.loads(completed.stdout)
+            self.assertGreater(size["height"], size["width"])
+            self.assertAlmostEqual(2.0, size["height"] / size["width"], delta=.05)
+            output = cv2.imread(str(preview), cv2.IMREAD_COLOR)
+            h, w = output.shape[:2]
+            top_right = output[h // 10, w - 1 - w // 10].astype(int)
+            bottom_left = output[h - 1 - h // 10, w // 10].astype(int)
+            self.assertGreater(top_right[2], 200)
+            self.assertLess(top_right[0], 80)
+            self.assertLess(abs(bottom_left[0] - 128), 30)
+
+
 if __name__ == "__main__":
     unittest.main()

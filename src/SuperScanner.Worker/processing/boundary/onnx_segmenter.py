@@ -7,7 +7,6 @@ from pathlib import Path
 import re
 
 import numpy as np
-import onnxruntime as ort
 
 from .preprocess import LetterboxedImage, letterbox
 
@@ -59,6 +58,10 @@ class OnnxDocumentSegmenter:
             raise ModelConfigurationError("model file is unavailable") from error
         if actual_digest != digest:
             raise ModelConfigurationError("model checksum does not match")
+
+        # Imported here, not at module load: the OpenCV-only default never
+        # builds a session, and onnxruntime adds ~0.4 s to every worker start.
+        import onnxruntime as ort
 
         options = ort.SessionOptions()
         options.intra_op_num_threads = 1

@@ -3,11 +3,22 @@ import unittest
 from unittest.mock import patch
 import cv2
 import numpy as np
-from crop_image import detect
+from crop_image import detect, detect_with_opencv, refine_truncated_bottom
 from boundary.contracts import BoundaryPoint, DocumentBoundaryResult
+from boundary.refine_edges import refine_paper_edges
 
 
 class PaperDetectionTests(unittest.TestCase):
+    def test_refines_bottom_edge_when_shaded_paper_is_darker_than_desk(self):
+        image = np.full((600, 450, 3), 225, np.uint8)
+        cv2.rectangle(image, (40, 40), (410, 530), (180, 180, 180), -1)
+        cv2.line(image, (80, 470), (360, 470), (30, 30, 30), 2)
+        corners = np.array([[40/449, 40/599], [410/449, 40/599],
+                            [410/449, 555/599], [40/449, 555/599]])
+        result = refine_paper_edges(image, corners)
+        self.assertLess(abs(result[2][1] * 599 - 530), 6)
+        self.assertLess(abs(result[3][1] * 599 - 530), 6)
+
     def test_grabcut_uses_bounded_preview_and_single_iteration(self):
         image = np.full((2000, 1500, 3), 220, np.uint8)
         image[:, :300] = 40
@@ -19,7 +30,7 @@ class PaperDetectionTests(unittest.TestCase):
             mask[:] = cv2.GC_PR_FGD
 
         with patch("crop_image.cv2.grabCut", side_effect=capture):
-            detect(image)
+            detect_with_opencv(image)
 
         self.assertLessEqual(max(observed["shape"]), 700)
         self.assertEqual(observed["iterations"], 1)
@@ -57,7 +68,10 @@ class PaperDetectionTests(unittest.TestCase):
         result = detect(image)
         self.assertEqual(result['source'], 'Automatic')
         points = np.array([[p['x'] * 699, p['y'] * 899] for p in result['points']])
-        self.assertLess(np.linalg.norm(points[0] - [160, 110]), 35)
+        # Like dedicated scanner apps, the corner is where the straight top and
+        # left paper edges meet, so no paper content is cut; the Magic filter
+        # whitens the small desk triangle left by the folded flap.
+        self.assertLess(np.linalg.norm(points[0] - [100.6, 111.5]), 20)
         self.assertLess(np.linalg.norm(points[2] - [610, 810]), 20)
 
     def test_empty_image_needs_manual_selection(self):
@@ -98,6 +112,49 @@ class PaperDetectionTests(unittest.TestCase):
         self.assertEqual(result['source'], 'Automatic')
         self.assertLess(result['points'][0]['y'], .12)
         self.assertLess(result['points'][1]['y'], .12)
+
+    def test_top_rule_does_not_move_paper_corner_inward(self):
+        image = np.full((1000, 750, 3), 35, np.uint8)
+        paper = np.array([[92, 82], [710, 80], [749, 940], [28, 930]], np.int32)
+        cv2.fillConvexPoly(image, paper, (225, 225, 225))
+        # A printed rule starting well inside the sheet is not its outer edge.
+        # Mocking the Hough segment isolates the historical false-positive:
+        # its y-position aligns with the paper top, but its x-start does not.
+        # The detector downsamples to 525 x 700 before asking Hough for lines.
+        internal_rule = np.array([[[133, 57, 490, 57]]], np.int32)
+        with patch('crop_image.cv2.HoughLinesP', return_value=internal_rule):
+            result = detect(image)
+
+        self.assertEqual(result['source'], 'Automatic')
+        self.assertLess(result['points'][0]['x'], .17)
+
+    def test_bottom_sheet_edge_replaces_image_border_when_supported(self):
+        image = np.full((700, 525, 3), 125, np.uint8)
+        paper = np.array([[65, 62], [492, 62], [524, 640], [18, 634]], np.int32)
+        cv2.fillConvexPoly(image, paper, (220, 220, 220))
+        corners = np.array([[.125, .09], [.94, .09], [.998, .99], [.10, .998]])
+        edge_segments = np.array([
+            [[18, 634, 132, 634]], [[135, 635, 469, 641]],
+            [[170, 646, 510, 657]],
+        ], np.int32)
+
+        with patch('crop_image.cv2.HoughLinesP', return_value=edge_segments):
+            result = refine_truncated_bottom(image, corners)
+
+        self.assertLess(result[3, 1], .93)
+        self.assertLess(result[2, 1], .94)
+        self.assertLess(result[3, 0], .06)
+
+    def test_bottom_printed_rule_without_background_transition_is_ignored(self):
+        image = np.full((700, 525, 3), 220, np.uint8)
+        cv2.line(image, (18, 634), (469, 641), (30, 30, 30), 2)
+        corners = np.array([[.125, .09], [.94, .09], [.998, .99], [.10, .998]])
+        edge_segments = np.array([[[18, 634, 132, 634]], [[135, 635, 469, 641]]], np.int32)
+
+        with patch('crop_image.cv2.HoughLinesP', return_value=edge_segments):
+            result = refine_truncated_bottom(image, corners)
+
+        np.testing.assert_array_equal(result, corners)
 
 
 if __name__ == '__main__':
