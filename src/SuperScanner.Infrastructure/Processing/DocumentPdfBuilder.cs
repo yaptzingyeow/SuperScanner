@@ -110,6 +110,7 @@ public sealed class DocumentPdfBuilder(
                 Math.Min(limits.MaxSourceBytes, limits.MaxTotalSourceBytes - sourceBytes), ct);
             sourceBytes += source.Length;
             PdfPage page;
+            PdfPagePlacement placement;
             try
             {
                 var info = new MagickImageInfo(source);
@@ -132,10 +133,12 @@ public sealed class DocumentPdfBuilder(
                 }
                 using var image = XImage.FromStream(info.Format == MagickFormat.Png ? normalized : source);
                 page = pdf.AddPage();
-                page.Width = XUnit.FromPoint(image.PixelWidth * 72d / 96);
-                page.Height = XUnit.FromPoint(image.PixelHeight * 72d / 96);
+                placement = PdfPagePlacement.Create(image.PixelWidth, image.PixelHeight, entry.PageLayout);
+                page.Width = XUnit.FromPoint(placement.PageWidth);
+                page.Height = XUnit.FromPoint(placement.PageHeight);
                 using (var graphics = XGraphics.FromPdfPage(page))
-                    graphics.DrawImage(image, 0, 0, page.Width.Point, page.Height.Point);
+                    graphics.DrawImage(image, placement.ContentX, placement.ContentY,
+                        placement.ContentWidth, placement.ContentHeight);
             }
             catch (BuildFailure) { throw; }
             catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
@@ -160,8 +163,10 @@ public sealed class DocumentPdfBuilder(
                     ink.Position = 0;
                     using var image = XImage.FromStream(ink);
                     using var graphics = XGraphics.FromPdfPage(page, XGraphicsPdfPageOptions.Append);
-                    graphics.DrawImage(image, box.X * page.Width.Point, box.Y * page.Height.Point,
-                        box.Width * page.Width.Point, box.Height * page.Height.Point);
+                    graphics.DrawImage(image,
+                        placement.ContentX + box.X * placement.ContentWidth,
+                        placement.ContentY + box.Y * placement.ContentHeight,
+                        box.Width * placement.ContentWidth, box.Height * placement.ContentHeight);
                 }
                 catch (BuildFailure) { throw; }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
@@ -173,11 +178,23 @@ public sealed class DocumentPdfBuilder(
                 try
                 {
                     using var graphics = XGraphics.FromPdfPage(page, XGraphicsPdfPageOptions.Append);
+                    graphics.TranslateTransform(placement.ContentX, placement.ContentY);
                     foreach (var mark in entry.Marks)
-                        PdfMarkRenderer.Draw(graphics, mark, page.Width.Point, page.Height.Point);
+                        PdfMarkRenderer.Draw(graphics, mark, placement.ContentWidth, placement.ContentHeight);
                 }
                 catch (Exception ex) when (ex is ArgumentException or FormatException or OverflowException)
                 { throw new BuildFailure("export_decode_failed"); }
+            }
+
+            if (pdfExportOptions.BrandWatermark)
+            {
+                try
+                {
+                    PdfBrandWatermark.Draw(page,
+                        Path.Combine(AppContext.BaseDirectory, "assets", "fonts", "NotoSans-Bold.ttf"));
+                }
+                catch (Exception exception) when (exception is not OperationCanceledException)
+                { throw new BuildFailure("export_build_failed"); }
             }
 
             if (FindEligibleOcr(entry, ocrById) is { } ocr)
@@ -185,11 +202,15 @@ public sealed class DocumentPdfBuilder(
                 var sourceWords = ocr.Elements.Count(element => element.Kind == OcrElementKind.Word);
                 var words = PdfTextLayerProjector.Project(
                     ocr.Elements,
-                    page.Width.Point,
-                    page.Height.Point,
-                    pdfExportOptions.ToLimits());
-                skippedWordCount += sourceWords - words.Count;
-                if (words.Count > 0)
+                    placement.ContentWidth,
+                    placement.ContentHeight,
+                    pdfExportOptions.ToLimits())
+                    .Select(word => word with {
+                        X = word.X + placement.ContentX,
+                        Y = word.Y + placement.PageHeight - placement.ContentY - placement.ContentHeight
+                    }).ToArray();
+                skippedWordCount += sourceWords - words.Length;
+                if (words.Length > 0)
                 {
                     try
                     {

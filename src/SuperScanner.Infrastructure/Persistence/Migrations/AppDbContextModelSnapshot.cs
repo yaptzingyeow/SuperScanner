@@ -272,6 +272,11 @@ namespace SuperScanner.Infrastructure.Persistence.Migrations
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
 
+                    b.Property<int>("Rotation")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
                     b.Property<int>("SourcePageIndex")
                         .HasColumnType("integer");
 
@@ -347,6 +352,64 @@ namespace SuperScanner.Infrastructure.Persistence.Migrations
                     b.HasIndex("DocumentId", "PageId", "DeletedAt");
 
                     b.ToTable("page_marks", (string)null);
+                });
+
+            modelBuilder.Entity("SuperScanner.Domain.Documents.PageRepairOperation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("AppliedRevisionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CandidatesJson")
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<Guid>("PageId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PreviewObjectKey")
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.Property<string>("RectanglesJson")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)");
+
+                    b.Property<string>("SourceObjectKey")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.Property<Guid?>("SourceRevisionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("StrokesJson")
+                        .IsRequired()
+                        .HasMaxLength(16384)
+                        .HasColumnType("character varying(16384)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PageId", "CreatedAt");
+
+                    b.ToTable("page_repair_operations", (string)null);
                 });
 
             modelBuilder.Entity("SuperScanner.Domain.Documents.PageSignature", b =>
@@ -1013,6 +1076,15 @@ namespace SuperScanner.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Style")
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("SuperScanner.Domain.Documents.PageRepairOperation", b =>
+                {
+                    b.HasOne("SuperScanner.Domain.Documents.Page", null)
+                        .WithMany()
+                        .HasForeignKey("PageId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 

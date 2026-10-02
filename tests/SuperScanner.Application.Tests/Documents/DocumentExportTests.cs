@@ -13,6 +13,16 @@ namespace SuperScanner.Application.Tests.Documents;
 public sealed class DocumentExportTests
 {
     [Fact]
+    public async Task Status_ReportsThePageLayoutOfTheImmutableExport()
+    {
+        await using var fixture = await ReadyFixtureAsync();
+        var created = await Create(fixture).HandleAsync("user-a", fixture.DocumentId, default, "A4");
+        var status = await Get(fixture).HandleAsync("user-a", fixture.DocumentId, created.Id, default);
+        Assert.Equal("A4", created.PageLayout);
+        Assert.Equal("A4", status.PageLayout);
+    }
+
+    [Fact]
     public async Task Create_SnapshotsActiveMarkAndIgnoresLaterChanges()
     {
         await using var fixture = await ReadyFixtureAsync();
@@ -147,6 +157,31 @@ public sealed class DocumentExportTests
         Assert.Equal(fingerprint, entry.OcrSourceFingerprint);
         Assert.Single(await fixture.Db.ProcessingJobs.Where(job => job.Type == "BuildDocumentPdf").ToListAsync());
         Assert.Empty(await fixture.Db.ProcessingJobs.Where(job => job.Type.Contains("Ocr")).ToListAsync());
+    }
+
+    [Fact]
+    public async Task Create_WhenSearchableTextIsNotRequested_LeavesOcrOutOfTheImmutableSnapshot()
+    {
+        await using var fixture = await ReadyFixtureAsync();
+        var document = await fixture.ReloadAsync();
+        var page = document.ActivePages.Single(candidate => candidate.State == PageState.Ready);
+        var sourceKey = page.GetExportObjectKey();
+        var ready = PageOcrResult.Queue(Guid.NewGuid(), page.Id, sourceKey,
+            OcrSourceFingerprint.Create(sourceKey), "en", fixture.Clock.UtcNow);
+        ready.BeginAttempt(1, fixture.Clock.UtcNow);
+        ready.Complete("Fake", "v1", "Yap Tzing Yeow", [], fixture.Clock.UtcNow);
+        fixture.Db.Add(ready);
+        await fixture.Db.SaveChangesAsync();
+        fixture.Db.ChangeTracker.Clear();
+
+        var created = await Create(fixture).HandleAsync(
+            "user-a", fixture.DocumentId, default, "A4", includeSearchableText: false);
+        var export = await fixture.Db.DocumentExports.AsNoTracking().SingleAsync(item => item.Id == created.Id);
+        var entry = Assert.Single(JsonSerializer.Deserialize<DocumentExportSnapshotEntry[]>(export.SnapshotJson)!);
+
+        Assert.Null(entry.OcrResultId);
+        Assert.Null(entry.OcrSourceObjectKey);
+        Assert.Null(entry.OcrSourceFingerprint);
     }
 
     [Theory]

@@ -45,6 +45,9 @@ public static class OcrServiceCollectionExtensions
                         serviceProvider.GetRequiredService<GoogleDocumentAiOptions>(),
                         serviceProvider.GetRequiredService<OcrMetrics>()));
                 break;
+            case OcrProviderNames.Tesseract:
+                services.AddSingleton<IOcrProvider>(new TesseractOcrProvider(options.Tesseract));
+                break;
             default:
                 throw new OptionsValidationException(
                     OcrOptions.SectionName,

@@ -10,7 +10,7 @@ namespace SuperScanner.Api.Endpoints;
 public static class CropEndpoints
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
-    public sealed record CropRequest(int Revision, CropPoint[]? Points, string? Filter = null);
+    public sealed record CropRequest(int Revision, CropPoint[]? Points, string? Filter = null, int? Rotation = null);
 
     public static void Map(IEndpointRouteBuilder endpoints)
     {
@@ -34,7 +34,11 @@ public static class CropEndpoints
         if (!await OwnsAsync(db, documentId, user.FirebaseUid, ct)) return Results.NotFound();
         if (request.Filter is not null && !ScanFilter.IsValid(request.Filter))
             return Results.ValidationProblem(new Dictionary<string, string[]> {
-                ["filter"] = ["Choose Original, Document, Bright, Grayscale, or BlackAndWhite."]
+                ["filter"] = ["Choose Magic, Original, Document, Bright, Grayscale, BlackAndWhite, RemoveShadows, CleanDocument, CleanDocumentGentle, CleanDocumentStrong, or ContentClean."]
+            });
+        if (request.Rotation is not null && request.Rotation is not (0 or 90 or 180 or 270))
+            return Results.ValidationProblem(new Dictionary<string, string[]> {
+                ["rotation"] = ["Choose 0, 90, 180, or 270 degrees."]
             });
         if (!detect && !CropGeometry.IsValid(request.Points))
             return Results.ValidationProblem(new Dictionary<string, string[]> {
@@ -48,6 +52,7 @@ public static class CropEndpoints
             return Results.Conflict(new { message = "This page has text edits. Restore its unedited version before cropping." });
         page.BeginCrop(detect, detect ? null : JsonSerializer.Serialize(request.Points, Json));
         if (request.Filter is not null) page.SetFilter(request.Filter);
+        if (request.Rotation is not null) page.SetRotation(request.Rotation.Value);
         CropProcessor.Queue(db, page, detect);
         await db.SaveChangesAsync(ct);
         await CropDocumentStatus.RefreshAsync(db, documentId, ct);
@@ -68,7 +73,7 @@ public static class CropEndpoints
         status = page.CropStatus, confidence = page.CropConfidence, source = page.CropSource,
         modelVersion = page.CropModelVersion, diagnosticsCode = page.CropDiagnosticsCode,
         guidance = GetGuidance(page.CropSource, page.CropConfidence),
-        filter = page.Filter, appliedFilter = page.AppliedFilter,
+        filter = page.Filter, appliedFilter = page.AppliedFilter, rotation = page.Rotation,
         points = page.CropPointsJson is null ? null : JsonSerializer.Deserialize<CropPoint[]>(page.CropPointsJson, Json)
     };
 }

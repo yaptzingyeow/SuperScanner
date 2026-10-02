@@ -87,6 +87,24 @@ public sealed class TextEditRendererTests
     }
 
     [Fact]
+    public async Task Glyph_part_above_the_ocr_and_placement_boxes_is_removed_too()
+    {
+        using var source = new MagickImage(MagickColors.White, 320, 200);
+        // The stroke starts at y=64, above both the OCR polygon (74) and the
+        // placement box (66): a tall glyph the OCR box did not fully cover.
+        new Drawables().FillColor(new MagickColor("#142435")).Rectangle(108, 64, 143, 95).Draw(source);
+        var request = Request() with { SourceBytes = source.ToByteArray(MagickFormat.Png), ReplacementText = "" };
+
+        var result = await CreateRenderer().RenderAsync(request, default);
+
+        Assert.Null(result.FailureCode);
+        using var output = new MagickImage(result.Output!);
+        var pixels = output.GetPixels().ToByteArray(PixelMapping.RGB)!;
+        Assert.Equal((byte)255, pixels[(64 * 320 + 120) * 3]);
+        Assert.Equal((byte)255, pixels[(65 * 320 + 140) * 3]);
+    }
+
+    [Fact]
     public async Task Renderer_rejects_any_change_outside_the_approved_mask()
     {
         var renderer = CreateRenderer(new MutatingPainter());

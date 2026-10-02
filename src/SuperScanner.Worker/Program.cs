@@ -73,6 +73,9 @@ builder.Services.AddOptions<DocumentBoundaryOptions>()
     .ValidateOnStart();
 builder.Services.AddSingleton<DocumentBoundaryHealth>();
 builder.Services.AddScoped<CropProcessor>();
+builder.Services.AddScoped<PageRepairProcessor>();
+builder.Services.AddScoped<PageRepairAssetCleanup>();
+builder.Services.AddHostedService<PageRepairCleanupWorker>();
 ImageMagick.ResourceLimits.Memory = 256UL * 1024 * 1024;
 ImageMagick.ResourceLimits.Disk = 1024UL * 1024 * 1024;
 ImageMagick.ResourceLimits.Width = 20000;

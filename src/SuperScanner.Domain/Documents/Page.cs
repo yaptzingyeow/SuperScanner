@@ -31,6 +31,7 @@ public sealed class Page
     public int AppliedCropRevision { get; private set; }
     public string Filter { get; private set; } = ScanFilter.Default;
     public string AppliedFilter { get; private set; } = ScanFilter.Default;
+    public int Rotation { get; private set; }
     public Guid? ActiveRevisionId { get; private set; }
     public PageRevision? ActiveRevision { get; private set; }
     public DateTimeOffset? RemovedAt { get; private set; }
@@ -41,6 +42,13 @@ public sealed class Page
     {
         if (!ScanFilter.IsValid(filter)) throw new ArgumentException("Unknown scan filter.", nameof(filter));
         Filter = filter;
+    }
+
+    public void SetRotation(int degrees)
+    {
+        if (degrees is not (0 or 90 or 180 or 270))
+            throw new ArgumentException("Rotation must be 0, 90, 180 or 270 degrees.", nameof(degrees));
+        Rotation = degrees;
     }
 
     public void InitializeCrop()
@@ -75,6 +83,27 @@ public sealed class Page
         CropModelVersion = null;
         CropDiagnosticsCode = null;
         if (!detect) CropPointsJson = pointsJson;
+    }
+
+    /// <summary>
+    /// Starts applying automatically detected corners, keeping the detection's source, confidence,
+    /// model version and diagnostics so the page's guidance still reflects what was detected.
+    /// </summary>
+    public void BeginAutomaticCrop(
+        string pointsJson,
+        string source,
+        double confidence,
+        string? modelVersion,
+        string diagnosticsCode)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(pointsJson);
+        ArgumentException.ThrowIfNullOrWhiteSpace(source);
+        ArgumentException.ThrowIfNullOrWhiteSpace(diagnosticsCode);
+        BeginCrop(false, pointsJson);
+        CropSource = source;
+        CropConfidence = confidence;
+        CropModelVersion = modelVersion;
+        CropDiagnosticsCode = diagnosticsCode;
     }
 
     public void SetPreview(string previewKey, string thumbnailKey)

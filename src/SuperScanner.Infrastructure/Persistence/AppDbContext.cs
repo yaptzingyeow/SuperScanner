@@ -33,6 +33,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     public DbSet<PageRevision> PageRevisions => Set<PageRevision>();
 
+    public DbSet<PageRepairOperation> PageRepairOperations => Set<PageRepairOperation>();
+
     public DbSet<TextEditOperation> TextEditOperations => Set<TextEditOperation>();
 
     public DbSet<FontCatalogueEntry> FontCatalogueEntries => Set<FontCatalogueEntry>();

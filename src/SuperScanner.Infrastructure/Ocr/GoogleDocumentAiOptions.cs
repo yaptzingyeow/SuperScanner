@@ -7,6 +7,7 @@ public static class OcrProviderNames
     public const string Disabled = "Disabled";
     public const string Fake = "Fake";
     public const string GoogleDocumentAi = "GoogleDocumentAi";
+    public const string Tesseract = "Tesseract";
 }
 
 public sealed partial class GoogleDocumentAiOptions

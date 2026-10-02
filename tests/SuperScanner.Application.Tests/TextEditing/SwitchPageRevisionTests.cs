@@ -10,6 +10,28 @@ public sealed class SwitchPageRevisionTests
     private static readonly DateTimeOffset Now = new(2026, 9, 23, 0, 0, 0, TimeSpan.Zero);
 
     [Fact]
+    public async Task Applied_cleanup_can_be_undone_and_redone_without_a_text_edit()
+    {
+        var fixture = new Fixture();
+        var parentId = fixture.Page.ActiveRevisionId!.Value;
+        var repair = PageRevision.CreateRepair(Guid.NewGuid(), fixture.Page.Id,
+            parentId, "repairs/page.png", new string('b', 64), Now.AddSeconds(1));
+        fixture.Revisions.Add(repair);
+        fixture.Repository.AppliedRepairs.Add(repair.Id);
+        fixture.Page.ActivateRevision(repair);
+
+        await fixture.Switch.HandleAsync(new SwitchPageRevisionRequest("owner",
+            fixture.Document.Id, fixture.Page.Id, repair.Id,
+            RevisionSwitchDirection.Undo), default);
+        Assert.Equal(parentId, fixture.Page.ActiveRevisionId);
+
+        await fixture.Switch.HandleAsync(new SwitchPageRevisionRequest("owner",
+            fixture.Document.Id, fixture.Page.Id, parentId,
+            RevisionSwitchDirection.Redo), default);
+        Assert.Equal(repair.Id, fixture.Page.ActiveRevisionId);
+    }
+
+    [Fact]
     public async Task Undo_then_redo_switches_persisted_active_revision()
     {
         var fixture = new Fixture();
@@ -173,6 +195,7 @@ public sealed class SwitchPageRevisionTests
     {
         public int Pending { get; set; }
         public List<TextEditOperation> Edits { get; } = [];
+        public List<Guid> AppliedRepairs { get; } = [];
         public Task<ITextEditTransaction> BeginAsync(CancellationToken ct) =>
             Task.FromResult<ITextEditTransaction>(new Transaction());
         public Task<LockedRevisionSwitchPage?> FindOwnedRevisionForUpdateAsync(string ownerUid,
@@ -186,6 +209,8 @@ public sealed class SwitchPageRevisionTests
             Task.FromResult<IReadOnlyList<PageRevision>>(revisions);
         public Task<IReadOnlyList<TextEditOperation>> ListEditsAsync(Guid pageId, CancellationToken ct) =>
             Task.FromResult<IReadOnlyList<TextEditOperation>>(Edits);
+        public Task<IReadOnlyList<Guid>> ListAppliedRepairRevisionIdsAsync(Guid pageId, CancellationToken ct) =>
+            Task.FromResult<IReadOnlyList<Guid>>(AppliedRepairs);
         public Task SaveAsync(CancellationToken ct) => Task.CompletedTask;
     }
 

@@ -18,6 +18,33 @@ public sealed class PageRevisionPersistenceTests : IAsyncLifetime
     public Task DisposeAsync() => postgres.DisposeAsync().AsTask();
 
     [Fact]
+    public async Task Repair_migration_preserves_existing_pages_and_saves_private_proposal()
+    {
+        var options = Options();
+        var document = ReadyDocument();
+        await using (var old = new AppDbContext(options))
+        {
+            await old.GetService<IMigrator>().MigrateAsync("20260927000000_PageMarkRequestHash");
+            old.Documents.Add(document);
+            await old.SaveChangesAsync();
+        }
+
+        await using (var upgraded = new AppDbContext(options))
+        {
+            await upgraded.Database.MigrateAsync();
+            var page = await upgraded.Pages.SingleAsync(x => x.DocumentId == document.Id);
+            var operation = PageRepairOperation.CreateSuggestion(Guid.NewGuid(), page.Id,
+                null, page.GetProcessedObjectKey(), Now);
+            upgraded.PageRepairOperations.Add(operation);
+            await upgraded.SaveChangesAsync();
+        }
+
+        await using var reader = new AppDbContext(options);
+        Assert.Single(await reader.PageRepairOperations.ToListAsync());
+        Assert.Equal("previews/page.jpg", (await reader.Pages.SingleAsync()).GetProcessedObjectKey());
+    }
+
+    [Fact]
     public async Task Round_trip_preserves_parent_link_and_active_revision()
     {
         var options = Options();

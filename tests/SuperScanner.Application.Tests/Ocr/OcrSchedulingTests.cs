@@ -81,6 +81,18 @@ public sealed class OcrSchedulingTests
     }
 
     [Fact]
+    public async Task SuccessfulCrop_WhenEnabledButNotAutomatic_LeavesOcrToTheUser()
+    {
+        await using var fixture = await Fixture.CreateAsync(enabled: true, autoRecognize: false);
+
+        Assert.True(await fixture.Crop.CompletePerspectiveCropAsync(
+            fixture.PageId, fixture.Revision, "previews/new.jpg", "thumbs/new.jpg", default));
+
+        Assert.Empty(await fixture.Db.PageOcrResults.ToListAsync());
+        Assert.Empty(await fixture.Db.ProcessingJobs.Where(x => x.Type == "RecognizePageText").ToListAsync());
+    }
+
+    [Fact]
     public async Task NewCropRevision_CreatesOneAdditionalSourceResult()
     {
         await using var fixture = await Fixture.CreateAsync(enabled: true);
@@ -114,7 +126,7 @@ public sealed class OcrSchedulingTests
         public int Revision { get; }
         public CropProcessor Crop { get; }
 
-        public static async Task<Fixture> CreateAsync(bool enabled)
+        public static async Task<Fixture> CreateAsync(bool enabled, bool autoRecognize = true)
         {
             var connection = new SqliteConnection("Data Source=:memory:");
             await connection.OpenAsync();
@@ -136,6 +148,7 @@ public sealed class OcrSchedulingTests
             var options = Options.Create(new OcrOptions
             {
                 Enabled = enabled,
+                AutoRecognize = autoRecognize,
                 Provider = enabled ? "Fake" : "Disabled"
             });
             var scheduler = new OcrJobScheduler(

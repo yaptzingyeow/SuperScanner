@@ -104,6 +104,43 @@ public sealed class ProposeTextStyleTests
     }
 
     [Fact]
+    public async Task Neighbouring_words_whose_boxes_touch_the_selection_do_not_block_it()
+    {
+        var line = Guid.NewGuid();
+        OcrElement Word(string text, int order, double x0, double x1) => OcrElement.Create(Guid.NewGuid(), ResultId,
+            line, OcrElementKind.Word, text, .95, OcrTextType.Printed, order,
+            [new(x0, .2), new(x1, .2), new(x1, .24), new(x0, .24)]);
+        // "2A, Jalan, Ampang": boxes overlap by a sliver, and the comma sits inside the end of "Jalan".
+        OcrElement[] words = [Word("2A", 0, .10, .16), Word("Jalan", 1, .155, .30), Word(",", 2, .29, .305),
+            Word("Ampang", 3, .31, .45)];
+        var fixture = Fixture(OcrTextType.Printed);
+        fixture.Repository.Selection = fixture.Repository.Selection! with { Elements = words };
+
+        var result = await fixture.Service.HandleAsync(Owner, DocumentId, PageId, ResultId,
+            [words[1].Id], CancellationToken.None);
+
+        Assert.Equal("Jalan", result.OriginalText);
+    }
+
+    [Fact]
+    public async Task A_word_on_another_line_partly_covered_by_the_selection_is_rejected()
+    {
+        var fixture = Fixture(OcrTextType.Printed);
+        // Handwriting above dips into the selected word: a third of it lies inside the selection.
+        var handwriting = OcrElement.Create(Guid.NewGuid(), ResultId, Guid.NewGuid(),
+            OcrElementKind.Word, "Signed", .9, OcrTextType.Printed, 0,
+            [new(.1, .17), new(.18, .17), new(.18, .215), new(.1, .215)]);
+        fixture.Repository.Selection = fixture.Repository.Selection! with
+        {
+            Elements = [.. fixture.Words, handwriting]
+        };
+
+        await Assert.ThrowsAsync<InvalidTextSelectionException>(() =>
+            fixture.Service.HandleAsync(Owner, DocumentId, PageId, ResultId,
+                [fixture.Words[0].Id], CancellationToken.None));
+    }
+
+    [Fact]
     public async Task Maximum_word_count_is_enforced()
     {
         var fixture = Fixture(OcrTextType.Printed);

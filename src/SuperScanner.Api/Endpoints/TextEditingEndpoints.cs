@@ -27,7 +27,7 @@ public static class TextEditingEndpoints
 
         var group = endpoints
             .MapGroup("/api/documents/{documentId:guid}/pages/{pageId:guid}/text-edits")
-            .RequireAuthorization();
+            .RequireAuthorization(AuthPolicies.SignedInAccount);
         group.MapPost("/style-proposal", ProposeAsync);
         group.MapPost("/preview", PreviewAsync);
         group.MapPost("", ApplyAsync);

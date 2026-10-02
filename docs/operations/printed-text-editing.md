@@ -54,3 +54,22 @@ Unreachable deterministic outputs can arise when object PUT succeeds but activat
 For the opt-in browser scenario, start the local dependencies from the foundation runbook and set `E2E_TEXT_EDIT_READY=1` before `npm --prefix apps/web run e2e -- --grep "printed text replacement"`. This flag is only for the disposable E2E process and selects the deterministic printed-word OCR fixture. The fake OCR scenario is not a quality benchmark. Production remains off until all gates are recorded, even when automated tests pass.
 
 On Windows, also set `E2E_CROP_PYTHON` to the absolute path of the project's crop-runtime `python.exe` before running the browser scenario (for example, resolve `.task-tools/crop-runtime/Scripts/python.exe`). The default `python3` executable name is for Unix-like hosts and is not available on a standard Windows setup; the selected interpreter must have the pinned crop requirements installed. Build the E2E Angular configuration before invoking Playwright directly, or use the `npm run e2e` script, which builds it first.
+
+## Renderer v2: textured background repair (2026-10-01)
+
+`renderer-v2` replaces the flat per-row fill with exemplar repair: each 24 px block of repair
+pixels is copied from the nearby background window (search ±160 px horizontally, ±60 px
+vertically) whose known surroundings match best, so paper grain, mottled print and gradients
+continue through the removed text. Source windows never contain repair pixels, other OCR words,
+preserved rules or ink-dark pixels; blocks without a clean source fall back to the previous
+row colour. Ink is separated from a mid-grey printed pattern by an Otsu split of the selection
+when the two classes are at least 90 brightness levels apart, and a light sharpening rim within
+5 px of the ink is repaired with it. Textured backgrounds no longer fail with
+`border-variation` or `paper-sides-differ`. The procedure is deterministic, so preview and
+applied output match; pixels outside the approved box are still verified unchanged.
+
+Edits queued under `renderer-v1` before an upgrade fail safely with `text_edit_render_invalid`
+and can be recreated. A 2072 x 2400 card with a 790 x 470 px title took about 4.5 s to repair
+locally (single thread). Verified with Application text-editing tests (117), API text-editing
+integration tests (20) and the FAITH card photo; faint outlines can remain where a letter edge
+meets a strong gradient.

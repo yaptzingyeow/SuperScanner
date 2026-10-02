@@ -136,7 +136,8 @@ public sealed class DocumentImportProcessor(
                     }
 
                     await previewProcessor.ProcessPageAsync(page.Id, cancellationToken);
-                    await cropProcessor.EnsureOptionalCropForPageAsync(page.Id, cancellationToken);
+                    if (isPdf) await cropProcessor.EnsureOptionalCropForPageAsync(page.Id, cancellationToken);
+                    else await cropProcessor.EnsureAutomaticEnhancementAsync(page.Id, cancellationToken);
                 }
                 catch (Exception exception) when (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
                 {

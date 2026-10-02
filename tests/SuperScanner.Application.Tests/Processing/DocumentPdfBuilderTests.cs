@@ -24,6 +24,44 @@ namespace SuperScanner.Application.Tests.Processing;
 public sealed class DocumentPdfBuilderTests
 {
     [Fact]
+    public async Task Build_A4_UsesUniformImagePlacementAndMovesOverlaysAndSearchTextTogether()
+    {
+        await using var f = await Fixture.CreateAsync(OcrScenario.Full);
+        var entries = JsonSerializer.Deserialize<DocumentExportSnapshotEntry[]>(f.Export.SnapshotJson)!;
+        entries[0] = entries[0] with {
+            PageLayout = "A4",
+            MarkOverlays = [new(Guid.NewGuid(), PageMarkKind.Check,
+                new SignatureBox(.25,.25,.2,.2), "#00AA00", .08)]
+        };
+        f.Db.Entry(f.Export).Property(e => e.SnapshotJson).CurrentValue = JsonSerializer.Serialize(entries);
+        await f.Db.SaveChangesAsync();
+        var text = new RecordingTextLayerWriter();
+        await f.BuildAsync(writer: text);
+        var exported = await f.ReloadAsync();
+        Assert.Equal(DocumentExportState.Ready, exported.State);
+        using var pdf = PdfReader.Open(new MemoryStream(f.Store.Objects[exported.OutputObjectKey!]), PdfDocumentOpenMode.Import);
+        var page = pdf.Pages[0];
+        Assert.InRange(page.Width.Point, 841.8, 842);
+        Assert.InRange(page.Height.Point, 595.2, 595.4);
+        var content = System.Text.Encoding.ASCII.GetString(page.Contents.CreateSingleContent().Stream.Value);
+        Assert.Contains("0 0.667 0 RG", content);
+        Assert.Contains(" cm", content);
+        var word = Assert.Single(text.FirstPageWords!);
+        var placement = PdfPagePlacement.Create(96,48,"A4");
+        Assert.InRange(word.X, placement.ContentX + placement.ContentWidth * .1 - .01,
+            placement.ContentX + placement.ContentWidth * .1 + .01);
+        Assert.InRange(word.Y, placement.PageHeight - placement.ContentY - placement.ContentHeight +
+            placement.ContentHeight * .85 - .01,
+            placement.PageHeight - placement.ContentY - placement.ContentHeight + placement.ContentHeight * .85 + .01);
+    }
+
+    private sealed class RecordingTextLayerWriter : IPdfTextLayerWriter
+    {
+        public IReadOnlyList<PdfTextLayerWord>? FirstPageWords { get; private set; }
+        public void Write(PdfPage page, IReadOnlyList<PdfTextLayerWord> words) =>
+            FirstPageWords ??= words;
+    }
+    [Fact]
     public async Task Build_DrawsMarkAsTransparentVectorAtSnapshottedBounds()
     {
         await using var f = await Fixture.CreateAsync();
@@ -50,6 +88,26 @@ public sealed class DocumentPdfBuilderTests
         Assert.Contains("52.128 30.672 m\n55.872 26.928 l", content);
         Assert.Matches(@"(?m)^S$", content);
     }
+    [Fact]
+    public async Task Build_StampsEveryPageWithTheBrandWatermarkByDefault()
+    {
+        await using var f = await Fixture.CreateAsync();
+
+        await f.BuildAsync(pdfOptions: new PdfExportOptions { SearchableTextEnabled = false });
+
+        var export = await f.ReloadAsync();
+        Assert.Equal(DocumentExportState.Ready, export.State);
+        using var pdf = PdfReader.Open(new MemoryStream(f.Store.Objects[export.OutputObjectKey!]), PdfDocumentOpenMode.Import);
+        Assert.Equal(3, pdf.PageCount);
+        foreach (var page in pdf.Pages.Cast<PdfPage>())
+        {
+            // the scan itself plus the stamp, and still no text (it never counts as searchable)
+            Assert.Equal(2, page.Resources.Elements.GetDictionary("/XObject")!.Elements.Count);
+            Assert.DoesNotContain("/Font", page.Resources.Elements.Keys);
+        }
+        Assert.Equal(0, export.SearchablePageCount);
+    }
+
     [Fact]
     public async Task Build_AcceptsPngTextEditedPageAlongsideJpegPages()
     {
@@ -528,7 +586,9 @@ public sealed class DocumentPdfBuilderTests
             DocumentPdfLimits? limits = null,
             IPdfTextLayerWriter? writer = null,
             PdfExportOptions? pdfOptions = null) =>
-            new DocumentPdfBuilder(Db, Store, Clock, limits, writer, pdfOptions).BuildAsync(Export.Id, default);
+            // Content assertions below inspect the page itself; the brand stamp has its own test.
+            new DocumentPdfBuilder(Db, Store, Clock, limits, writer,
+                pdfOptions ?? new PdfExportOptions { BrandWatermark = false }).BuildAsync(Export.Id, default);
         public async Task<DocumentExport> ReloadAsync() { Db.ChangeTracker.Clear(); return await Db.DocumentExports.SingleAsync(); }
         public async ValueTask DisposeAsync() { await Db.DisposeAsync(); await Connection.DisposeAsync(); }
     }

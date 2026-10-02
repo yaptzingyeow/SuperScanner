@@ -17,6 +17,7 @@ public sealed class GetPageEditHistory(ITextEditReadRepository repository)
                 edit.State == Domain.TextEditing.TextEditState.Succeeded &&
                 edit.ResultRevisionId is not null)
             .Select(edit => edit.ResultRevisionId!.Value).ToHashSet();
+        successfulRevisionIds.UnionWith(await repository.ListAppliedRepairRevisionIdsAsync(pageId, ct));
         return new PageEditHistoryDto(!busy && active?.ParentRevisionId is not null,
             !busy && state.Revisions.Any(revision =>
                 revision.ParentRevisionId == state.ActiveRevisionId &&

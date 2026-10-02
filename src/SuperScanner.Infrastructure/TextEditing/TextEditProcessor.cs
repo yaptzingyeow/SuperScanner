@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore;
 using SuperScanner.Application.Abstractions;
+using SuperScanner.Application.Ocr;
 using SuperScanner.Domain.Documents;
 using SuperScanner.Domain.Ocr;
 using SuperScanner.Domain.TextEditing;
@@ -42,6 +43,7 @@ public sealed class TextEditProcessor(
             page.ActiveRevision is null || page.ActiveRevision.Id != edit.SourceRevisionId)
             throw new TextEditProcessingException("text_edit_stale_revision", false);
         var sourceRevision = page.ActiveRevision;
+        var sourceObjectKey = sourceRevision.ObjectKey;
         var adding = edit.SelectedOcrElementIds.Count == 0;
         var ocr = adding ? null : await db.PageOcrResults.Include(result => result.Elements)
             .SingleOrDefaultAsync(result => result.Id == edit.SourceOcrResultId &&
@@ -140,12 +142,44 @@ public sealed class TextEditProcessor(
             clock.UtcNow);
         db.PageRevisions.Add(revision);
         currentPage.ActivateRevision(revision);
+        await CarryOcrForwardAsync(currentEdit, currentPage.Id, sourceObjectKey, key, ct);
         var document = await db.Documents.SingleAsync(candidate =>
             candidate.Id == currentPage.DocumentId, ct);
         document.MarkContentChanged(clock.UtcNow);
         currentEdit.Complete(revision.Id, clock.UtcNow);
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
+    }
+
+    /// <summary>
+    /// Gives the new revision the source revision's OCR minus the edited words plus the typed
+    /// text, so the next edit needs no new (paid) recognition. Skipped when the source page was
+    /// never recognized; the user can still ask for recognition later.
+    /// </summary>
+    private async Task CarryOcrForwardAsync(
+        TextEditOperation edit, Guid pageId, string sourceObjectKey, string revisionKey, CancellationToken ct)
+    {
+        var source = await db.PageOcrResults.Include(result => result.Elements)
+            .Where(result => result.PageId == pageId && result.SourceObjectKey == sourceObjectKey &&
+                result.State == OcrResultState.Ready)
+            .OrderByDescending(result => result.Id == edit.SourceOcrResultId)
+            .ThenByDescending(result => result.CompletedAt)
+            .FirstOrDefaultAsync(ct);
+        if (source is null) return;
+        var fingerprint = OcrSourceFingerprint.Create(revisionKey);
+        if (await db.PageOcrResults.AnyAsync(result => result.PageId == pageId &&
+                result.SourceFingerprint == fingerprint, ct))
+            return;
+
+        var now = clock.UtcNow;
+        var carried = PageOcrResult.Queue(Guid.NewGuid(), pageId, revisionKey, fingerprint, source.Language, now);
+        var built = OcrCarryForward.Build(carried.Id, source.Elements,
+            edit.SelectedOcrElementIds.ToHashSet(), edit.ReplacementBox, edit.ReplacementText);
+        carried.BeginAttempt(1, now);
+        carried.Complete(source.ProviderName ?? "Unknown", OcrCarryForward.ModelVersion,
+            built.FullText, built.Elements, now);
+        db.PageOcrResults.Add(carried);
+        db.OcrElements.AddRange(built.Elements);
     }
 
     public async Task FailAsync(Guid editId, string safeCode, CancellationToken ct)

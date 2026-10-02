@@ -9,6 +9,23 @@ public sealed class DocumentExportTests
     private static readonly DateTimeOffset Now = DateTimeOffset.Parse("2026-09-14T00:00:00Z");
 
     [Fact]
+    public void Create_SnapshotsRequestedA4LayoutAndLegacyDefaultsOriginal()
+    {
+        var document = Document.Create(Guid.NewGuid(), "owner", "Form", Now);
+        var page = document.AddPage(Guid.NewGuid(), 10, Now);
+        PrepareReadyPage(page, "page.jpg");
+        var a4 = DocumentExport.Create(Guid.NewGuid(), document, "owner", Now,
+            TimeSpan.FromDays(7), pageLayout: "A4");
+        var saved = Assert.Single(JsonSerializer.Deserialize<DocumentExportSnapshotEntry[]>(a4.SnapshotJson)!);
+        Assert.Equal("A4", saved.PageLayout);
+        var old = JsonSerializer.Deserialize<DocumentExportSnapshotEntry[]>(
+            $$"""[{"PageId":"{{page.Id}}","Position":1,"AppliedCropRevision":0,"AppliedFilter":"Original","ProcessedObjectKey":"page.jpg"}]""")!;
+        Assert.Equal("Original", Assert.Single(old).PageLayout);
+        Assert.Throws<ArgumentException>(() => DocumentExport.Create(Guid.NewGuid(), document,
+            "owner", Now, TimeSpan.FromDays(7), pageLayout: "Letter"));
+    }
+
+    [Fact]
     public void Create_FreezesMarkGeometryAndStyleAfterMutation()
     {
         var document = Document.Create(Guid.NewGuid(), "owner", "Form", Now);

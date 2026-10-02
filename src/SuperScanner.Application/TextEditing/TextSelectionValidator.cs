@@ -50,13 +50,30 @@ public static class TextSelectionValidator
             ordered, string.Join(' ', ordered.Select(word => word.Text)), box);
     }
 
+    /// <summary>Share of another word's box the selection may cover before it counts as a clash.</summary>
+    public const double MaximumCoveredShare = .25;
+
+    /// <summary>
+    /// True when the selection box covers a real part (a quarter or more) of a word that is not
+    /// selected. OCR boxes of neighbouring words commonly touch by a pixel or two; that is not a
+    /// clash (the renderer leaves those pixels alone). Punctuation directly before or after the
+    /// selection on the same line (a comma after "Jalan") is allowed too.
+    /// </summary>
     public static bool OverlapsUnselected(IReadOnlyList<OcrElement> elements,
         IReadOnlyCollection<Guid> selectedIds, NormalizedBox box)
     {
         var selected = selectedIds.ToHashSet();
+        var selectedWords = elements.Where(element => selected.Contains(element.Id)).ToArray();
+        var lineId = selectedWords.Select(word => word.ParentElementId).Distinct().SingleOrDefault();
+        var first = selectedWords.Length == 0 ? 0 : selectedWords.Min(word => word.ReadingOrder);
+        var last = selectedWords.Length == 0 ? 0 : selectedWords.Max(word => word.ReadingOrder);
+        bool AdjacentOnLine(OcrElement word) =>
+            lineId is not null && word.ParentElementId == lineId &&
+            (word.ReadingOrder == first - 1 || word.ReadingOrder == last + 1);
         return elements.Where(element => element.Kind == OcrElementKind.Word &&
                 !selected.Contains(element.Id))
-            .Any(word => HasUsablePolygon(word.Polygon) && Overlaps(word.Polygon, box));
+            .Any(word => HasUsablePolygon(word.Polygon) && CoveredShare(word.Polygon, box) >= MaximumCoveredShare &&
+                !AdjacentOnLine(word));
     }
 
     private static bool HasUsablePolygon(IReadOnlyList<OcrPoint> polygon)
@@ -75,7 +92,7 @@ public static class TextSelectionValidator
         return Math.Abs(twiceArea) > 0.000001;
     }
 
-    private static bool Overlaps(IReadOnlyList<OcrPoint> polygon, NormalizedBox box)
+    private static double CoveredShare(IReadOnlyList<OcrPoint> polygon, NormalizedBox box)
     {
         var x1 = polygon.Min(point => point.X);
         var x2 = polygon.Max(point => point.X);
@@ -83,6 +100,7 @@ public static class TextSelectionValidator
         var y2 = polygon.Max(point => point.Y);
         var width = Math.Min(x2, box.X + box.Width) - Math.Max(x1, box.X);
         var height = Math.Min(y2, box.Y + box.Height) - Math.Max(y1, box.Y);
-        return width > 0.001 && height > 0.001;
+        var area = (x2 - x1) * (y2 - y1);
+        return width <= 0 || height <= 0 || area <= 0 ? 0 : width * height / area;
     }
 }

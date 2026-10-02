@@ -23,8 +23,11 @@ public sealed class CreateDocumentExport(IDocumentRepository documents, IDocumen
     IClock clock, IAuditWriter audit, IProcessingJobQueue queue, DocumentExportPolicy policy,
     IPageSignatureRepository signatures, IPageMarkRepository marks)
 {
-    public async Task<DocumentExportResult> HandleAsync(string ownerUid, Guid documentId, CancellationToken ct)
+    public async Task<DocumentExportResult> HandleAsync(string ownerUid, Guid documentId, CancellationToken ct,
+        string pageLayout = "Original", bool includeSearchableText = true)
     {
+        if (pageLayout is not ("Original" or "A4"))
+            throw new ArgumentException("Unsupported PDF page layout.", nameof(pageLayout));
         await using var transaction = await documents.BeginTransactionAsync(ct);
         var document = await documents.FindOwnedForUpdateAsync(ownerUid, documentId, ct)
             ?? throw new DocumentExportNotFoundException();
@@ -33,8 +36,13 @@ public sealed class CreateDocumentExport(IDocumentRepository documents, IDocumen
 
         var now = clock.UtcNow;
         var readyPages = document.ActivePages.Where(page => page.State == PageState.Ready).ToArray();
-        var results = await ocr.FindReadyByPageIdsAsync(readyPages.Select(page => page.Id).ToArray(), ct);
-        var matchingOcr = DocumentExportOcrEligibility.Match(readyPages, results);
+        IReadOnlyDictionary<Guid, DocumentExportOcrSnapshot> matchingOcr =
+            new Dictionary<Guid, DocumentExportOcrSnapshot>();
+        if (includeSearchableText)
+        {
+            var results = await ocr.FindReadyByPageIdsAsync(readyPages.Select(page => page.Id).ToArray(), ct);
+            matchingOcr = DocumentExportOcrEligibility.Match(readyPages, results);
+        }
         var overlays = await signatures.GetActiveForDocumentAsync(document.Id, ct);
         var signatureSnapshots = overlays.OrderBy(s => s.CreatedAt).ThenBy(s => s.Id)
             .GroupBy(s => s.PageId).ToDictionary(g => g.Key,
@@ -45,7 +53,7 @@ public sealed class CreateDocumentExport(IDocumentRepository documents, IDocumen
             g => (IReadOnlyList<MarkOverlaySnapshot>)g.Select(m =>
                 new MarkOverlaySnapshot(m.Id, m.Kind, m.Box, m.Style.Color, m.Style.StrokeWidth)).ToArray());
         var export = DocumentExport.Create(Guid.NewGuid(), document, ownerUid, now, policy.Retention, matchingOcr,
-            signatureSnapshots, markSnapshots);
+            signatureSnapshots, markSnapshots, pageLayout);
         await exports.AddAsync(export, ct);
         await audit.AppendAsync(new AuditWriteRequest(ownerUid, "document.export_created", "document",
             document.Id, JsonSerializer.Serialize(new { exportId = export.Id }), now), ct);

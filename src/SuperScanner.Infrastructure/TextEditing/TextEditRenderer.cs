@@ -86,7 +86,7 @@ public sealed class TextEditRenderer(
     TextEditingOptions options,
     ITextGlyphPainter painter) : ITextEditRenderer
 {
-    public const string RendererVersion = "renderer-v1";
+    public const string RendererVersion = "renderer-v2";
 
     public Task<TextEditRenderResult> RenderAsync(TextEditRenderRequest request,
         CancellationToken ct)
@@ -170,9 +170,12 @@ public sealed class TextEditRenderer(
                     Math.Max(Math.Abs(source[i * 3 + 1] - rendered[i * 3 + 1]),
                         Math.Abs(source[i * 3 + 2] - rendered[i * 3 + 2])));
                 changedMask[i] = delta > 0;
+                // The repair mask may reach glyph parts the OCR box missed;
+                // every other change must stay inside the two boxes.
                 if (delta > 0 && !Inside(i % width, i / width,
                     width, height, request.ApprovedBox) &&
-                    !Inside(i % width, i / width, width, height, clearBox))
+                    !Inside(i % width, i / width, width, height, clearBox) &&
+                    repaired.RepairMask?[i] != true)
                     return Task.FromResult(Fail("text_edit_containment_failed"));
             }
 
@@ -193,7 +196,8 @@ public sealed class TextEditRenderer(
             for (var i = 0; i < changedMask.Length; i++)
             {
                 if (Inside(i % width, i / width, width, height, request.ApprovedBox) ||
-                    Inside(i % width, i / width, width, height, clearBox)) continue;
+                    Inside(i % width, i / width, width, height, clearBox) ||
+                    repaired.RepairMask?[i] == true) continue;
                 for (var channel = 0; channel < 3; channel++)
                     if (source[i * 3 + channel] != decodedRgb[i * 3 + channel])
                         return Task.FromResult(Fail("text_edit_containment_failed"));

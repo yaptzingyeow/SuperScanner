@@ -36,7 +36,8 @@ public sealed class DocumentExport
         TimeSpan retention,
         IReadOnlyDictionary<Guid, DocumentExportOcrSnapshot>? ocrByPage = null,
         IReadOnlyDictionary<Guid, IReadOnlyList<SignatureOverlaySnapshot>>? signaturesByPage = null,
-        IReadOnlyDictionary<Guid, IReadOnlyList<MarkOverlaySnapshot>>? marksByPage = null)
+        IReadOnlyDictionary<Guid, IReadOnlyList<MarkOverlaySnapshot>>? marksByPage = null,
+        string pageLayout = "Original")
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentException.ThrowIfNullOrWhiteSpace(ownerUid);
@@ -47,6 +48,8 @@ public sealed class DocumentExport
         }
 
         if (retention <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(retention));
+        if (pageLayout is not ("Original" or "A4"))
+            throw new ArgumentException("Unsupported PDF page layout.", nameof(pageLayout));
 
         var activePages = document.ActivePages;
         var readyPages = activePages.Where(page => page.State == PageState.Ready).ToArray();
@@ -74,7 +77,8 @@ public sealed class DocumentExport
                 signaturesByPage is not null && signaturesByPage.TryGetValue(page.Id, out var signatures)
                     ? signatures.ToArray() : null,
                 marksByPage is not null && marksByPage.TryGetValue(page.Id, out var marks)
-                    ? marks.ToArray() : null);
+                    ? marks.ToArray() : null,
+                pageLayout);
         });
 
         return new DocumentExport
@@ -157,7 +161,8 @@ public sealed record DocumentExportSnapshotEntry(
     string? OcrSourceObjectKey = null,
     string? OcrSourceFingerprint = null,
     IReadOnlyList<SignatureOverlaySnapshot>? SignatureOverlays = null,
-    IReadOnlyList<MarkOverlaySnapshot>? MarkOverlays = null)
+    IReadOnlyList<MarkOverlaySnapshot>? MarkOverlays = null,
+    string PageLayout = "Original")
 {
     [System.Text.Json.Serialization.JsonIgnore]
     public IReadOnlyList<SignatureOverlaySnapshot> Signatures => SignatureOverlays ?? [];

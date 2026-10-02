@@ -1,5 +1,6 @@
 using SuperScanner.Application.Abstractions;
 using SuperScanner.Domain.Documents;
+using System.Text.Json;
 
 namespace SuperScanner.Application.Documents;
 
@@ -7,7 +8,7 @@ public sealed record DocumentExportResult(Guid Id, string State, long DocumentRe
     int ReadyPageCount, int ExcludedPageCount, int SearchablePageCount, string Searchability,
     string StatusUrl, string? DownloadUrl,
     bool IsOutdated, string? FailureCode, DateTimeOffset CreatedAt, DateTimeOffset? CompletedAt,
-    DateTimeOffset ExpiresAt)
+    DateTimeOffset ExpiresAt, string PageLayout)
 {
     internal static DocumentExportResult From(DocumentExport export, long documentRevision, DateTimeOffset now)
     {
@@ -23,7 +24,9 @@ public sealed record DocumentExportResult(Guid Id, string State, long DocumentRe
             export.SearchablePageCount, export.Searchability, statusUrl,
             export.State == DocumentExportState.Ready && export.ExpiresAt > now ? $"{statusUrl}/download" : null,
             export.DocumentRevision != documentRevision, failureCode,
-            export.CreatedAt, export.CompletedAt, export.ExpiresAt);
+            export.CreatedAt, export.CompletedAt, export.ExpiresAt,
+            JsonSerializer.Deserialize<DocumentExportSnapshotEntry[]>(export.SnapshotJson)?
+                .FirstOrDefault()?.PageLayout ?? "Original");
     }
 }
 

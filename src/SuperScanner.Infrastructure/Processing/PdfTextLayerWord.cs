@@ -27,6 +27,8 @@ public sealed class PdfExportOptions
     public const string SectionName = "PdfExport";
 
     public bool SearchableTextEnabled { get; init; } = true;
+    /// <summary>Stamp "Scanned with Arks Scanner" in the bottom-right corner of every exported page.</summary>
+    public bool BrandWatermark { get; init; } = true;
     public int MaximumWordsPerPage { get; init; } = 10_000;
     public int MaximumCharactersPerPage { get; init; } = 100_000;
     public int MaximumCharactersPerWord { get; init; } = 4_096;

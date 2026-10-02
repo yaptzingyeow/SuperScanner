@@ -39,6 +39,42 @@ public sealed class PageTests
     }
 
     [Fact]
+    public void BeginAutomaticCrop_KeepsDetectionSourceConfidenceAndDiagnostics()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var document = Document.Create(Guid.NewGuid(), "owner", "Scan", now);
+        var page = document.AddPage(Guid.NewGuid(), 50, now);
+        page.SetPreview("preview", "thumbnail");
+        page.InitializeCrop();
+        var revision = page.CropRevision;
+
+        page.BeginAutomaticCrop("[{\"X\":0,\"Y\":0}]", "Ai", .91, "boundary-v2", "ai_high_confidence");
+
+        Assert.Equal(revision + 1, page.CropRevision);
+        Assert.Equal("Processing", page.CropStatus);
+        Assert.Equal(PageState.Processing, page.State);
+        Assert.Equal("[{\"X\":0,\"Y\":0}]", page.CropPointsJson);
+        Assert.Equal("Ai", page.CropSource);
+        Assert.Equal(.91, page.CropConfidence);
+        Assert.Equal("boundary-v2", page.CropModelVersion);
+        Assert.Equal("ai_high_confidence", page.CropDiagnosticsCode);
+    }
+
+    [Fact]
+    public void BeginAutomaticCrop_DoesNotAcceptAnEditedPage()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var document = Document.Create(Guid.NewGuid(), "owner", "Scan", now);
+        var page = document.AddPage(Guid.NewGuid(), 50, now);
+        page.SetPreview("preview", "thumbnail");
+        page.InitializeCrop();
+        page.ActivateRevision(PageRevision.CreateBase(Guid.NewGuid(), page.Id, "edited", new string('a', 64), now));
+
+        Assert.Throws<InvalidOperationException>(() =>
+            page.BeginAutomaticCrop("[]", "OpenCvFallback", .5, null, "opencv_fallback"));
+    }
+
+    [Fact]
     public void AcceptOriginalRejectsReplacingExistingAsset()
     {
         var document = Document.Create(

@@ -59,6 +59,29 @@ public sealed class TextEditProcessorPersistenceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Success_carries_the_page_text_forward_so_the_next_edit_needs_no_new_recognition()
+    {
+        var fixture = await SeedAsync();
+        await using var db = new AppDbContext(fixture.Options);
+        await new TextEditProcessor(db, fixture.Store, new Renderer(), new Clock())
+            .RunAsync(fixture.EditId, default);
+
+        await using var verify = new AppDbContext(fixture.Options);
+        var page = await verify.Pages.Include(candidate => candidate.ActiveRevision)
+            .SingleAsync(candidate => candidate.Id == fixture.PageId);
+        var carried = await verify.PageOcrResults.Include(result => result.Elements)
+            .SingleAsync(result => result.SourceObjectKey == page.ActiveRevision!.ObjectKey);
+        Assert.Equal(OcrResultState.Ready, carried.State);
+        Assert.Equal("test", carried.ProviderName);
+        Assert.Equal("carried-forward", carried.ProviderModelVersion);
+        Assert.Equal("Tan BB", carried.FullText);
+        Assert.Equal(["Tan", "BB"], carried.Elements.Where(element => element.Kind == OcrElementKind.Word)
+            .OrderBy(element => element.ReadingOrder).Select(element => element.Text));
+        Assert.Equal(2, await verify.PageOcrResults.CountAsync());
+        Assert.Empty(await verify.ProcessingJobs.Where(job => job.Type == "RecognizePageText").ToListAsync());
+    }
+
+    [Fact]
     public async Task Stale_source_revision_never_activates_rendered_object()
     {
         var fixture = await SeedAsync();

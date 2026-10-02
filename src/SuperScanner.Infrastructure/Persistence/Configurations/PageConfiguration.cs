@@ -21,6 +21,7 @@ public sealed class PageConfiguration : IEntityTypeConfiguration<Page>
         builder.Property(page => page.OriginalMediaType).HasMaxLength(128).IsRequired();
         builder.Property(page => page.CropModelVersion).HasMaxLength(100);
         builder.Property(page => page.CropDiagnosticsCode).HasMaxLength(64);
+        builder.Property(page => page.Rotation).IsRequired().HasDefaultValue(0);
         builder.Property(page => page.CropRevision).IsConcurrencyToken();
         builder.Property(page => page.ActiveRevisionId).IsConcurrencyToken();
         builder.Property(page => page.CreatedAt).IsRequired();

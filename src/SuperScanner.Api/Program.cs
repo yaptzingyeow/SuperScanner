@@ -59,7 +59,7 @@ builder.Services
     .AddScheme<AuthenticationSchemeOptions, FirebaseAuthenticationHandler>(
         FirebaseAuthenticationHandler.SchemeName,
         _ => { });
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(AuthPolicies.AddSignedInAccount);
 builder.Services.AddHealthChecks();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("PostgreSql") ?? string.Empty));
@@ -199,6 +199,7 @@ DocumentPreviewEndpoints.Map(app);
 PageSignatureEndpoints.Map(app);
 PageMarkEndpoints.Map(app);
 CropEndpoints.Map(app);
+PageRepairEndpoints.Map(app);
 OcrEndpoints.Map(app);
 TextEditingEndpoints.Map(app);
 UploadsEndpoints.Map(app);

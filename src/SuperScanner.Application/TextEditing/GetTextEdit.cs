@@ -4,6 +4,8 @@ namespace SuperScanner.Application.TextEditing;
 
 public interface ITextEditReadRepository
 {
+    Task<IReadOnlyList<Guid>> ListAppliedRepairRevisionIdsAsync(Guid pageId, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<Guid>>([]);
     Task<bool> IsOwnedPageAsync(string ownerUid, Guid documentId,
         Guid pageId, CancellationToken ct);
     Task<TextEditOperation?> FindAsync(Guid pageId, Guid editId, CancellationToken ct);

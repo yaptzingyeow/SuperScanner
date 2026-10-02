@@ -27,7 +27,11 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE
     page_ocr_results,
     ocr_elements,
     page_revisions,
-    text_edit_operations
+    text_edit_operations,
+    page_signatures,
+    signature_asset_write_intents,
+    page_marks,
+    page_repair_operations
 TO "$ApplicationRole";
 GRANT SELECT, INSERT ON TABLE audit_events TO "$ApplicationRole";
 REVOKE UPDATE, DELETE, TRUNCATE ON TABLE audit_events FROM "$ApplicationRole";

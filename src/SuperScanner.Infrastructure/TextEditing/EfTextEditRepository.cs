@@ -11,6 +11,10 @@ namespace SuperScanner.Infrastructure.TextEditing;
 public sealed class EfTextEditRepository(AppDbContext db) : ITextSelectionRepository,
     ITextEditCommandRepository, ITextEditReadRepository, ITextRevisionSwitchRepository
 {
+    public async Task<IReadOnlyList<Guid>> ListAppliedRepairRevisionIdsAsync(Guid pageId, CancellationToken ct) =>
+        await db.PageRepairOperations.AsNoTracking()
+            .Where(x => x.PageId == pageId && x.State == "Applied" && x.AppliedRevisionId != null)
+            .Select(x => x.AppliedRevisionId!.Value).ToArrayAsync(ct);
     public Task<bool> IsOwnedPageAsync(string ownerUid, Guid documentId,
         Guid pageId, CancellationToken ct) =>
         db.Pages.AsNoTracking().AnyAsync(page => page.Id == pageId &&

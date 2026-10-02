@@ -20,6 +20,8 @@ public interface ITextRevisionSwitchRepository
     Task<int> CountPendingAsync(Guid pageId, CancellationToken ct);
     Task<IReadOnlyList<PageRevision>> ListRevisionsAsync(Guid pageId, CancellationToken ct);
     Task<IReadOnlyList<TextEditOperation>> ListEditsAsync(Guid pageId, CancellationToken ct);
+    Task<IReadOnlyList<Guid>> ListAppliedRepairRevisionIdsAsync(Guid pageId, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<Guid>>([]);
     Task SaveAsync(CancellationToken ct);
 }
 
@@ -49,6 +51,7 @@ public sealed class SwitchPageRevision(
 
         var revisions = await repository.ListRevisionsAsync(page.Id, ct);
         var edits = await repository.ListEditsAsync(page.Id, ct);
+        var repairRevisionIds = (await repository.ListAppliedRepairRevisionIdsAsync(page.Id, ct)).ToHashSet();
         PageRevision? target;
         if (request.Direction == RevisionSwitchDirection.Undo)
         {
@@ -63,8 +66,8 @@ public sealed class SwitchPageRevision(
                 .ToDictionary(edit => edit.ResultRevisionId!.Value);
             target = revisions.Where(revision =>
                     revision.ParentRevisionId == page.ActiveRevisionId &&
-                    successful.ContainsKey(revision.Id))
-                .OrderByDescending(revision => successful[revision.Id].Sequence)
+                    (successful.ContainsKey(revision.Id) || repairRevisionIds.Contains(revision.Id)))
+                .OrderByDescending(revision => revision.CreatedAt)
                 .FirstOrDefault();
         }
         if (target is null) throw new TextRevisionBoundaryException();

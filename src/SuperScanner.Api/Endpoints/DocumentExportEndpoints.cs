@@ -21,9 +21,21 @@ public static class DocumentExportEndpoints
         group.MapPost("", async (Guid id, ICurrentUser user, CreateDocumentExport create, HttpContext context, CancellationToken ct) =>
         {
             context.Response.Headers.CacheControl = "private, no-store";
+            CreateExportRequest? request;
             try
             {
-                var result = await create.HandleAsync(user.FirebaseUid, id, ct);
+                request = context.Request.ContentType?.StartsWith("application/json", StringComparison.OrdinalIgnoreCase) == true
+                    ? await context.Request.ReadFromJsonAsync<CreateExportRequest>(cancellationToken: ct)
+                    : null;
+            }
+            catch (Exception exception) when (exception is JsonException or BadHttpRequestException)
+            { return Results.BadRequest(); }
+            var layout = request?.PageLayout ?? "Original";
+            if (layout is not ("Original" or "A4")) return Results.BadRequest();
+            try
+            {
+                var result = await create.HandleAsync(user.FirebaseUid, id, ct, layout,
+                    request?.IncludeSearchableText ?? false);
                 return Results.Accepted(result.StatusUrl, result);
             }
             catch (DocumentExportNotFoundException) { return Results.NotFound(); }
@@ -75,4 +87,6 @@ public static class DocumentExportEndpoints
         var name = new string(title.Where(c => char.IsLetterOrDigit(c) || c is ' ' or '-' or '_').Take(120).ToArray()).Trim();
         return (name.Length == 0 ? "document" : name) + ".pdf";
     }
+
+    private sealed record CreateExportRequest(string? PageLayout, bool IncludeSearchableText = false);
 }

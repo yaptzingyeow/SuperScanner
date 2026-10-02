@@ -61,7 +61,7 @@ public sealed class DocumentImportProcessorTests
     }
 
     [Fact]
-    public async Task Photo_IsReadyWithoutMandatoryCropOrDetection()
+    public async Task Photo_QueuesAutomaticEnhancementWithoutManualCropStep()
     {
         await using var fixture = await Fixture.CreateAsync("image/png");
         await fixture.ProcessAsync();
@@ -69,15 +69,18 @@ public sealed class DocumentImportProcessorTests
         Assert.Equal("imports/accepted", page.OriginalObjectKey);
         Assert.Equal("image/png", page.OriginalMediaType);
         Assert.NotNull(page.PreviewObjectKey);
-        Assert.Equal("Ready", page.CropStatus);
-        Assert.Equal(PageState.Ready, page.State);
+        Assert.Equal("Detecting", page.CropStatus);
+        Assert.Equal(PageState.Processing, page.State);
         Assert.Equal(page.PreviewObjectKey, page.CropSourceObjectKey);
-        Assert.Equal("Original", page.AppliedFilter);
-        Assert.Empty(fixture.Db.ProcessingJobs);
+        Assert.Equal(0, page.AppliedCropRevision); // Automatic enhancement has not rendered yet.
+        Assert.Equal("AutoEnhanceDocument", Assert.Single(fixture.Db.ProcessingJobs).Type);
+        Assert.Equal("Magic", page.Filter);
+        await fixture.ProcessAsync();
+        Assert.Single(fixture.Db.ProcessingJobs);
         Assert.Equal(1, fixture.Upload.CreatedPageCount);
         Assert.Equal(1, fixture.Document.Revision); // Import does not create a second revision for optional crop.
         await fixture.ReloadAsync();
-        Assert.Equal(DocumentStatus.Ready, fixture.Document.Status);
+        Assert.Equal(DocumentStatus.Processing, fixture.Document.Status);
     }
 
     [Fact]
@@ -140,9 +143,9 @@ public sealed class DocumentImportProcessorTests
 
         await fixture.ProcessAsync();
 
-        Assert.Equal(PageState.Ready, page.State);
+        Assert.Equal(PageState.Processing, page.State);
         Assert.Null(page.FailureCode);
-        Assert.Equal("Ready", page.CropStatus);
+        Assert.Equal("Detecting", page.CropStatus);
     }
 
     [Theory]

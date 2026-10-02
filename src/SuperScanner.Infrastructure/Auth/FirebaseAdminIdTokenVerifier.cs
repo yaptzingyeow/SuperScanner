@@ -5,7 +5,7 @@ using Microsoft.Extensions.Options;
 
 namespace SuperScanner.Infrastructure.Auth;
 
-public sealed record VerifiedFirebaseIdToken(string Uid, string? Email);
+public sealed record VerifiedFirebaseIdToken(string Uid, string? Email, bool IsAnonymous = false);
 
 public interface IFirebaseIdTokenVerifier
 {
@@ -37,7 +37,7 @@ public sealed class FirebaseAdminIdTokenVerifier : IFirebaseIdTokenVerifier
         var email = identity.Claims.TryGetValue("email", out var emailClaim)
             ? emailClaim as string
             : null;
-        return new VerifiedFirebaseIdToken(identity.Uid, email);
+        return new VerifiedFirebaseIdToken(identity.Uid, email, FirebaseClaims.IsAnonymous(identity.Claims));
     }
 
     private static FirebaseAuth CreateFirebaseAuth(string projectId)

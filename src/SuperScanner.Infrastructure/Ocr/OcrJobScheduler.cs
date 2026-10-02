@@ -17,7 +17,8 @@ public sealed class OcrJobScheduler(
         string mediaType,
         CancellationToken ct)
     {
-        if (!options.Value.Enabled) return;
+        // Automatic recognition only when configured; otherwise users ask for it (RequestPageOcr).
+        if (!options.Value.Enabled || !options.Value.AutoRecognize) return;
         ArgumentException.ThrowIfNullOrWhiteSpace(sourceObjectKey);
         if (mediaType is not ("image/jpeg" or "image/png"))
             throw new ArgumentException("OCR source must be a supported image.", nameof(mediaType));

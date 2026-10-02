@@ -11,8 +11,11 @@ the Worker performs jobs.
 
 | Variable | Safe default | Purpose |
 | --- | --- | --- |
-| `Ocr__Enabled` | `false` | Enables requests and automatic scheduling |
-| `Ocr__Provider` | `Disabled` | `Disabled` normally; `Fake` for local/E2E or `GoogleDocumentAi` for approved live OCR |
+| `Ocr__Enabled` | `false` | Enables OCR requests |
+| `Ocr__AutoRecognize` | `false` | Also recognize every page automatically after import and after each crop/look/rotation change. Leave off to control cost: pages are then recognized only when a user asks (Recognize text in the page editor, or Recognize in Search). |
+| `Ocr__Provider` | `Disabled` | `Disabled`; `Tesseract` for free local OCR on the Worker; `GoogleDocumentAi` for paid, higher-accuracy OCR; `Fake` for local/E2E |
+| `Ocr__Tesseract__ExecutablePath` | `tesseract` | Tesseract binary (on PATH in the Worker image; e.g. `C:Program FilesTesseract-OCR	esseract.exe` on Windows) |
+| `Ocr__Tesseract__Languages` | `eng` | Installed Tesseract language packs |
 | `Ocr__Language` | `en` | Phase 3A language contract |
 | `Ocr__MaxAttempts` | `3` | Maximum leased attempts before terminal failure |
 | `Ocr__TimeoutSeconds` | `30` | Per-provider timeout |
@@ -34,6 +37,8 @@ result. Empty recognition is a valid Ready result with zero elements.
 
 Safe failure codes include:
 
+- `ocr_engine_missing` — the Tesseract binary was not found; not retryable.
+- `ocr_engine_failed` — Tesseract exited with an error; not retryable.
 - `ocr_timeout` — provider exceeded the configured deadline; retryable.
 - `ocr_invalid_response` — provider output failed normalized validation; not retryable.
 - `ocr_unsupported_media` — provider rejected the source media; not retryable.

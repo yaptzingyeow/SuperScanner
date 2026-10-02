@@ -47,6 +47,15 @@ public sealed class PageRevision
             createdAt);
     }
 
+    public static PageRevision CreateRepair(
+        Guid id, Guid pageId, Guid? parentRevisionId, string objectKey,
+        string sha256Hex, DateTimeOffset createdAt)
+    {
+        var revision = Create(id, pageId, parentRevisionId, null, objectKey, sha256Hex, createdAt);
+        revision.MediaType = "image/png";
+        return revision;
+    }
+
     private static PageRevision Create(
         Guid id,
         Guid pageId,

@@ -23,6 +23,21 @@ public sealed class CropProcessor(
     OcrJobScheduler? ocrScheduler = null)
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+    public async Task EnsureAutomaticEnhancementAsync(Guid pageId, CancellationToken ct)
+    {
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        var page = (await CropDocumentStatus.LockWorkerPageAsync(db, pageId, ct)).Page;
+        if (page.CropSourceObjectKey is null && page.PreviewObjectKey is not null)
+        {
+            page.InitializeCrop();
+            page.SetFilter("Magic");
+            db.ProcessingJobs.Add(ProcessingJob.Create(Guid.NewGuid(), "AutoEnhanceDocument",
+                $"{page.Id}:{page.CropRevision}", $"page:{page.Id}:auto-enhance:{page.CropRevision}", DateTimeOffset.UtcNow));
+            await db.SaveChangesAsync(ct);
+            await CropDocumentStatus.RefreshAsync(db, page.DocumentId, ct);
+        }
+        await transaction.CommitAsync(ct);
+    }
     public async Task EnsureOptionalCropForPageAsync(Guid pageId, CancellationToken ct)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
@@ -67,7 +82,7 @@ public sealed class CropProcessor(
             detect ? "DetectDocumentEdges" : "ApplyPerspectiveCrop", $"{page.Id}:{page.CropRevision}",
             $"page:{page.Id}:crop:{page.CropRevision}", DateTimeOffset.UtcNow));
 
-    public async Task RunAsync(Guid pageId, int revision, bool detect, CancellationToken ct)
+    public async Task RunAsync(Guid pageId, int revision, bool detect, CancellationToken ct, bool autoEnhance = false)
     {
         var elapsed = Stopwatch.StartNew();
         var page = await db.Pages.AsNoTracking().SingleAsync(x => x.Id == pageId, ct);
@@ -123,6 +138,7 @@ public sealed class CropProcessor(
                 start.ArgumentList.Add(thumbnail);
                 if (!ScanFilter.IsValid(page.Filter)) throw new InvalidDataException("Invalid scan filter.");
                 start.ArgumentList.Add(page.Filter);
+                start.ArgumentList.Add(page.Rotation.ToString(CultureInfo.InvariantCulture));
             }
             using var process = Process.Start(start) ?? throw new InvalidOperationException("Crop runtime unavailable.");
             var output = process.StandardOutput.ReadToEndAsync(ct);
@@ -152,7 +168,8 @@ public sealed class CropProcessor(
                 {
                     boundaryHealth.MarkUnhealthy(detection.DiagnosticsCode);
                 }
-                await CompleteDetectionAsync(pageId, revision, detection, ct);
+                if (autoEnhance) await CompleteAutomaticDetectionAsync(pageId, revision, detection, ct);
+                else await CompleteDetectionAsync(pageId, revision, detection, ct);
                 logger.LogInformation(
                     "Document boundary completed for page {PageId} revision {Revision}: source {Source}, confidence {Confidence}, model {ModelVersion}, diagnostics {DiagnosticsCode}, elapsed {ElapsedMilliseconds}ms",
                     pageId, revision, detection.Source, detection.Confidence, detection.ModelVersion,
@@ -173,6 +190,36 @@ public sealed class CropProcessor(
             await CropDocumentStatus.RefreshAsync(db, page.DocumentId, ct);
         }
         finally { directory.Delete(true); }
+    }
+
+    public async Task CompleteAutomaticDetectionAsync(Guid pageId, int revision, CropDetectionResult detection, CancellationToken ct)
+    {
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        var page = (await CropDocumentStatus.LockWorkerPageAsync(db, pageId, ct)).Page;
+        if (page.CropRevision == revision && page.CropStatus == "Detecting" && page.ActiveRevisionId is null)
+        {
+            var points = detection.Confidence >= .72 ? detection.Points :
+                new CropPoint[] { new(0, 0), new(1, 0), new(1, 1), new(0, 1) };
+            page.BeginAutomaticCrop(JsonSerializer.Serialize(points, Json), detection.Source,
+                detection.Confidence, detection.ModelVersion, detection.DiagnosticsCode);
+            page.SetFilter("Magic");
+            db.ProcessingJobs.Add(ProcessingJob.Create(Guid.NewGuid(), "ApplyAutomaticEnhancement",
+                $"{page.Id}:{page.CropRevision}", $"page:{page.Id}:auto-apply:{page.CropRevision}", DateTimeOffset.UtcNow));
+            await db.SaveChangesAsync(ct);
+        }
+        await transaction.CommitAsync(ct);
+    }
+
+    public async Task RestoreOriginalAfterAutomaticFailureAsync(Guid pageId, int revision, CancellationToken ct)
+    {
+        await db.Pages.Where(p => p.Id == pageId && p.CropRevision == revision &&
+                p.ActiveRevisionId == null && p.AppliedCropRevision == 0)
+            .ExecuteUpdateAsync(set => set.SetProperty(p => p.CropStatus, "Ready")
+                .SetProperty(p => p.State, PageState.Ready).SetProperty(p => p.Filter, "Original")
+                .SetProperty(p => p.AppliedFilter, "Original").SetProperty(p => p.CropPointsJson, (string?)null)
+                .SetProperty(p => p.FailureCode, (string?)null), ct);
+        var documentId = await db.Pages.Where(p => p.Id == pageId).Select(p => p.DocumentId).SingleAsync(ct);
+        await CropDocumentStatus.RefreshAsync(db, documentId, ct);
     }
 
     public async Task<bool> CompletePerspectiveCropAsync(

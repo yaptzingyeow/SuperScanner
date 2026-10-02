@@ -37,15 +37,17 @@ public sealed class UploadValidationJobRunner(
             cancellationToken);
         try
         {
-            var cropJob = lease.Type is "DetectDocumentEdges" or "ApplyPerspectiveCrop";
+            var automaticEnhancement = lease.Type is "AutoEnhanceDocument" or "ApplyAutomaticEnhancement";
+            var cropJob = automaticEnhancement || lease.Type is "DetectDocumentEdges" or "ApplyPerspectiveCrop";
             var importJob = lease.Type is "ExpandDocumentImport" or "ProcessDocument";
             var exportJob = lease.Type == "BuildDocumentPdf";
             var ocrJob = lease.Type == "RecognizePageText";
             var textEditJob = lease.Type == "RenderTextEdit";
+            var repairJob = lease.Type == "PreviewPageRepair";
             var parts = lease.Payload.Split(':');
             var revision = 0;
             var hasParsedId = Guid.TryParse(parts[0], out var uploadId);
-            if ((!cropJob && lease.Type != "ValidateUpload" && !importJob && !exportJob && !ocrJob && !textEditJob) ||
+            if ((!cropJob && lease.Type != "ValidateUpload" && !importJob && !exportJob && !ocrJob && !textEditJob && !repairJob) ||
                 !hasParsedId ||
                 (!cropJob && parts.Length != 1) ||
                 (cropJob && (parts.Length != 2 || !int.TryParse(parts[1], out revision) || revision < 1)))
@@ -72,6 +74,11 @@ public sealed class UploadValidationJobRunner(
                     await scope.ServiceProvider.GetRequiredService<ITextEditProcessor>()
                         .RunAsync(uploadId, workCancellation.Token);
                 }
+                else if (repairJob)
+                {
+                    await scope.ServiceProvider.GetRequiredService<PageRepairProcessor>()
+                        .RunAsync(uploadId, workCancellation.Token);
+                }
                 else if (ocrJob)
                 {
                     await scope.ServiceProvider.GetRequiredService<OcrProcessor>()
@@ -85,7 +92,8 @@ public sealed class UploadValidationJobRunner(
                 else if (cropJob)
                 {
                     await scope.ServiceProvider.GetRequiredService<CropProcessor>()
-                        .RunAsync(uploadId, revision, lease.Type == "DetectDocumentEdges", workCancellation.Token);
+                        .RunAsync(uploadId, revision, lease.Type is "DetectDocumentEdges" or "AutoEnhanceDocument",
+                            workCancellation.Token, automaticEnhancement);
                 }
                 else if (importJob)
                 {
@@ -150,6 +158,13 @@ public sealed class UploadValidationJobRunner(
                 logger.LogWarning("Text edit job failed safely. JobId={JobId} EditId={EditId} ErrorCode={ErrorCode}",
                     lease.Id, uploadId, failure.SafeCode);
             }
+            catch (InvalidDataException) when (repairJob)
+            {
+                await ReconcileRepairJobAsync(lease.Id, workerId, uploadId,
+                    terminal: true, cancellationToken);
+                logger.LogWarning("Repair preview rejected. JobId={JobId} OperationId={OperationId}",
+                    lease.Id, uploadId);
+            }
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
                 logger.LogWarning(
@@ -160,6 +175,25 @@ public sealed class UploadValidationJobRunner(
             }
             catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
             {
+                if (automaticEnhancement)
+                {
+                    await using var recovery = scopeFactory.CreateAsyncScope();
+                    await recovery.ServiceProvider.GetRequiredService<CropProcessor>()
+                        .RestoreOriginalAfterAutomaticFailureAsync(uploadId, revision, cancellationToken);
+                    await queue.FailAsync(lease.Id, workerId, "auto_enhancement_failed", cancellationToken);
+                    logger.LogWarning(exception, "Automatic enhancement could not finish; original page remains Ready. PageId={PageId}", uploadId);
+                    return true;
+                }
+                if (repairJob)
+                {
+                    await ReconcileRepairJobAsync(lease.Id, workerId, uploadId,
+                        terminal: lease.AttemptCount >= PostgresJobQueue.DefaultMaxAttempts,
+                        cancellationToken);
+                    logger.LogWarning(exception,
+                        "Repair preview job failed safely. JobId={JobId} OperationId={OperationId}",
+                        lease.Id, uploadId);
+                    return true;
+                }
                 if (textEditJob)
                 {
                     await ReconcileTextEditJobAsync(lease.Id, workerId, uploadId,
@@ -242,6 +276,24 @@ public sealed class UploadValidationJobRunner(
         await services.GetRequiredService<ITextEditProcessor>()
             .FailAsync(editId, safeCode, ct);
         await queue.FailAsync(jobId, workerId, safeCode, ct);
+        await transaction.CommitAsync(ct);
+    }
+
+    private async Task ReconcileRepairJobAsync(Guid jobId, string workerId,
+        Guid operationId, bool terminal, CancellationToken ct)
+    {
+        await using var recoveryScope = scopeFactory.CreateAsyncScope();
+        var services = recoveryScope.ServiceProvider;
+        var queue = services.GetRequiredService<IProcessingJobQueue>();
+        if (!terminal)
+        {
+            await queue.RescheduleAsync(jobId, workerId, "repair_failed", ct);
+            return;
+        }
+        var db = services.GetRequiredService<AppDbContext>();
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        await services.GetRequiredService<PageRepairProcessor>().FailAsync(operationId, ct);
+        await queue.FailAsync(jobId, workerId, "repair_failed", ct);
         await transaction.CommitAsync(ct);
     }
 

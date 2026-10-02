@@ -16,7 +16,7 @@ public static class PageSignatureEndpoints
 
     public static void Map(IEndpointRouteBuilder endpoints)
     {
-        var group = endpoints.MapGroup(Route).RequireAuthorization();
+        var group = endpoints.MapGroup(Route).RequireAuthorization(AuthPolicies.SignedInAccount);
         group.MapGet("", List);
         group.MapPost("", Create).WithMetadata(new Microsoft.AspNetCore.Mvc.RequestSizeLimitAttribute(6 * 1024 * 1024));
         group.MapGet("/{signatureId:guid}/image", Image);

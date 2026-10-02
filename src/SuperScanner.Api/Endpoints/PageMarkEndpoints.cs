@@ -13,7 +13,7 @@ public static class PageMarkEndpoints
 
     public static void Map(IEndpointRouteBuilder endpoints)
     {
-        var group = endpoints.MapGroup(Route).RequireAuthorization();
+        var group = endpoints.MapGroup(Route).RequireAuthorization(AuthPolicies.SignedInAccount);
         group.MapGet("", List);
         group.MapPost("", Create);
         group.MapPut("/{markId:guid}", Update);

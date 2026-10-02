@@ -16,6 +16,8 @@ public sealed class FirebaseAuthenticationHandler(
 {
     public const string SchemeName = "Firebase";
     public const string AppCheckHeaderName = "X-Firebase-AppCheck";
+    /// <summary>Present (value "true") when the caller is a Firebase guest rather than a signed-in account.</summary>
+    public const string GuestClaimType = "superscanner:guest";
 
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
@@ -32,6 +34,11 @@ public sealed class FirebaseAuthenticationHandler(
             if (!string.IsNullOrWhiteSpace(identity.Email))
             {
                 claims.Add(new Claim(ClaimTypes.Email, identity.Email));
+            }
+
+            if (identity.IsGuest)
+            {
+                claims.Add(new Claim(GuestClaimType, "true"));
             }
 
             var principal = new ClaimsPrincipal(new ClaimsIdentity(claims, SchemeName));

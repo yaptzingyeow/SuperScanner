@@ -1,6 +1,7 @@
 namespace SuperScanner.Application.Abstractions;
 
-public sealed record VerifiedRequestIdentity(string FirebaseUid, string? Email);
+/// <param name="IsGuest">Signed in anonymously (a Firebase guest), not with an account.</param>
+public sealed record VerifiedRequestIdentity(string FirebaseUid, string? Email, bool IsGuest = false);
 
 public interface IRequestIdentityVerifier
 {

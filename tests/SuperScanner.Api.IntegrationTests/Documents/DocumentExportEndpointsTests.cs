@@ -115,6 +115,29 @@ public sealed class DocumentExportEndpointsTests : IDisposable
     }
 
     [Fact]
+    public async Task Create_WhenSearchableTextIsDisabled_DoesNotSnapshotAvailableOcr()
+    {
+        var page = documents.Document.ActivePages.Single(candidate => candidate.State == PageState.Ready);
+        var sourceKey = page.GetExportObjectKey();
+        var result = PageOcrResult.Queue(Guid.NewGuid(), page.Id, sourceKey,
+            OcrSourceFingerprint.Create(sourceKey), "en", DateTimeOffset.UtcNow);
+        result.BeginAttempt(1, DateTimeOffset.UtcNow);
+        result.Complete("test", "v1", "searchable words", [], DateTimeOffset.UtcNow);
+        ocr.Results.Add(result);
+        using var client = PageManagementHttp.Client(factory);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/documents/{documents.Document.Id}/exports",
+            new { pageLayout = "A4", includeSearchableText = false });
+
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+        var entry = Assert.Single(JsonSerializer.Deserialize<DocumentExportSnapshotEntry[]>(
+            Assert.Single(exports.Items).SnapshotJson)!);
+        Assert.Equal("A4", entry.PageLayout);
+        Assert.Null(entry.OcrResultId);
+    }
+
+    [Fact]
     public async Task Status_ReportsCompletedSearchabilityWithoutOcrDetails()
     {
         var export = DocumentExport.Create(Guid.NewGuid(), documents.Document, "user-a",

@@ -144,6 +144,45 @@ public sealed class CropDocumentStatusTests
     }
 
     [Theory]
+    [InlineData("Ai", .91, "boundary-v2", "ai_high_confidence")]
+    [InlineData("OpenCvFallback", .4, null, "opencv_low_confidence")]
+    public async Task AutomaticDetection_KeepsDetectionSourceAndConfidenceWhileEnhancing(
+        string source, double confidence, string? modelVersion, string diagnostics)
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
+            .UseSqlite(connection)
+            .AddInterceptors(new WorkerLockOrderInterceptor(new WorkerLockOrderObserver()))
+            .Options);
+        await db.Database.EnsureCreatedAsync();
+        var document = Document.Create(Guid.NewGuid(), "owner", "Crop", DateTimeOffset.UtcNow);
+        var page = document.AddPage(Guid.NewGuid(), 50, DateTimeOffset.UtcNow);
+        page.SetPreview("preview", "thumb");
+        page.InitializeCrop();
+        db.Add(document);
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+        var processor = new CropProcessor(db, null!, new ConfigurationBuilder().Build(),
+            Options.Create(new DocumentBoundaryOptions()), new DocumentBoundaryHealth(), NullLogger<CropProcessor>.Instance);
+        var detection = new CropDetectionResult(
+            [new(.1, .1), new(.9, .1), new(.9, .9), new(.1, .9)], confidence, source, modelVersion, diagnostics);
+
+        await processor.CompleteAutomaticDetectionAsync(page.Id, page.CropRevision, detection, CancellationToken.None);
+        db.ChangeTracker.Clear();
+
+        var stored = await db.Pages.SingleAsync();
+        Assert.Equal("Processing", stored.CropStatus);
+        Assert.Equal("Magic", stored.Filter);
+        Assert.Equal(page.CropRevision + 1, stored.CropRevision);
+        Assert.Equal(source, stored.CropSource);
+        Assert.Equal(confidence, stored.CropConfidence);
+        Assert.Equal(modelVersion, stored.CropModelVersion);
+        Assert.Equal(diagnostics, stored.CropDiagnosticsCode);
+        Assert.Single(await db.ProcessingJobs.Where(j => j.Type == "ApplyAutomaticEnhancement").ToListAsync());
+    }
+
+    [Theory]
     [InlineData("", DocumentStatus.Draft)]
     [InlineData("Failed", DocumentStatus.Failed)]
     [InlineData("Ready,Failed", DocumentStatus.Ready)]
