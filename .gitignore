@@ -1,5 +1,6 @@
 .worktrees/
 .task-tools/
+.superpowers/sdd/
 apps/web/src/environments/app-check.local.ts
 apps/web/playwright-report/
 apps/web/test-results/
@@ -17,3 +18,5 @@ __pycache__/
 *application-default-credentials*.json
 *application_default_credentials*.json
 *adc-credentials*.json
+.angular/
+output/
