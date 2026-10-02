@@ -30,14 +30,14 @@
 ### Task 1: Ordered Page and Export Domain Model
 
 **Files:**
-- Modify: `src/SuperScanner.Domain/Documents/Document.cs`
-- Modify: `src/SuperScanner.Domain/Documents/Page.cs`
-- Create: `src/SuperScanner.Domain/Documents/PageState.cs`
-- Create: `src/SuperScanner.Domain/Documents/DocumentExport.cs`
-- Create: `src/SuperScanner.Domain/Documents/DocumentExportState.cs`
-- Test: `tests/SuperScanner.Domain.Tests/Documents/DocumentTests.cs`
-- Test: `tests/SuperScanner.Domain.Tests/Documents/PageTests.cs`
-- Create: `tests/SuperScanner.Domain.Tests/Documents/DocumentExportTests.cs`
+- Modify: `src/ArksScanner.Domain/Documents/Document.cs`
+- Modify: `src/ArksScanner.Domain/Documents/Page.cs`
+- Create: `src/ArksScanner.Domain/Documents/PageState.cs`
+- Create: `src/ArksScanner.Domain/Documents/DocumentExport.cs`
+- Create: `src/ArksScanner.Domain/Documents/DocumentExportState.cs`
+- Test: `tests/ArksScanner.Domain.Tests/Documents/DocumentTests.cs`
+- Test: `tests/ArksScanner.Domain.Tests/Documents/PageTests.cs`
+- Create: `tests/ArksScanner.Domain.Tests/Documents/DocumentExportTests.cs`
 
 **Interfaces:**
 - Consumes: existing `Document.Create`, `Page` crop/filter revisions, and `DocumentStatus`.
@@ -65,7 +65,7 @@ public void ReorderPages_UsesExpectedRevisionAndPersistsContiguousPositions()
 
 - [ ] **Step 2: Run domain tests and confirm the new APIs fail to compile**
 
-Run: `dotnet test tests/SuperScanner.Domain.Tests/SuperScanner.Domain.Tests.csproj --filter "FullyQualifiedName~Documents"`
+Run: `dotnet test tests/ArksScanner.Domain.Tests/ArksScanner.Domain.Tests.csproj --filter "FullyQualifiedName~Documents"`
 
 Expected: FAIL because `Position`, `PageOrderRevision`, and the new aggregate methods do not exist.
 
@@ -106,14 +106,14 @@ Create `DocumentExport.Create(Guid id, Document document, string ownerUid, DateT
 
 - [ ] **Step 5: Run domain tests**
 
-Run: `dotnet test tests/SuperScanner.Domain.Tests/SuperScanner.Domain.Tests.csproj --filter "FullyQualifiedName~Documents"`
+Run: `dotnet test tests/ArksScanner.Domain.Tests/ArksScanner.Domain.Tests.csproj --filter "FullyQualifiedName~Documents"`
 
 Expected: PASS.
 
 - [ ] **Step 6: Commit the domain increment**
 
 ```powershell
-git add src/SuperScanner.Domain/Documents tests/SuperScanner.Domain.Tests/Documents
+git add src/ArksScanner.Domain/Documents tests/ArksScanner.Domain.Tests/Documents
 git commit -m "feat: model ordered document pages and exports"
 ```
 
@@ -122,14 +122,14 @@ git commit -m "feat: model ordered document pages and exports"
 ### Task 2: PostgreSQL Schema and Legacy Backfill
 
 **Files:**
-- Modify: `src/SuperScanner.Infrastructure/Persistence/AppDbContext.cs`
-- Modify: `src/SuperScanner.Infrastructure/Persistence/Configurations/DocumentConfiguration.cs`
-- Modify: `src/SuperScanner.Infrastructure/Persistence/Configurations/PageConfiguration.cs`
-- Modify: `src/SuperScanner.Infrastructure/Persistence/Configurations/UploadIntentConfiguration.cs`
-- Create: `src/SuperScanner.Infrastructure/Persistence/Configurations/DocumentExportConfiguration.cs`
-- Create: `src/SuperScanner.Infrastructure/Persistence/Migrations/20260914210000_MultiPageDocuments.cs`
-- Modify: `src/SuperScanner.Infrastructure/Persistence/Migrations/AppDbContextModelSnapshot.cs`
-- Test: `tests/SuperScanner.Infrastructure.IntegrationTests/Persistence/DocumentPersistenceTests.cs`
+- Modify: `src/ArksScanner.Infrastructure/Persistence/AppDbContext.cs`
+- Modify: `src/ArksScanner.Infrastructure/Persistence/Configurations/DocumentConfiguration.cs`
+- Modify: `src/ArksScanner.Infrastructure/Persistence/Configurations/PageConfiguration.cs`
+- Modify: `src/ArksScanner.Infrastructure/Persistence/Configurations/UploadIntentConfiguration.cs`
+- Create: `src/ArksScanner.Infrastructure/Persistence/Configurations/DocumentExportConfiguration.cs`
+- Create: `src/ArksScanner.Infrastructure/Persistence/Migrations/20260914210000_MultiPageDocuments.cs`
+- Modify: `src/ArksScanner.Infrastructure/Persistence/Migrations/AppDbContextModelSnapshot.cs`
+- Test: `tests/ArksScanner.Infrastructure.IntegrationTests/Persistence/DocumentPersistenceTests.cs`
 
 **Interfaces:**
 - Consumes: domain properties and export entity from Task 1.
@@ -158,7 +158,7 @@ public async Task SavesExportSnapshotAndOrderedPageMetadata()
 
 - [ ] **Step 2: Run the focused persistence test and verify failure**
 
-Run: `dotnet test tests/SuperScanner.Infrastructure.IntegrationTests/SuperScanner.Infrastructure.IntegrationTests.csproj --filter "FullyQualifiedName~DocumentPersistenceTests"`
+Run: `dotnet test tests/ArksScanner.Infrastructure.IntegrationTests/ArksScanner.Infrastructure.IntegrationTests.csproj --filter "FullyQualifiedName~DocumentPersistenceTests"`
 
 Expected: FAIL because the new mappings and table do not exist.
 
@@ -181,18 +181,18 @@ The migration adds new columns nullable first, copies `PageNumber` into `Positio
 
 - [ ] **Step 5: Apply the migration to an empty and a legacy-shaped test database**
 
-Run: `dotnet ef database update --project src/SuperScanner.Infrastructure/SuperScanner.Infrastructure.csproj --startup-project src/SuperScanner.Api/SuperScanner.Api.csproj`
+Run: `dotnet ef database update --project src/ArksScanner.Infrastructure/ArksScanner.Infrastructure.csproj --startup-project src/ArksScanner.Api/ArksScanner.Api.csproj`
 
 Expected: migration completes without data loss; existing pages have matching Position values.
 
 - [ ] **Step 6: Run persistence tests and commit**
 
-Run: `dotnet test tests/SuperScanner.Infrastructure.IntegrationTests/SuperScanner.Infrastructure.IntegrationTests.csproj --filter "FullyQualifiedName~DocumentPersistenceTests"`
+Run: `dotnet test tests/ArksScanner.Infrastructure.IntegrationTests/ArksScanner.Infrastructure.IntegrationTests.csproj --filter "FullyQualifiedName~DocumentPersistenceTests"`
 
 Expected: PASS.
 
 ```powershell
-git add src/SuperScanner.Infrastructure/Persistence tests/SuperScanner.Infrastructure.IntegrationTests/Persistence/DocumentPersistenceTests.cs
+git add src/ArksScanner.Infrastructure/Persistence tests/ArksScanner.Infrastructure.IntegrationTests/Persistence/DocumentPersistenceTests.cs
 git commit -m "feat: persist multi-page document state"
 ```
 
@@ -201,18 +201,18 @@ git commit -m "feat: persist multi-page document state"
 ### Task 3: Document-Level Upload Intents and Accepted Imports
 
 **Files:**
-- Modify: `src/SuperScanner.Domain/Uploads/UploadIntent.cs`
-- Modify: `src/SuperScanner.Application/Uploads/CreateUploadIntent.cs`
-- Modify: `src/SuperScanner.Application/Uploads/ValidateUpload.cs`
-- Modify: `src/SuperScanner.Application/Uploads/GetUploadStatus.cs`
-- Modify: `src/SuperScanner.Application/Abstractions/IUploadIntentRepository.cs`
-- Modify: `src/SuperScanner.Application/Abstractions/IUploadValidationRepository.cs`
-- Modify: `src/SuperScanner.Infrastructure/Persistence/EfUploadIntentRepository.cs`
-- Modify: `src/SuperScanner.Infrastructure/Persistence/EfUploadValidationRepository.cs`
-- Modify: `src/SuperScanner.Api/Endpoints/UploadsEndpoints.cs`
-- Test: `tests/SuperScanner.Application.Tests/Uploads/CreateUploadIntentTests.cs`
-- Test: `tests/SuperScanner.Application.Tests/Uploads/ValidateUploadTests.cs`
-- Test: `tests/SuperScanner.Api.IntegrationTests/Uploads/UploadOwnershipTests.cs`
+- Modify: `src/ArksScanner.Domain/Uploads/UploadIntent.cs`
+- Modify: `src/ArksScanner.Application/Uploads/CreateUploadIntent.cs`
+- Modify: `src/ArksScanner.Application/Uploads/ValidateUpload.cs`
+- Modify: `src/ArksScanner.Application/Uploads/GetUploadStatus.cs`
+- Modify: `src/ArksScanner.Application/Abstractions/IUploadIntentRepository.cs`
+- Modify: `src/ArksScanner.Application/Abstractions/IUploadValidationRepository.cs`
+- Modify: `src/ArksScanner.Infrastructure/Persistence/EfUploadIntentRepository.cs`
+- Modify: `src/ArksScanner.Infrastructure/Persistence/EfUploadValidationRepository.cs`
+- Modify: `src/ArksScanner.Api/Endpoints/UploadsEndpoints.cs`
+- Test: `tests/ArksScanner.Application.Tests/Uploads/CreateUploadIntentTests.cs`
+- Test: `tests/ArksScanner.Application.Tests/Uploads/ValidateUploadTests.cs`
+- Test: `tests/ArksScanner.Api.IntegrationTests/Uploads/UploadOwnershipTests.cs`
 
 **Interfaces:**
 - Consumes: nullable legacy `PageId` and accepted-import columns from Task 2.
@@ -231,7 +231,7 @@ Assert.Null(storedUpload.PageId);
 
 - [ ] **Step 2: Run upload tests and verify failure**
 
-Run: `dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter "FullyQualifiedName~Uploads"`
+Run: `dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter "FullyQualifiedName~Uploads"`
 
 Expected: FAIL because creation still adds a Page and validation writes its original key.
 
@@ -266,14 +266,14 @@ Return `state`, `discoveredPageCount`, `createdPageCount`, `failedPageCount`, an
 
 - [ ] **Step 6: Run tests and commit**
 
-Run: `dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter "FullyQualifiedName~Uploads"`
+Run: `dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter "FullyQualifiedName~Uploads"`
 
-Run: `dotnet test tests/SuperScanner.Api.IntegrationTests/SuperScanner.Api.IntegrationTests.csproj --filter "FullyQualifiedName~UploadOwnershipTests"`
+Run: `dotnet test tests/ArksScanner.Api.IntegrationTests/ArksScanner.Api.IntegrationTests.csproj --filter "FullyQualifiedName~UploadOwnershipTests"`
 
 Expected: PASS.
 
 ```powershell
-git add src/SuperScanner.Domain/Uploads src/SuperScanner.Application/Uploads src/SuperScanner.Application/Abstractions src/SuperScanner.Infrastructure/Persistence/EfUploadIntentRepository.cs src/SuperScanner.Infrastructure/Persistence/EfUploadValidationRepository.cs src/SuperScanner.Api/Endpoints/UploadsEndpoints.cs tests/SuperScanner.Application.Tests/Uploads tests/SuperScanner.Api.IntegrationTests/Uploads
+git add src/ArksScanner.Domain/Uploads src/ArksScanner.Application/Uploads src/ArksScanner.Application/Abstractions src/ArksScanner.Infrastructure/Persistence/EfUploadIntentRepository.cs src/ArksScanner.Infrastructure/Persistence/EfUploadValidationRepository.cs src/ArksScanner.Api/Endpoints/UploadsEndpoints.cs tests/ArksScanner.Application.Tests/Uploads tests/ArksScanner.Api.IntegrationTests/Uploads
 git commit -m "feat: accept document-level imports"
 ```
 
@@ -282,17 +282,17 @@ git commit -m "feat: accept document-level imports"
 ### Task 4: Safe Photo and Multi-Page PDF Expansion
 
 **Files:**
-- Create: `src/SuperScanner.Infrastructure/Processing/DocumentImportOptions.cs`
-- Create: `src/SuperScanner.Infrastructure/Processing/IPdfImportTool.cs`
-- Create: `src/SuperScanner.Infrastructure/Processing/PopplerPdfImportTool.cs`
-- Create: `src/SuperScanner.Infrastructure/Processing/DocumentImportProcessor.cs`
-- Modify: `src/SuperScanner.Infrastructure/Processing/DocumentPreviewProcessor.cs`
-- Modify: `src/SuperScanner.Infrastructure/Processing/CropProcessor.cs`
-- Modify: `src/SuperScanner.Application/Abstractions/IObjectStore.cs`
-- Modify: `src/SuperScanner.Infrastructure/ObjectStorage/R2ObjectStore.cs`
-- Modify: `src/SuperScanner.Worker/Program.cs`
-- Modify: `src/SuperScanner.Worker/appsettings.json`
-- Test: `tests/SuperScanner.Application.Tests/Processing/DocumentImportProcessorTests.cs`
+- Create: `src/ArksScanner.Infrastructure/Processing/DocumentImportOptions.cs`
+- Create: `src/ArksScanner.Infrastructure/Processing/IPdfImportTool.cs`
+- Create: `src/ArksScanner.Infrastructure/Processing/PopplerPdfImportTool.cs`
+- Create: `src/ArksScanner.Infrastructure/Processing/DocumentImportProcessor.cs`
+- Modify: `src/ArksScanner.Infrastructure/Processing/DocumentPreviewProcessor.cs`
+- Modify: `src/ArksScanner.Infrastructure/Processing/CropProcessor.cs`
+- Modify: `src/ArksScanner.Application/Abstractions/IObjectStore.cs`
+- Modify: `src/ArksScanner.Infrastructure/ObjectStorage/R2ObjectStore.cs`
+- Modify: `src/ArksScanner.Worker/Program.cs`
+- Modify: `src/ArksScanner.Worker/appsettings.json`
+- Test: `tests/ArksScanner.Application.Tests/Processing/DocumentImportProcessorTests.cs`
 - Create fixture: `tests/fixtures/import/three-pages.pdf`
 - Create fixture: `tests/fixtures/import/encrypted.pdf`
 
@@ -317,7 +317,7 @@ public async Task ThreePagePdf_CreatesOrderedDeterministicPages()
 
 - [ ] **Step 2: Run the new processor tests and verify failure**
 
-Run: `dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter "FullyQualifiedName~DocumentImportProcessorTests"`
+Run: `dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter "FullyQualifiedName~DocumentImportProcessorTests"`
 
 Expected: FAIL because the processor and PDF tool do not exist.
 
@@ -355,12 +355,12 @@ Add `DocumentImport` settings: `MaxUploadBytes=26214400`, `MaxPagesPerImport=50`
 
 - [ ] **Step 6: Run processor tests and commit**
 
-Run: `dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter "FullyQualifiedName~DocumentImportProcessorTests"`
+Run: `dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter "FullyQualifiedName~DocumentImportProcessorTests"`
 
 Expected: PASS.
 
 ```powershell
-git add src/SuperScanner.Infrastructure/Processing src/SuperScanner.Application/Abstractions/IObjectStore.cs src/SuperScanner.Infrastructure/ObjectStorage/R2ObjectStore.cs src/SuperScanner.Worker tests/SuperScanner.Application.Tests/Processing/DocumentImportProcessorTests.cs tests/fixtures/import
+git add src/ArksScanner.Infrastructure/Processing src/ArksScanner.Application/Abstractions/IObjectStore.cs src/ArksScanner.Infrastructure/ObjectStorage/R2ObjectStore.cs src/ArksScanner.Worker tests/ArksScanner.Application.Tests/Processing/DocumentImportProcessorTests.cs tests/fixtures/import
 git commit -m "feat: expand photos and multi-page PDFs"
 ```
 
@@ -369,12 +369,12 @@ git commit -m "feat: expand photos and multi-page PDFs"
 ### Task 5: Worker Routing and Mixed Page Status
 
 **Files:**
-- Modify: `src/SuperScanner.Worker/UploadValidationJobRunner.cs`
-- Modify: `src/SuperScanner.Infrastructure/Processing/CropDocumentStatus.cs`
-- Modify: `src/SuperScanner.Api/Endpoints/DocumentPreviewEndpoints.cs`
-- Modify: `src/SuperScanner.Api/Program.cs`
-- Test: `tests/SuperScanner.Application.Tests/Processing/UploadValidationJobRunnerTests.cs`
-- Test: `tests/SuperScanner.Api.IntegrationTests/Documents/DocumentsEndpointsTests.cs`
+- Modify: `src/ArksScanner.Worker/UploadValidationJobRunner.cs`
+- Modify: `src/ArksScanner.Infrastructure/Processing/CropDocumentStatus.cs`
+- Modify: `src/ArksScanner.Api/Endpoints/DocumentPreviewEndpoints.cs`
+- Modify: `src/ArksScanner.Api/Program.cs`
+- Test: `tests/ArksScanner.Application.Tests/Processing/UploadValidationJobRunnerTests.cs`
+- Test: `tests/ArksScanner.Api.IntegrationTests/Documents/DocumentsEndpointsTests.cs`
 
 **Interfaces:**
 - Consumes: `DocumentImportProcessor.ProcessAsync` from Task 4 and page state from Task 1.
@@ -386,9 +386,9 @@ Assert accepted validation enqueues `ExpandDocumentImport`, the runner dispatche
 
 - [ ] **Step 2: Run focused tests and verify failure**
 
-Run: `dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter "FullyQualifiedName~UploadValidationJobRunnerTests"`
+Run: `dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter "FullyQualifiedName~UploadValidationJobRunnerTests"`
 
-Run: `dotnet test tests/SuperScanner.Api.IntegrationTests/SuperScanner.Api.IntegrationTests.csproj --filter "FullyQualifiedName~DocumentsEndpointsTests"`
+Run: `dotnet test tests/ArksScanner.Api.IntegrationTests/ArksScanner.Api.IntegrationTests.csproj --filter "FullyQualifiedName~DocumentsEndpointsTests"`
 
 Expected: FAIL because the runner still queues `ProcessDocument` and detail is PageNumber-based.
 
@@ -419,7 +419,7 @@ Return `revision`, `pageOrderRevision`, active pages ordered by Position, Page S
 Run both Step 2 commands. Expected: PASS.
 
 ```powershell
-git add src/SuperScanner.Worker/UploadValidationJobRunner.cs src/SuperScanner.Infrastructure/Processing/CropDocumentStatus.cs src/SuperScanner.Api/Endpoints/DocumentPreviewEndpoints.cs src/SuperScanner.Api/Program.cs tests/SuperScanner.Application.Tests/Processing/UploadValidationJobRunnerTests.cs tests/SuperScanner.Api.IntegrationTests/Documents/DocumentsEndpointsTests.cs
+git add src/ArksScanner.Worker/UploadValidationJobRunner.cs src/ArksScanner.Infrastructure/Processing/CropDocumentStatus.cs src/ArksScanner.Api/Endpoints/DocumentPreviewEndpoints.cs src/ArksScanner.Api/Program.cs tests/ArksScanner.Application.Tests/Processing/UploadValidationJobRunnerTests.cs tests/ArksScanner.Api.IntegrationTests/Documents/DocumentsEndpointsTests.cs
 git commit -m "feat: expose multi-page processing status"
 ```
 
@@ -428,15 +428,15 @@ git commit -m "feat: expose multi-page processing status"
 ### Task 6: Reorder and Soft-Remove APIs
 
 **Files:**
-- Create: `src/SuperScanner.Application/Documents/ReorderPages.cs`
-- Create: `src/SuperScanner.Application/Documents/RemovePage.cs`
-- Modify: `src/SuperScanner.Application/Abstractions/IDocumentRepository.cs`
-- Modify: `src/SuperScanner.Infrastructure/Persistence/EfDocumentRepository.cs`
-- Create: `src/SuperScanner.Api/Endpoints/PageManagementEndpoints.cs`
-- Modify: `src/SuperScanner.Api/Program.cs`
-- Create: `tests/SuperScanner.Application.Tests/Documents/ReorderPagesTests.cs`
-- Create: `tests/SuperScanner.Application.Tests/Documents/RemovePageTests.cs`
-- Create: `tests/SuperScanner.Api.IntegrationTests/Documents/PageManagementEndpointsTests.cs`
+- Create: `src/ArksScanner.Application/Documents/ReorderPages.cs`
+- Create: `src/ArksScanner.Application/Documents/RemovePage.cs`
+- Modify: `src/ArksScanner.Application/Abstractions/IDocumentRepository.cs`
+- Modify: `src/ArksScanner.Infrastructure/Persistence/EfDocumentRepository.cs`
+- Create: `src/ArksScanner.Api/Endpoints/PageManagementEndpoints.cs`
+- Modify: `src/ArksScanner.Api/Program.cs`
+- Create: `tests/ArksScanner.Application.Tests/Documents/ReorderPagesTests.cs`
+- Create: `tests/ArksScanner.Application.Tests/Documents/RemovePageTests.cs`
+- Create: `tests/ArksScanner.Api.IntegrationTests/Documents/PageManagementEndpointsTests.cs`
 
 **Interfaces:**
 - Consumes: Task 1 aggregate ordering operations and Task 2 concurrency mappings.
@@ -454,7 +454,7 @@ Assert.Equal([third, first, second], result.Pages.Select(x => x.Id));
 
 - [ ] **Step 2: Run tests and verify failure**
 
-Run: `dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter "FullyQualifiedName~ReorderPagesTests|FullyQualifiedName~RemovePageTests"`
+Run: `dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter "FullyQualifiedName~ReorderPagesTests|FullyQualifiedName~RemovePageTests"`
 
 Expected: FAIL because the commands do not exist.
 
@@ -476,14 +476,14 @@ Return `200` with new order and revisions, `404` for unowned/missing resources, 
 
 Run Step 2 plus:
 
-`dotnet test tests/SuperScanner.Api.IntegrationTests/SuperScanner.Api.IntegrationTests.csproj --filter "FullyQualifiedName~PageManagementEndpointsTests"`
+`dotnet test tests/ArksScanner.Api.IntegrationTests/ArksScanner.Api.IntegrationTests.csproj --filter "FullyQualifiedName~PageManagementEndpointsTests"`
 
 Expected: PASS.
 
 - [ ] **Step 6: Commit**
 
 ```powershell
-git add src/SuperScanner.Application/Documents src/SuperScanner.Application/Abstractions/IDocumentRepository.cs src/SuperScanner.Infrastructure/Persistence/EfDocumentRepository.cs src/SuperScanner.Api/Endpoints/PageManagementEndpoints.cs src/SuperScanner.Api/Program.cs tests/SuperScanner.Application.Tests/Documents tests/SuperScanner.Api.IntegrationTests/Documents/PageManagementEndpointsTests.cs
+git add src/ArksScanner.Application/Documents src/ArksScanner.Application/Abstractions/IDocumentRepository.cs src/ArksScanner.Infrastructure/Persistence/EfDocumentRepository.cs src/ArksScanner.Api/Endpoints/PageManagementEndpoints.cs src/ArksScanner.Api/Program.cs tests/ArksScanner.Application.Tests/Documents tests/ArksScanner.Api.IntegrationTests/Documents/PageManagementEndpointsTests.cs
 git commit -m "feat: reorder and remove document pages"
 ```
 
@@ -492,14 +492,14 @@ git commit -m "feat: reorder and remove document pages"
 ### Task 7: Immutable Export Snapshot API
 
 **Files:**
-- Create: `src/SuperScanner.Application/Documents/CreateDocumentExport.cs`
-- Create: `src/SuperScanner.Application/Documents/GetDocumentExport.cs`
-- Create: `src/SuperScanner.Application/Abstractions/IDocumentExportRepository.cs`
-- Create: `src/SuperScanner.Infrastructure/Persistence/EfDocumentExportRepository.cs`
-- Create: `src/SuperScanner.Api/Endpoints/DocumentExportEndpoints.cs`
-- Modify: `src/SuperScanner.Api/Program.cs`
-- Create: `tests/SuperScanner.Application.Tests/Documents/DocumentExportTests.cs`
-- Create: `tests/SuperScanner.Api.IntegrationTests/Documents/DocumentExportEndpointsTests.cs`
+- Create: `src/ArksScanner.Application/Documents/CreateDocumentExport.cs`
+- Create: `src/ArksScanner.Application/Documents/GetDocumentExport.cs`
+- Create: `src/ArksScanner.Application/Abstractions/IDocumentExportRepository.cs`
+- Create: `src/ArksScanner.Infrastructure/Persistence/EfDocumentExportRepository.cs`
+- Create: `src/ArksScanner.Api/Endpoints/DocumentExportEndpoints.cs`
+- Modify: `src/ArksScanner.Api/Program.cs`
+- Create: `tests/ArksScanner.Application.Tests/Documents/DocumentExportTests.cs`
+- Create: `tests/ArksScanner.Api.IntegrationTests/Documents/DocumentExportEndpointsTests.cs`
 
 **Interfaces:**
 - Consumes: `DocumentExport.Create` and persistence from Tasks 1-2 plus processing queue.
@@ -518,7 +518,7 @@ Assert.Equal("BuildDocumentPdf", queue.Single().Type);
 
 - [ ] **Step 2: Run focused tests and verify failure**
 
-Run: `dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter "FullyQualifiedName~DocumentExportTests"`
+Run: `dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter "FullyQualifiedName~DocumentExportTests"`
 
 Expected: FAIL because export handlers do not exist.
 
@@ -541,12 +541,12 @@ Map `POST /api/documents/{id}/exports` and `GET /api/documents/{id}/exports/{exp
 
 Run Step 2 plus:
 
-`dotnet test tests/SuperScanner.Api.IntegrationTests/SuperScanner.Api.IntegrationTests.csproj --filter "FullyQualifiedName~DocumentExportEndpointsTests"`
+`dotnet test tests/ArksScanner.Api.IntegrationTests/ArksScanner.Api.IntegrationTests.csproj --filter "FullyQualifiedName~DocumentExportEndpointsTests"`
 
 Expected: PASS.
 
 ```powershell
-git add src/SuperScanner.Application/Documents src/SuperScanner.Application/Abstractions/IDocumentExportRepository.cs src/SuperScanner.Infrastructure/Persistence/EfDocumentExportRepository.cs src/SuperScanner.Api/Endpoints/DocumentExportEndpoints.cs src/SuperScanner.Api/Program.cs tests/SuperScanner.Application.Tests/Documents/DocumentExportTests.cs tests/SuperScanner.Api.IntegrationTests/Documents/DocumentExportEndpointsTests.cs
+git add src/ArksScanner.Application/Documents src/ArksScanner.Application/Abstractions/IDocumentExportRepository.cs src/ArksScanner.Infrastructure/Persistence/EfDocumentExportRepository.cs src/ArksScanner.Api/Endpoints/DocumentExportEndpoints.cs src/ArksScanner.Api/Program.cs tests/ArksScanner.Application.Tests/Documents/DocumentExportTests.cs tests/ArksScanner.Api.IntegrationTests/Documents/DocumentExportEndpointsTests.cs
 git commit -m "feat: create immutable document exports"
 ```
 
@@ -555,14 +555,14 @@ git commit -m "feat: create immutable document exports"
 ### Task 8: PDF Assembly, Worker Job, and Secure Download
 
 **Files:**
-- Modify: `src/SuperScanner.Infrastructure/SuperScanner.Infrastructure.csproj`
-- Modify: `src/SuperScanner.Infrastructure/packages.lock.json`
-- Create: `src/SuperScanner.Infrastructure/Processing/DocumentPdfBuilder.cs`
-- Modify: `src/SuperScanner.Worker/UploadValidationJobRunner.cs`
-- Modify: `src/SuperScanner.Worker/Program.cs`
-- Modify: `src/SuperScanner.Api/Endpoints/DocumentExportEndpoints.cs`
-- Create: `tests/SuperScanner.Application.Tests/Processing/DocumentPdfBuilderTests.cs`
-- Modify: `tests/SuperScanner.Api.IntegrationTests/Documents/DocumentExportEndpointsTests.cs`
+- Modify: `src/ArksScanner.Infrastructure/ArksScanner.Infrastructure.csproj`
+- Modify: `src/ArksScanner.Infrastructure/packages.lock.json`
+- Create: `src/ArksScanner.Infrastructure/Processing/DocumentPdfBuilder.cs`
+- Modify: `src/ArksScanner.Worker/UploadValidationJobRunner.cs`
+- Modify: `src/ArksScanner.Worker/Program.cs`
+- Modify: `src/ArksScanner.Api/Endpoints/DocumentExportEndpoints.cs`
+- Create: `tests/ArksScanner.Application.Tests/Processing/DocumentPdfBuilderTests.cs`
+- Modify: `tests/ArksScanner.Api.IntegrationTests/Documents/DocumentExportEndpointsTests.cs`
 
 **Interfaces:**
 - Consumes: Task 7 export snapshot and queue; `IObjectStore.OpenReadAsync`; private R2 storage.
@@ -570,7 +570,7 @@ git commit -m "feat: create immutable document exports"
 
 - [ ] **Step 1: Add PDFsharp 6.2.4 and write failing builder tests**
 
-Run: `dotnet add src/SuperScanner.Infrastructure/SuperScanner.Infrastructure.csproj package PDFsharp --version 6.2.4`
+Run: `dotnet add src/ArksScanner.Infrastructure/ArksScanner.Infrastructure.csproj package PDFsharp --version 6.2.4`
 
 Expected: project and lock file contain the cross-platform MIT-licensed stable package, not GDI or WPF variants.
 
@@ -585,7 +585,7 @@ Assert.Equal(3, pdf.PageCount);
 
 - [ ] **Step 2: Run builder tests and verify failure**
 
-Run: `dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter "FullyQualifiedName~DocumentPdfBuilderTests"`
+Run: `dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter "FullyQualifiedName~DocumentPdfBuilderTests"`
 
 Expected: FAIL because the builder does not exist.
 
@@ -602,7 +602,7 @@ Route the job type to `DocumentPdfBuilder.BuildAsync`. Map `GET /api/documents/{
 Run Step 2 and the export endpoint test from Task 7. Expected: PASS.
 
 ```powershell
-git add src/SuperScanner.Infrastructure src/SuperScanner.Worker src/SuperScanner.Api/Endpoints/DocumentExportEndpoints.cs tests/SuperScanner.Application.Tests/Processing/DocumentPdfBuilderTests.cs tests/SuperScanner.Api.IntegrationTests/Documents/DocumentExportEndpointsTests.cs
+git add src/ArksScanner.Infrastructure src/ArksScanner.Worker src/ArksScanner.Api/Endpoints/DocumentExportEndpoints.cs tests/ArksScanner.Application.Tests/Processing/DocumentPdfBuilderTests.cs tests/ArksScanner.Api.IntegrationTests/Documents/DocumentExportEndpointsTests.cs
 git commit -m "feat: build and download document PDFs"
 ```
 
@@ -788,10 +788,10 @@ git commit -m "feat: export and download document PDFs"
 **Files:**
 - Modify: `.env.example`
 - Modify: `docker-compose.yml`
-- Modify: `src/SuperScanner.Worker/appsettings.Development.json`
+- Modify: `src/ArksScanner.Worker/appsettings.Development.json`
 - Create: `docs/operations/multi-page-import-export.md`
 - Create: `apps/web/e2e/multi-page-document.spec.ts`
-- Modify: `tests/SuperScanner.Api.IntegrationTests/Auth/AuthenticationBoundaryTests.cs`
+- Modify: `tests/ArksScanner.Api.IntegrationTests/Auth/AuthenticationBoundaryTests.cs`
 
 **Interfaces:**
 - Consumes: the complete backend, Worker, storage, and Angular flow.
@@ -803,7 +803,7 @@ Use the three-page fixture, append one photo, wait for four page cards, drag pag
 
 - [ ] **Step 2: Run focused security and web acceptance tests**
 
-Run: `dotnet test tests/SuperScanner.Api.IntegrationTests/SuperScanner.Api.IntegrationTests.csproj --filter "FullyQualifiedName~AuthenticationBoundaryTests"`
+Run: `dotnet test tests/ArksScanner.Api.IntegrationTests/ArksScanner.Api.IntegrationTests.csproj --filter "FullyQualifiedName~AuthenticationBoundaryTests"`
 
 Run from `apps/web`: `npm run e2e -- --grep "multi-page document"`
 
@@ -815,7 +815,7 @@ Add environment mappings for every `DocumentImport` limit plus `DocumentExport__
 
 - [ ] **Step 4: Run full verification**
 
-Run: `dotnet test SuperScanner.slnx --no-restore`
+Run: `dotnet test ArksScanner.slnx --no-restore`
 
 Run from `apps/web`: `npm test -- --run`
 
@@ -832,7 +832,7 @@ Verify logs contain IDs, counts, states, durations, and safe codes only. Verify 
 - [ ] **Step 6: Commit the operational increment**
 
 ```powershell
-git add .env.example docker-compose.yml src/SuperScanner.Worker/appsettings.Development.json docs/operations/multi-page-import-export.md apps/web/e2e/multi-page-document.spec.ts tests/SuperScanner.Api.IntegrationTests/Auth/AuthenticationBoundaryTests.cs
+git add .env.example docker-compose.yml src/ArksScanner.Worker/appsettings.Development.json docs/operations/multi-page-import-export.md apps/web/e2e/multi-page-document.spec.ts tests/ArksScanner.Api.IntegrationTests/Auth/AuthenticationBoundaryTests.cs
 git commit -m "docs: operate multi-page import and export"
 ```
 

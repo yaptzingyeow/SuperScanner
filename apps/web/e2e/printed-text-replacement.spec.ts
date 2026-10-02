@@ -114,7 +114,7 @@ test('printed text replacement survives reload, export, and undo', async ({ page
   expect(await pdf.failure()).toBeNull();
   const pdfBytes = await readFile(await pdf.path());
   expect(pdfBytes.toString('latin1')).not.toMatch(/\/Annots\b/);
-  const renderDirectory = await mkdtemp(join(tmpdir(), 'superscanner-export-check-'));
+  const renderDirectory = await mkdtemp(join(tmpdir(), 'arksscanner-export-check-'));
   try {
     const renderPrefix = join(renderDirectory, 'page');
     await run('pdftoppm', ['-f', '1', '-l', '1', '-singlefile', '-scale-to', '1000', '-jpeg', await pdf.path(), renderPrefix]);

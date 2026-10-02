@@ -6,7 +6,7 @@
 
 ## Purpose
 
-SuperScanner will export PDFs that retain the exact visual appearance of the processed page image while allowing recognized text to be searched, selected, and copied. The export reuses stored OCR results and never invokes Google Document AI during PDF generation.
+ArksScanner will export PDFs that retain the exact visual appearance of the processed page image while allowing recognized text to be searched, selected, and copied. The export reuses stored OCR results and never invokes Google Document AI during PDF generation.
 
 The printed-text editor will also expand from two bundled font families to twenty licensed families. The expanded catalogue improves automatic matching and gives users practical manual alternatives without making PDF export depend on the selected visible-editing font.
 

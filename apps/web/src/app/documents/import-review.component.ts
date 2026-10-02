@@ -88,7 +88,7 @@ export class ImportReviewComponent implements OnInit, OnDestroy {
     ? new Set(this.uploadsParam.split(',').map((id) => id.trim()).filter(Boolean))
     : null);
   protected readonly addingPages = signal(false);
-  private readonly storageKey = `superscanner:import-check:${this.documentId}`;
+  private readonly storageKey = `arksscanner:import-check:${this.documentId}`;
 
   protected readonly looks = SCAN_LOOKS;
   protected readonly swatches = SWATCHES;

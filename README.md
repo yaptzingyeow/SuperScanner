@@ -1,6 +1,6 @@
 # Arks Scanner
 
-_Arks Scanner by [ArkSoft](https://arksoft.dev/). Internal project, solution and code names keep the original `SuperScanner` identifier._
+_Arks Scanner by [ArkSoft](https://arksoft.dev/). The Firebase project, Google Document AI project and R2 bucket keep their original `superscanner-dev` names, which those providers do not allow renaming._
 
 Private document scanning and printed-text editing with Angular, ASP.NET Core, PostgreSQL, Firebase Auth/App Check, and private object storage.
 

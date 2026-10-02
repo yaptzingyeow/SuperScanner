@@ -4,7 +4,7 @@
 apps/web/src/environments/app-check.local.ts
 apps/web/playwright-report/
 apps/web/test-results/
-src/SuperScanner.Worker/processing/models/*.onnx
+src/ArksScanner.Worker/processing/models/*.onnx
 tools/document-boundary/models/
 tools/document-boundary/datasets/
 tools/document-boundary/release-manifest.json

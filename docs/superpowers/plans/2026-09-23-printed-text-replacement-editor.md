@@ -38,35 +38,35 @@
 
 ### Domain and persistence
 
-- `src/SuperScanner.Domain/TextEditing/PageRevision.cs` — immutable processed-page asset and parent linkage.
-- `src/SuperScanner.Domain/TextEditing/TextEditOperation.cs` — edit state machine, sensitive payload, branch parent, and result linkage.
-- `src/SuperScanner.Domain/TextEditing/TextEditStyle.cs` — validated style value object serialized through EF.
-- `src/SuperScanner.Domain/TextEditing/NormalizedBox.cs` — finite, page-bounded geometry value object.
-- `src/SuperScanner.Domain/TextEditing/FontCatalogueEntry.cs` — stable, versioned licensed-font metadata.
-- `src/SuperScanner.Domain/Documents/Page.cs` — optional active revision and one canonical processed-object resolver.
-- `src/SuperScanner.Infrastructure/Persistence/Configurations/*TextEdit*.cs` — EF mappings and concurrency indexes.
-- `src/SuperScanner.Infrastructure/Persistence/Migrations/<timestamp>_PrintedTextEditing.cs` — schema plus safe existing-page compatibility.
+- `src/ArksScanner.Domain/TextEditing/PageRevision.cs` — immutable processed-page asset and parent linkage.
+- `src/ArksScanner.Domain/TextEditing/TextEditOperation.cs` — edit state machine, sensitive payload, branch parent, and result linkage.
+- `src/ArksScanner.Domain/TextEditing/TextEditStyle.cs` — validated style value object serialized through EF.
+- `src/ArksScanner.Domain/TextEditing/NormalizedBox.cs` — finite, page-bounded geometry value object.
+- `src/ArksScanner.Domain/TextEditing/FontCatalogueEntry.cs` — stable, versioned licensed-font metadata.
+- `src/ArksScanner.Domain/Documents/Page.cs` — optional active revision and one canonical processed-object resolver.
+- `src/ArksScanner.Infrastructure/Persistence/Configurations/*TextEdit*.cs` — EF mappings and concurrency indexes.
+- `src/ArksScanner.Infrastructure/Persistence/Migrations/<timestamp>_PrintedTextEditing.cs` — schema plus safe existing-page compatibility.
 
 ### Application and API
 
-- `src/SuperScanner.Application/TextEditing/TextEditContracts.cs` — repository, renderer, font, and DTO contracts.
-- `src/SuperScanner.Application/TextEditing/ProposeTextStyle.cs` — validates a printed selection and produces ranked local style candidates.
-- `src/SuperScanner.Application/TextEditing/CreateTextEdit.cs` — validates and queues a confirmed edit atomically.
-- `src/SuperScanner.Application/TextEditing/GetTextEdit.cs` — owner-scoped status query.
-- `src/SuperScanner.Application/TextEditing/GetPageEditHistory.cs` — revision-aware history query.
-- `src/SuperScanner.Application/TextEditing/SwitchPageRevision.cs` — undo/redo command.
-- `src/SuperScanner.Api/Endpoints/TextEditingEndpoints.cs` — owner-scoped HTTP contract and safe problem codes.
+- `src/ArksScanner.Application/TextEditing/TextEditContracts.cs` — repository, renderer, font, and DTO contracts.
+- `src/ArksScanner.Application/TextEditing/ProposeTextStyle.cs` — validates a printed selection and produces ranked local style candidates.
+- `src/ArksScanner.Application/TextEditing/CreateTextEdit.cs` — validates and queues a confirmed edit atomically.
+- `src/ArksScanner.Application/TextEditing/GetTextEdit.cs` — owner-scoped status query.
+- `src/ArksScanner.Application/TextEditing/GetPageEditHistory.cs` — revision-aware history query.
+- `src/ArksScanner.Application/TextEditing/SwitchPageRevision.cs` — undo/redo command.
+- `src/ArksScanner.Api/Endpoints/TextEditingEndpoints.cs` — owner-scoped HTTP contract and safe problem codes.
 
 ### Infrastructure and rendering
 
-- `src/SuperScanner.Infrastructure/TextEditing/EfTextEditRepository.cs` — PostgreSQL locking, idempotency, history, and activation.
-- `src/SuperScanner.Infrastructure/TextEditing/TextEditingOptions.cs` — feature flag and validated bounds.
-- `src/SuperScanner.Infrastructure/TextEditing/BundledFontCatalogue.cs` — allowlisted fonts and pinned hashes.
-- `src/SuperScanner.Infrastructure/TextEditing/TextStyleEstimator.cs` — deterministic crop sampling and font ranking.
-- `src/SuperScanner.Infrastructure/TextEditing/TextLayoutEngine.cs` — canonical measurements and safe-fit result.
-- `src/SuperScanner.Infrastructure/TextEditing/BackgroundReconstructor.cs` — conservative mask refinement and reconstruction.
-- `src/SuperScanner.Infrastructure/TextEditing/TextEditRenderer.cs` — canonical output, containment verification, and immutable object write.
-- `src/SuperScanner.Infrastructure/TextEditing/TextEditProcessor.cs` — worker orchestration and activation.
+- `src/ArksScanner.Infrastructure/TextEditing/EfTextEditRepository.cs` — PostgreSQL locking, idempotency, history, and activation.
+- `src/ArksScanner.Infrastructure/TextEditing/TextEditingOptions.cs` — feature flag and validated bounds.
+- `src/ArksScanner.Infrastructure/TextEditing/BundledFontCatalogue.cs` — allowlisted fonts and pinned hashes.
+- `src/ArksScanner.Infrastructure/TextEditing/TextStyleEstimator.cs` — deterministic crop sampling and font ranking.
+- `src/ArksScanner.Infrastructure/TextEditing/TextLayoutEngine.cs` — canonical measurements and safe-fit result.
+- `src/ArksScanner.Infrastructure/TextEditing/BackgroundReconstructor.cs` — conservative mask refinement and reconstruction.
+- `src/ArksScanner.Infrastructure/TextEditing/TextEditRenderer.cs` — canonical output, containment verification, and immutable object write.
+- `src/ArksScanner.Infrastructure/TextEditing/TextEditProcessor.cs` — worker orchestration and activation.
 - `assets/fonts/` — pinned OFL font files and licence notices.
 
 ### Angular
@@ -88,12 +88,12 @@
 ### Task 1: Revision-aware page assets
 
 **Files:**
-- Create: `src/SuperScanner.Domain/TextEditing/PageRevision.cs`
-- Create: `src/SuperScanner.Infrastructure/Persistence/Configurations/PageRevisionConfiguration.cs`
-- Modify: `src/SuperScanner.Domain/Documents/Page.cs`
-- Modify: `src/SuperScanner.Infrastructure/Persistence/AppDbContext.cs`
-- Test: `tests/SuperScanner.Domain.Tests/TextEditing/PageRevisionTests.cs`
-- Test: `tests/SuperScanner.Infrastructure.IntegrationTests/Persistence/PageRevisionPersistenceTests.cs`
+- Create: `src/ArksScanner.Domain/TextEditing/PageRevision.cs`
+- Create: `src/ArksScanner.Infrastructure/Persistence/Configurations/PageRevisionConfiguration.cs`
+- Modify: `src/ArksScanner.Domain/Documents/Page.cs`
+- Modify: `src/ArksScanner.Infrastructure/Persistence/AppDbContext.cs`
+- Test: `tests/ArksScanner.Domain.Tests/TextEditing/PageRevisionTests.cs`
+- Test: `tests/ArksScanner.Infrastructure.IntegrationTests/Persistence/PageRevisionPersistenceTests.cs`
 
 **Interfaces:**
 - Consumes: existing `Page.PreviewObjectKey` and `Page.GetExportObjectKey()` behavior.
@@ -122,7 +122,7 @@ Also pin rejection of cross-page revisions, mutation of revision fields, and a R
 
 - [ ] **Step 2: Run the focused domain tests and verify the red state**
 
-Run: `dotnet test tests/SuperScanner.Domain.Tests/SuperScanner.Domain.Tests.csproj --filter FullyQualifiedName~PageRevisionTests`
+Run: `dotnet test tests/ArksScanner.Domain.Tests/ArksScanner.Domain.Tests.csproj --filter FullyQualifiedName~PageRevisionTests`
 
 Expected: FAIL because `PageRevision` and revision-aware `Page` members do not exist.
 
@@ -150,32 +150,32 @@ Map `page_revisions` with immutable columns, a unique object key, indexes on `(P
 
 - [ ] **Step 5: Run Task 1 tests**
 
-Run: `dotnet test tests/SuperScanner.Domain.Tests/SuperScanner.Domain.Tests.csproj --filter FullyQualifiedName~PageRevisionTests`
+Run: `dotnet test tests/ArksScanner.Domain.Tests/ArksScanner.Domain.Tests.csproj --filter FullyQualifiedName~PageRevisionTests`
 
-Run: `dotnet test tests/SuperScanner.Infrastructure.IntegrationTests/SuperScanner.Infrastructure.IntegrationTests.csproj --filter FullyQualifiedName~PageRevisionPersistenceTests`
+Run: `dotnet test tests/ArksScanner.Infrastructure.IntegrationTests/ArksScanner.Infrastructure.IntegrationTests.csproj --filter FullyQualifiedName~PageRevisionPersistenceTests`
 
 Expected: PASS.
 
 - [ ] **Step 6: Commit Task 1**
 
 ```powershell
-git add src/SuperScanner.Domain/TextEditing src/SuperScanner.Domain/Documents/Page.cs src/SuperScanner.Infrastructure/Persistence tests/SuperScanner.Domain.Tests/TextEditing tests/SuperScanner.Infrastructure.IntegrationTests/Persistence/PageRevisionPersistenceTests.cs
+git add src/ArksScanner.Domain/TextEditing src/ArksScanner.Domain/Documents/Page.cs src/ArksScanner.Infrastructure/Persistence tests/ArksScanner.Domain.Tests/TextEditing tests/ArksScanner.Infrastructure.IntegrationTests/Persistence/PageRevisionPersistenceTests.cs
 git commit -m "feat: add immutable page revisions"
 ```
 
 ### Task 2: Text edit aggregate, style values, and database migration
 
 **Files:**
-- Create: `src/SuperScanner.Domain/TextEditing/NormalizedBox.cs`
-- Create: `src/SuperScanner.Domain/TextEditing/TextEditStyle.cs`
-- Create: `src/SuperScanner.Domain/TextEditing/TextEditOperation.cs`
-- Create: `src/SuperScanner.Domain/TextEditing/FontCatalogueEntry.cs`
-- Create: `src/SuperScanner.Infrastructure/Persistence/Configurations/TextEditOperationConfiguration.cs`
-- Create: `src/SuperScanner.Infrastructure/Persistence/Configurations/FontCatalogueEntryConfiguration.cs`
-- Modify: `src/SuperScanner.Infrastructure/Persistence/AppDbContext.cs`
-- Create: `src/SuperScanner.Infrastructure/Persistence/Migrations/<generated>_PrintedTextEditing.cs`
-- Test: `tests/SuperScanner.Domain.Tests/TextEditing/TextEditOperationTests.cs`
-- Test: `tests/SuperScanner.Infrastructure.IntegrationTests/Persistence/TextEditPersistenceTests.cs`
+- Create: `src/ArksScanner.Domain/TextEditing/NormalizedBox.cs`
+- Create: `src/ArksScanner.Domain/TextEditing/TextEditStyle.cs`
+- Create: `src/ArksScanner.Domain/TextEditing/TextEditOperation.cs`
+- Create: `src/ArksScanner.Domain/TextEditing/FontCatalogueEntry.cs`
+- Create: `src/ArksScanner.Infrastructure/Persistence/Configurations/TextEditOperationConfiguration.cs`
+- Create: `src/ArksScanner.Infrastructure/Persistence/Configurations/FontCatalogueEntryConfiguration.cs`
+- Modify: `src/ArksScanner.Infrastructure/Persistence/AppDbContext.cs`
+- Create: `src/ArksScanner.Infrastructure/Persistence/Migrations/<generated>_PrintedTextEditing.cs`
+- Test: `tests/ArksScanner.Domain.Tests/TextEditing/TextEditOperationTests.cs`
+- Test: `tests/ArksScanner.Infrastructure.IntegrationTests/Persistence/TextEditPersistenceTests.cs`
 
 **Interfaces:**
 - Consumes: `PageRevision` from Task 1.
@@ -202,7 +202,7 @@ Cover empty/oversized replacement, invalid boxes, arbitrary font identifiers, in
 
 - [ ] **Step 2: Verify the tests fail**
 
-Run: `dotnet test tests/SuperScanner.Domain.Tests/SuperScanner.Domain.Tests.csproj --filter FullyQualifiedName~TextEditOperationTests`
+Run: `dotnet test tests/ArksScanner.Domain.Tests/ArksScanner.Domain.Tests.csproj --filter FullyQualifiedName~TextEditOperationTests`
 
 Expected: FAIL because the aggregate is absent.
 
@@ -222,7 +222,7 @@ Store sensitive original/replacement strings as PostgreSQL `text` columns but ne
 
 - [ ] **Step 4: Add mappings and generate the migration**
 
-Run: `dotnet ef migrations add PrintedTextEditing --project src/SuperScanner.Infrastructure --startup-project src/SuperScanner.Api`
+Run: `dotnet ef migrations add PrintedTextEditing --project src/ArksScanner.Infrastructure --startup-project src/ArksScanner.Api`
 
 The migration creates `page_revisions`, `font_catalogue_entries`, and `text_edit_operations`, then adds the nullable active-revision FK and concurrency token. It does not rewrite existing preview keys; legacy pages remain compatible through Task 1's resolver.
 
@@ -232,34 +232,34 @@ Pin unique `(PageId, IdempotencyKey)`, unique result revision, restrictive revis
 
 - [ ] **Step 6: Run Task 2 tests and commit**
 
-Run: `dotnet test tests/SuperScanner.Domain.Tests/SuperScanner.Domain.Tests.csproj --filter FullyQualifiedName~TextEditing`
+Run: `dotnet test tests/ArksScanner.Domain.Tests/ArksScanner.Domain.Tests.csproj --filter FullyQualifiedName~TextEditing`
 
-Run: `dotnet test tests/SuperScanner.Infrastructure.IntegrationTests/SuperScanner.Infrastructure.IntegrationTests.csproj --filter FullyQualifiedName~TextEditPersistenceTests`
+Run: `dotnet test tests/ArksScanner.Infrastructure.IntegrationTests/ArksScanner.Infrastructure.IntegrationTests.csproj --filter FullyQualifiedName~TextEditPersistenceTests`
 
 Expected: PASS.
 
 ```powershell
-git add src/SuperScanner.Domain/TextEditing src/SuperScanner.Infrastructure/Persistence tests/SuperScanner.Domain.Tests/TextEditing tests/SuperScanner.Infrastructure.IntegrationTests/Persistence/TextEditPersistenceTests.cs
+git add src/ArksScanner.Domain/TextEditing src/ArksScanner.Infrastructure/Persistence tests/ArksScanner.Domain.Tests/TextEditing tests/ArksScanner.Infrastructure.IntegrationTests/Persistence/TextEditPersistenceTests.cs
 git commit -m "feat: persist printed text edits"
 ```
 
 ### Task 3: Validated configuration and bundled font catalogue
 
 **Files:**
-- Create: `src/SuperScanner.Infrastructure/TextEditing/TextEditingOptions.cs`
-- Create: `src/SuperScanner.Infrastructure/TextEditing/BundledFontCatalogue.cs`
+- Create: `src/ArksScanner.Infrastructure/TextEditing/TextEditingOptions.cs`
+- Create: `src/ArksScanner.Infrastructure/TextEditing/BundledFontCatalogue.cs`
 - Create: `assets/fonts/OFL.txt`
 - Create: `assets/fonts/NotoSans-Regular.ttf`
 - Create: `assets/fonts/NotoSans-Bold.ttf`
 - Create: `assets/fonts/NotoSerif-Regular.ttf`
 - Create: `assets/fonts/NotoSerif-Bold.ttf`
-- Modify: `src/SuperScanner.Infrastructure/SuperScanner.Infrastructure.csproj`
-- Modify: `src/SuperScanner.Api/Program.cs`
-- Modify: `src/SuperScanner.Worker/Program.cs`
-- Modify: `src/SuperScanner.Api/appsettings.json`
-- Modify: `src/SuperScanner.Worker/appsettings.json`
-- Test: `tests/SuperScanner.Application.Tests/TextEditing/TextEditingOptionsTests.cs`
-- Test: `tests/SuperScanner.Application.Tests/TextEditing/BundledFontCatalogueTests.cs`
+- Modify: `src/ArksScanner.Infrastructure/ArksScanner.Infrastructure.csproj`
+- Modify: `src/ArksScanner.Api/Program.cs`
+- Modify: `src/ArksScanner.Worker/Program.cs`
+- Modify: `src/ArksScanner.Api/appsettings.json`
+- Modify: `src/ArksScanner.Worker/appsettings.json`
+- Test: `tests/ArksScanner.Application.Tests/TextEditing/TextEditingOptionsTests.cs`
+- Test: `tests/ArksScanner.Application.Tests/TextEditing/BundledFontCatalogueTests.cs`
 
 **Interfaces:**
 - Consumes: persisted `FontCatalogueEntry`.
@@ -296,24 +296,24 @@ Use `TextEditing:Enabled=false` by default. Validate maximum selected words, rep
 
 - [ ] **Step 4: Run tests and commit**
 
-Run: `dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter "FullyQualifiedName~TextEditingOptionsTests|FullyQualifiedName~BundledFontCatalogueTests"`
+Run: `dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter "FullyQualifiedName~TextEditingOptionsTests|FullyQualifiedName~BundledFontCatalogueTests"`
 
 Expected: PASS.
 
 ```powershell
-git add assets/fonts src/SuperScanner.Infrastructure/TextEditing src/SuperScanner.Infrastructure/SuperScanner.Infrastructure.csproj src/SuperScanner.Api src/SuperScanner.Worker tests/SuperScanner.Application.Tests/TextEditing
+git add assets/fonts src/ArksScanner.Infrastructure/TextEditing src/ArksScanner.Infrastructure/ArksScanner.Infrastructure.csproj src/ArksScanner.Api src/ArksScanner.Worker tests/ArksScanner.Application.Tests/TextEditing
 git commit -m "feat: add licensed text editing font catalogue"
 ```
 
 ### Task 4: Selection validation and deterministic style proposal
 
 **Files:**
-- Create: `src/SuperScanner.Application/TextEditing/TextEditContracts.cs`
-- Create: `src/SuperScanner.Application/TextEditing/ProposeTextStyle.cs`
-- Create: `src/SuperScanner.Infrastructure/TextEditing/TextStyleEstimator.cs`
-- Create: `src/SuperScanner.Infrastructure/TextEditing/EfTextEditRepository.cs`
-- Test: `tests/SuperScanner.Application.Tests/TextEditing/ProposeTextStyleTests.cs`
-- Test: `tests/SuperScanner.Application.Tests/TextEditing/TextStyleEstimatorTests.cs`
+- Create: `src/ArksScanner.Application/TextEditing/TextEditContracts.cs`
+- Create: `src/ArksScanner.Application/TextEditing/ProposeTextStyle.cs`
+- Create: `src/ArksScanner.Infrastructure/TextEditing/TextStyleEstimator.cs`
+- Create: `src/ArksScanner.Infrastructure/TextEditing/EfTextEditRepository.cs`
+- Test: `tests/ArksScanner.Application.Tests/TextEditing/ProposeTextStyleTests.cs`
+- Test: `tests/ArksScanner.Application.Tests/TextEditing/TextStyleEstimatorTests.cs`
 
 **Interfaces:**
 - Consumes: owner UID, document/page/OCR IDs, ordered OCR word IDs, page source, and `IFontCatalogue`.
@@ -349,20 +349,20 @@ Sample foreground colour from the OCR polygon against its border background, der
 
 - [ ] **Step 5: Run focused tests and commit**
 
-Run: `dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter "FullyQualifiedName~ProposeTextStyleTests|FullyQualifiedName~TextStyleEstimatorTests"`
+Run: `dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter "FullyQualifiedName~ProposeTextStyleTests|FullyQualifiedName~TextStyleEstimatorTests"`
 
 Expected: PASS.
 
 ```powershell
-git add src/SuperScanner.Application/TextEditing src/SuperScanner.Infrastructure/TextEditing tests/SuperScanner.Application.Tests/TextEditing
+git add src/ArksScanner.Application/TextEditing src/ArksScanner.Infrastructure/TextEditing tests/ArksScanner.Application.Tests/TextEditing
 git commit -m "feat: propose deterministic printed text styles"
 ```
 
 ### Task 5: Canonical layout and browser-safe fitting contract
 
 **Files:**
-- Create: `src/SuperScanner.Infrastructure/TextEditing/TextLayoutEngine.cs`
-- Create: `tests/SuperScanner.Application.Tests/TextEditing/TextLayoutEngineTests.cs`
+- Create: `src/ArksScanner.Infrastructure/TextEditing/TextLayoutEngine.cs`
+- Create: `tests/ArksScanner.Application.Tests/TextEditing/TextLayoutEngineTests.cs`
 - Create: `apps/web/src/app/documents/text-fit.ts`
 - Create: `apps/web/src/app/documents/text-fit.spec.ts`
 - Create: `apps/web/src/assets/fonts/text-fonts.css`
@@ -391,11 +391,11 @@ The .NET implementation is authoritative. TypeScript mirrors its ordering and cl
 
 - [ ] **Step 3: Add web-font declarations from the same pinned assets**
 
-Expose only stable catalogue family names such as `SuperScanner Noto Sans v1`; do not accept arbitrary CSS font-family text from the API response or user input.
+Expose only stable catalogue family names such as `ArksScanner Noto Sans v1`; do not accept arbitrary CSS font-family text from the API response or user input.
 
 - [ ] **Step 4: Run focused tests and commit**
 
-Run: `dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter FullyQualifiedName~TextLayoutEngineTests`
+Run: `dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter FullyQualifiedName~TextLayoutEngineTests`
 
 Run: `npm test -- --run --include src/app/documents/text-fit.spec.ts`
 
@@ -404,20 +404,20 @@ Workdir for npm command: `apps/web`
 Expected: PASS.
 
 ```powershell
-git add src/SuperScanner.Infrastructure/TextEditing tests/SuperScanner.Application.Tests/TextEditing apps/web
+git add src/ArksScanner.Infrastructure/TextEditing tests/ArksScanner.Application.Tests/TextEditing apps/web
 git commit -m "feat: add deterministic replacement text fitting"
 ```
 
 ### Task 6: Apply/status/history API with idempotent queueing
 
 **Files:**
-- Create: `src/SuperScanner.Application/TextEditing/CreateTextEdit.cs`
-- Create: `src/SuperScanner.Application/TextEditing/GetTextEdit.cs`
-- Create: `src/SuperScanner.Application/TextEditing/GetPageEditHistory.cs`
-- Create: `src/SuperScanner.Api/Endpoints/TextEditingEndpoints.cs`
-- Modify: `src/SuperScanner.Api/Program.cs`
-- Test: `tests/SuperScanner.Application.Tests/TextEditing/CreateTextEditTests.cs`
-- Test: `tests/SuperScanner.Api.IntegrationTests/Documents/TextEditingEndpointsTests.cs`
+- Create: `src/ArksScanner.Application/TextEditing/CreateTextEdit.cs`
+- Create: `src/ArksScanner.Application/TextEditing/GetTextEdit.cs`
+- Create: `src/ArksScanner.Application/TextEditing/GetPageEditHistory.cs`
+- Create: `src/ArksScanner.Api/Endpoints/TextEditingEndpoints.cs`
+- Modify: `src/ArksScanner.Api/Program.cs`
+- Test: `tests/ArksScanner.Application.Tests/TextEditing/CreateTextEditTests.cs`
+- Test: `tests/ArksScanner.Api.IntegrationTests/Documents/TextEditingEndpointsTests.cs`
 
 **Interfaces:**
 - Consumes: Task 4 selection validation and Task 5 confirmed layout/style.
@@ -448,25 +448,25 @@ Return `202 Accepted` for queued/existing identical work, `404` across ownership
 
 - [ ] **Step 4: Run API and application tests and commit**
 
-Run: `dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter FullyQualifiedName~CreateTextEditTests`
+Run: `dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter FullyQualifiedName~CreateTextEditTests`
 
-Run: `dotnet test tests/SuperScanner.Api.IntegrationTests/SuperScanner.Api.IntegrationTests.csproj --filter FullyQualifiedName~TextEditingEndpointsTests`
+Run: `dotnet test tests/ArksScanner.Api.IntegrationTests/ArksScanner.Api.IntegrationTests.csproj --filter FullyQualifiedName~TextEditingEndpointsTests`
 
 Expected: PASS, including unauthenticated, cross-owner, App Check, stale revision, and no-sensitive-log cases.
 
 ```powershell
-git add src/SuperScanner.Application/TextEditing src/SuperScanner.Api tests/SuperScanner.Application.Tests/TextEditing tests/SuperScanner.Api.IntegrationTests/Documents/TextEditingEndpointsTests.cs
+git add src/ArksScanner.Application/TextEditing src/ArksScanner.Api tests/ArksScanner.Application.Tests/TextEditing tests/ArksScanner.Api.IntegrationTests/Documents/TextEditingEndpointsTests.cs
 git commit -m "feat: add printed text edit API"
 ```
 
 ### Task 7: Conservative background reconstruction and canonical renderer
 
 **Files:**
-- Create: `src/SuperScanner.Infrastructure/TextEditing/BackgroundReconstructor.cs`
-- Create: `src/SuperScanner.Infrastructure/TextEditing/TextEditRenderer.cs`
-- Test: `tests/SuperScanner.Application.Tests/TextEditing/BackgroundReconstructorTests.cs`
-- Test: `tests/SuperScanner.Application.Tests/TextEditing/TextEditRendererTests.cs`
-- Create: `tests/SuperScanner.Application.Tests/Fixtures/TextEditing/` sanitized generated fixture descriptions.
+- Create: `src/ArksScanner.Infrastructure/TextEditing/BackgroundReconstructor.cs`
+- Create: `src/ArksScanner.Infrastructure/TextEditing/TextEditRenderer.cs`
+- Test: `tests/ArksScanner.Application.Tests/TextEditing/BackgroundReconstructorTests.cs`
+- Test: `tests/ArksScanner.Application.Tests/TextEditing/TextEditRendererTests.cs`
+- Create: `tests/ArksScanner.Application.Tests/Fixtures/TextEditing/` sanitized generated fixture descriptions.
 
 **Interfaces:**
 - Consumes: immutable source stream, server-resolved selection polygons, approved region, style, layout/font version.
@@ -497,26 +497,26 @@ Load the pinned font by catalogue path, apply Task 5 layout, render the exact re
 
 - [ ] **Step 4: Run golden and property tests**
 
-Run: `dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter "FullyQualifiedName~BackgroundReconstructorTests|FullyQualifiedName~TextEditRendererTests"`
+Run: `dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter "FullyQualifiedName~BackgroundReconstructorTests|FullyQualifiedName~TextEditRendererTests"`
 
 Expected: PASS with byte-identical repeated output for the same renderer/font/layout version and exact OCR-readable replacement fixture text.
 
 - [ ] **Step 5: Commit Task 7**
 
 ```powershell
-git add src/SuperScanner.Infrastructure/TextEditing tests/SuperScanner.Application.Tests/TextEditing tests/SuperScanner.Application.Tests/Fixtures/TextEditing
+git add src/ArksScanner.Infrastructure/TextEditing tests/ArksScanner.Application.Tests/TextEditing tests/ArksScanner.Application.Tests/Fixtures/TextEditing
 git commit -m "feat: render contained printed text replacements"
 ```
 
 ### Task 8: Worker processing, retry, and atomic revision activation
 
 **Files:**
-- Create: `src/SuperScanner.Infrastructure/TextEditing/TextEditProcessor.cs`
-- Modify: `src/SuperScanner.Worker/UploadValidationJobRunner.cs`
-- Modify: `src/SuperScanner.Worker/Program.cs`
-- Modify: `src/SuperScanner.Infrastructure/Processing/PostgresJobQueue.cs`
-- Test: `tests/SuperScanner.Application.Tests/TextEditing/TextEditProcessorTests.cs`
-- Test: `tests/SuperScanner.Application.Tests/Processing/UploadValidationJobRunnerTests.cs`
+- Create: `src/ArksScanner.Infrastructure/TextEditing/TextEditProcessor.cs`
+- Modify: `src/ArksScanner.Worker/UploadValidationJobRunner.cs`
+- Modify: `src/ArksScanner.Worker/Program.cs`
+- Modify: `src/ArksScanner.Infrastructure/Processing/PostgresJobQueue.cs`
+- Test: `tests/ArksScanner.Application.Tests/TextEditing/TextEditProcessorTests.cs`
+- Test: `tests/ArksScanner.Application.Tests/Processing/UploadValidationJobRunnerTests.cs`
 
 **Interfaces:**
 - Consumes: `RenderTextEdit` job whose payload is exactly one edit GUID.
@@ -536,23 +536,23 @@ Teach `UploadValidationJobRunner` to parse exactly one GUID, dispatch `TextEditP
 
 - [ ] **Step 4: Run worker tests and commit**
 
-Run: `dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter "FullyQualifiedName~TextEditProcessorTests|FullyQualifiedName~UploadValidationJobRunnerTests"`
+Run: `dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter "FullyQualifiedName~TextEditProcessorTests|FullyQualifiedName~UploadValidationJobRunnerTests"`
 
 Expected: PASS.
 
 ```powershell
-git add src/SuperScanner.Infrastructure/TextEditing src/SuperScanner.Infrastructure/Processing/PostgresJobQueue.cs src/SuperScanner.Worker tests/SuperScanner.Application.Tests
+git add src/ArksScanner.Infrastructure/TextEditing src/ArksScanner.Infrastructure/Processing/PostgresJobQueue.cs src/ArksScanner.Worker tests/ArksScanner.Application.Tests
 git commit -m "feat: process printed text edit jobs"
 ```
 
 ### Task 9: Persistent undo and redo
 
 **Files:**
-- Create: `src/SuperScanner.Application/TextEditing/SwitchPageRevision.cs`
-- Modify: `src/SuperScanner.Infrastructure/TextEditing/EfTextEditRepository.cs`
-- Modify: `src/SuperScanner.Api/Endpoints/TextEditingEndpoints.cs`
-- Test: `tests/SuperScanner.Application.Tests/TextEditing/SwitchPageRevisionTests.cs`
-- Test: `tests/SuperScanner.Api.IntegrationTests/Documents/TextEditingHistoryEndpointsTests.cs`
+- Create: `src/ArksScanner.Application/TextEditing/SwitchPageRevision.cs`
+- Modify: `src/ArksScanner.Infrastructure/TextEditing/EfTextEditRepository.cs`
+- Modify: `src/ArksScanner.Api/Endpoints/TextEditingEndpoints.cs`
+- Test: `tests/ArksScanner.Application.Tests/TextEditing/SwitchPageRevisionTests.cs`
+- Test: `tests/ArksScanner.Api.IntegrationTests/Documents/TextEditingHistoryEndpointsTests.cs`
 
 **Interfaces:**
 - Consumes: active revision plus accepted edit branch.
@@ -587,14 +587,14 @@ Return `200` with refreshed history, `409` for concurrent/busy state, and `422` 
 
 - [ ] **Step 4: Run tests and commit**
 
-Run: `dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter FullyQualifiedName~SwitchPageRevisionTests`
+Run: `dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter FullyQualifiedName~SwitchPageRevisionTests`
 
-Run: `dotnet test tests/SuperScanner.Api.IntegrationTests/SuperScanner.Api.IntegrationTests.csproj --filter FullyQualifiedName~TextEditingHistoryEndpointsTests`
+Run: `dotnet test tests/ArksScanner.Api.IntegrationTests/ArksScanner.Api.IntegrationTests.csproj --filter FullyQualifiedName~TextEditingHistoryEndpointsTests`
 
 Expected: PASS.
 
 ```powershell
-git add src/SuperScanner.Application/TextEditing src/SuperScanner.Infrastructure/TextEditing src/SuperScanner.Api/Endpoints/TextEditingEndpoints.cs tests
+git add src/ArksScanner.Application/TextEditing src/ArksScanner.Infrastructure/TextEditing src/ArksScanner.Api/Endpoints/TextEditingEndpoints.cs tests
 git commit -m "feat: add persistent text edit undo and redo"
 ```
 
@@ -668,14 +668,14 @@ git commit -m "feat: add printed text replacement editor"
 ### Task 11: Active revision preview and PDF export integration
 
 **Files:**
-- Modify: `src/SuperScanner.Api/Endpoints/DocumentPreviewEndpoints.cs`
-- Modify: `src/SuperScanner.Domain/Documents/DocumentExport.cs`
-- Modify: `src/SuperScanner.Infrastructure/Processing/DocumentPdfBuilder.cs`
+- Modify: `src/ArksScanner.Api/Endpoints/DocumentPreviewEndpoints.cs`
+- Modify: `src/ArksScanner.Domain/Documents/DocumentExport.cs`
+- Modify: `src/ArksScanner.Infrastructure/Processing/DocumentPdfBuilder.cs`
 - Modify: `apps/web/src/app/documents/document.models.ts`
 - Modify: `apps/web/src/app/documents/documents-api.service.ts`
-- Test: `tests/SuperScanner.Api.IntegrationTests/Documents/DocumentPreviewEndpointsTests.cs`
-- Test: `tests/SuperScanner.Application.Tests/Processing/DocumentPdfBuilderTests.cs`
-- Test: `tests/SuperScanner.Api.IntegrationTests/Documents/DocumentExportEndpointsTests.cs`
+- Test: `tests/ArksScanner.Api.IntegrationTests/Documents/DocumentPreviewEndpointsTests.cs`
+- Test: `tests/ArksScanner.Application.Tests/Processing/DocumentPdfBuilderTests.cs`
+- Test: `tests/ArksScanner.Api.IntegrationTests/Documents/DocumentExportEndpointsTests.cs`
 
 **Interfaces:**
 - Consumes: `Page.GetProcessedObjectKey()` and active revision token.
@@ -691,14 +691,14 @@ Update preview and export snapshot creation to use the revision-aware resolver. 
 
 - [ ] **Step 3: Run focused tests and commit**
 
-Run: `dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter FullyQualifiedName~DocumentPdfBuilderTests`
+Run: `dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter FullyQualifiedName~DocumentPdfBuilderTests`
 
-Run: `dotnet test tests/SuperScanner.Api.IntegrationTests/SuperScanner.Api.IntegrationTests.csproj --filter "FullyQualifiedName~DocumentPreviewEndpointsTests|FullyQualifiedName~DocumentExportEndpointsTests"`
+Run: `dotnet test tests/ArksScanner.Api.IntegrationTests/ArksScanner.Api.IntegrationTests.csproj --filter "FullyQualifiedName~DocumentPreviewEndpointsTests|FullyQualifiedName~DocumentExportEndpointsTests"`
 
 Expected: PASS.
 
 ```powershell
-git add src/SuperScanner.Api/Endpoints/DocumentPreviewEndpoints.cs src/SuperScanner.Domain/Documents src/SuperScanner.Infrastructure/Processing/DocumentPdfBuilder.cs apps/web/src/app/documents tests
+git add src/ArksScanner.Api/Endpoints/DocumentPreviewEndpoints.cs src/ArksScanner.Domain/Documents src/ArksScanner.Infrastructure/Processing/DocumentPdfBuilder.cs apps/web/src/app/documents tests
 git commit -m "feat: export active edited page revisions"
 ```
 
@@ -707,8 +707,8 @@ git commit -m "feat: export active edited page revisions"
 **Files:**
 - Create: `docs/operations/printed-text-editing.md`
 - Modify: `README.md`
-- Modify: `src/SuperScanner.Api/appsettings.json`
-- Modify: `src/SuperScanner.Worker/appsettings.json`
+- Modify: `src/ArksScanner.Api/appsettings.json`
+- Modify: `src/ArksScanner.Worker/appsettings.json`
 - Modify: `.github/workflows/ci.yml`
 - Create: `apps/web/e2e/printed-text-replacement.spec.ts`
 
@@ -726,11 +726,11 @@ Document every `TextEditing__*` key, default-disabled production state, migratio
 
 - [ ] **Step 3: Run schema and backend verification**
 
-Run: `dotnet restore SuperScanner.slnx --locked-mode`
+Run: `dotnet restore ArksScanner.slnx --locked-mode`
 
-Run: `dotnet build SuperScanner.slnx --no-restore`
+Run: `dotnet build ArksScanner.slnx --no-restore`
 
-Run: `dotnet test SuperScanner.slnx --no-build`
+Run: `dotnet test ArksScanner.slnx --no-build`
 
 Run the existing fresh-PostgreSQL migration command from `docs/operations/foundation-runbook.md`, then verify the `PrintedTextEditing` migration applies and rolls the application forward with existing documents intact.
 
@@ -756,7 +756,7 @@ Run: `rg -n "ReplacementText|OriginalText" src tests apps/web | rg "Log|Metric|A
 
 Expected: no logging, metrics, trace, or audit payload includes the sensitive values.
 
-Run: `rg -n "gpt|openai|image generation" src/SuperScanner.* apps/web/src -g '!**/obj/**' -g '!**/bin/**'`
+Run: `rg -n "gpt|openai|image generation" src/ArksScanner.* apps/web/src -g '!**/obj/**' -g '!**/bin/**'`
 
 Expected: no Phase 3D dependency or provider call.
 
@@ -769,7 +769,7 @@ Expected: no whitespace errors.
 Keep `TextEditing:Enabled=false` in checked-in defaults and omit any production Railway override. Enablement occurs only after manual benchmark review confirms style quality, exact spelling, containment, accessibility, and rollback behavior.
 
 ```powershell
-git add docs README.md src/SuperScanner.Api/appsettings.json src/SuperScanner.Worker/appsettings.json .github apps/web/e2e/printed-text-replacement.spec.ts
+git add docs README.md src/ArksScanner.Api/appsettings.json src/ArksScanner.Worker/appsettings.json .github apps/web/e2e/printed-text-replacement.spec.ts
 git commit -m "docs: prepare printed text editing rollout"
 ```
 

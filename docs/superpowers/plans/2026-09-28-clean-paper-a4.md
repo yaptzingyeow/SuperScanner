@@ -27,7 +27,7 @@
 
 ### Task 1: A4 export
 
-**Files:** `src/SuperScanner.Domain/Documents/DocumentExport.cs`, `src/SuperScanner.Application/Documents/CreateDocumentExport.cs`, `src/SuperScanner.Api/Endpoints/DocumentExportEndpoints.cs`, `src/SuperScanner.Infrastructure/Processing/DocumentPdfBuilder.cs`, `apps/web/src/app/documents/{documents-api.service,export-status.component}*`; tests beside existing export tests.
+**Files:** `src/ArksScanner.Domain/Documents/DocumentExport.cs`, `src/ArksScanner.Application/Documents/CreateDocumentExport.cs`, `src/ArksScanner.Api/Endpoints/DocumentExportEndpoints.cs`, `src/ArksScanner.Infrastructure/Processing/DocumentPdfBuilder.cs`, `apps/web/src/app/documents/{documents-api.service,export-status.component}*`; tests beside existing export tests.
 
 - [x] Add failing tests for layout selection, snapshot default, A4 geometry, signature/mark/OCR alignment, and retry.
 - [x] Run focused tests and confirm feature failures.
@@ -37,7 +37,7 @@
 
 ### Task 2: Hole suggestions and reviewed removal
 
-**Files:** `src/SuperScanner.Worker/processing/` new focused detector and repair modules; domain, application, API, persistence repair operation/revision; Angular cleanup view; tests at each boundary.
+**Files:** `src/ArksScanner.Worker/processing/` new focused detector and repair modules; domain, application, API, persistence repair operation/revision; Angular cleanup view; tests at each boundary.
 
 - [x] Add synthetic fixtures for holes, a printed circle, frame line, protected regions, and untouched pixels; inspect the supplied photo privately.
 - [x] Implement conservative edge candidates and editable masks.

@@ -94,7 +94,7 @@ if ($Download) {
                 category = $family.Category
                 weight = if ($style -eq 'Bold') { 700 } else { 400 }
                 style = 'Normal'
-                webFamilyName = "SuperScanner $($family.Name) v1"
+                webFamilyName = "ArksScanner $($family.Name) v1"
                 selectableForNewEdits = $true
                 assetSha256Hex = $asset.Hash
                 licenseIdentifier = 'OFL-1.1'

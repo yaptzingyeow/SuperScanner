@@ -35,13 +35,13 @@
 ### Task 1: OCR domain aggregate and normalized geometry
 
 **Files:**
-- Create: `src/SuperScanner.Domain/Ocr/OcrResultState.cs`
-- Create: `src/SuperScanner.Domain/Ocr/OcrElementKind.cs`
-- Create: `src/SuperScanner.Domain/Ocr/OcrTextType.cs`
-- Create: `src/SuperScanner.Domain/Ocr/OcrPoint.cs`
-- Create: `src/SuperScanner.Domain/Ocr/OcrElement.cs`
-- Create: `src/SuperScanner.Domain/Ocr/PageOcrResult.cs`
-- Test: `tests/SuperScanner.Domain.Tests/Ocr/PageOcrResultTests.cs`
+- Create: `src/ArksScanner.Domain/Ocr/OcrResultState.cs`
+- Create: `src/ArksScanner.Domain/Ocr/OcrElementKind.cs`
+- Create: `src/ArksScanner.Domain/Ocr/OcrTextType.cs`
+- Create: `src/ArksScanner.Domain/Ocr/OcrPoint.cs`
+- Create: `src/ArksScanner.Domain/Ocr/OcrElement.cs`
+- Create: `src/ArksScanner.Domain/Ocr/PageOcrResult.cs`
+- Test: `tests/ArksScanner.Domain.Tests/Ocr/PageOcrResultTests.cs`
 
 **Interfaces:**
 - Consumes: `Guid`, `DateTimeOffset`, and immutable processed-image object keys from the existing Page aggregate.
@@ -77,9 +77,9 @@ Add tests for Queued → Processing → Ready, lease-reclaimed Processing → Pr
 
 - [ ] **Step 2: Run the focused domain tests and verify they fail**
 
-Run: `dotnet test tests/SuperScanner.Domain.Tests/SuperScanner.Domain.Tests.csproj --filter FullyQualifiedName~PageOcrResultTests`
+Run: `dotnet test tests/ArksScanner.Domain.Tests/ArksScanner.Domain.Tests.csproj --filter FullyQualifiedName~PageOcrResultTests`
 
-Expected: FAIL because `SuperScanner.Domain.Ocr` types do not exist.
+Expected: FAIL because `ArksScanner.Domain.Ocr` types do not exist.
 
 - [ ] **Step 3: Implement the minimal aggregate**
 
@@ -187,14 +187,14 @@ public sealed class PageOcrResult
 
 - [ ] **Step 4: Run the domain project tests**
 
-Run: `dotnet test tests/SuperScanner.Domain.Tests/SuperScanner.Domain.Tests.csproj`
+Run: `dotnet test tests/ArksScanner.Domain.Tests/ArksScanner.Domain.Tests.csproj`
 
 Expected: PASS, including all new OCR transition and validation cases.
 
 - [ ] **Step 5: Commit Task 1**
 
 ```powershell
-git add src/SuperScanner.Domain/Ocr tests/SuperScanner.Domain.Tests/Ocr
+git add src/ArksScanner.Domain/Ocr tests/ArksScanner.Domain.Tests/Ocr
 git commit -m "feat: add OCR domain aggregate"
 ```
 
@@ -203,15 +203,15 @@ git commit -m "feat: add OCR domain aggregate"
 ### Task 2: PostgreSQL OCR persistence and repository
 
 **Files:**
-- Create: `src/SuperScanner.Application/Abstractions/IOcrRepository.cs`
-- Create: `src/SuperScanner.Infrastructure/Persistence/Configurations/PageOcrResultConfiguration.cs`
-- Create: `src/SuperScanner.Infrastructure/Persistence/Configurations/OcrElementConfiguration.cs`
-- Create: `src/SuperScanner.Infrastructure/Persistence/EfOcrRepository.cs`
-- Modify: `src/SuperScanner.Infrastructure/Persistence/AppDbContext.cs`
-- Create: `src/SuperScanner.Infrastructure/Persistence/Migrations/20260922013000_OcrFoundation.cs`
-- Create: `src/SuperScanner.Infrastructure/Persistence/Migrations/20260922013000_OcrFoundation.Designer.cs`
-- Modify: `src/SuperScanner.Infrastructure/Persistence/Migrations/AppDbContextModelSnapshot.cs`
-- Test: `tests/SuperScanner.Infrastructure.IntegrationTests/Persistence/OcrPersistenceTests.cs`
+- Create: `src/ArksScanner.Application/Abstractions/IOcrRepository.cs`
+- Create: `src/ArksScanner.Infrastructure/Persistence/Configurations/PageOcrResultConfiguration.cs`
+- Create: `src/ArksScanner.Infrastructure/Persistence/Configurations/OcrElementConfiguration.cs`
+- Create: `src/ArksScanner.Infrastructure/Persistence/EfOcrRepository.cs`
+- Modify: `src/ArksScanner.Infrastructure/Persistence/AppDbContext.cs`
+- Create: `src/ArksScanner.Infrastructure/Persistence/Migrations/20260922013000_OcrFoundation.cs`
+- Create: `src/ArksScanner.Infrastructure/Persistence/Migrations/20260922013000_OcrFoundation.Designer.cs`
+- Modify: `src/ArksScanner.Infrastructure/Persistence/Migrations/AppDbContextModelSnapshot.cs`
+- Test: `tests/ArksScanner.Infrastructure.IntegrationTests/Persistence/OcrPersistenceTests.cs`
 
 **Interfaces:**
 - Consumes: `PageOcrResult` and `OcrElement` from Task 1; existing Page → Document ownership relation.
@@ -237,7 +237,7 @@ Also assert cascade deletion of elements, JSONB column type, `(PageId, SourceFin
 
 - [ ] **Step 2: Run the persistence tests and verify they fail**
 
-Run: `dotnet test tests/SuperScanner.Infrastructure.IntegrationTests/SuperScanner.Infrastructure.IntegrationTests.csproj --filter FullyQualifiedName~OcrPersistenceTests`
+Run: `dotnet test tests/ArksScanner.Infrastructure.IntegrationTests/ArksScanner.Infrastructure.IntegrationTests.csproj --filter FullyQualifiedName~OcrPersistenceTests`
 
 Expected: FAIL because OCR DbSets, mappings, and repository do not exist.
 
@@ -266,20 +266,20 @@ Map `page_ocr_results` and `ocr_elements`; map enum values as strings, `PolygonJ
 
 - [ ] **Step 4: Generate the EF migration**
 
-Run: `dotnet ef migrations add OcrFoundation --project src/SuperScanner.Infrastructure/SuperScanner.Infrastructure.csproj --startup-project src/SuperScanner.Api/SuperScanner.Api.csproj --context AppDbContext --output-dir Persistence/Migrations`
+Run: `dotnet ef migrations add OcrFoundation --project src/ArksScanner.Infrastructure/ArksScanner.Infrastructure.csproj --startup-project src/ArksScanner.Api/ArksScanner.Api.csproj --context AppDbContext --output-dir Persistence/Migrations`
 
 Expected: a migration adding only `page_ocr_results`, `ocr_elements`, their foreign keys, constraints, and indexes.
 
 - [ ] **Step 5: Run persistence tests and migration verification**
 
-Run: `dotnet test tests/SuperScanner.Infrastructure.IntegrationTests/SuperScanner.Infrastructure.IntegrationTests.csproj --filter "FullyQualifiedName~OcrPersistenceTests|FullyQualifiedName~DocumentPersistenceTests"`
+Run: `dotnet test tests/ArksScanner.Infrastructure.IntegrationTests/ArksScanner.Infrastructure.IntegrationTests.csproj --filter "FullyQualifiedName~OcrPersistenceTests|FullyQualifiedName~DocumentPersistenceTests"`
 
 Expected: PASS against PostgreSQL Testcontainers.
 
 - [ ] **Step 6: Commit Task 2**
 
 ```powershell
-git add src/SuperScanner.Application/Abstractions/IOcrRepository.cs src/SuperScanner.Infrastructure/Persistence tests/SuperScanner.Infrastructure.IntegrationTests/Persistence/OcrPersistenceTests.cs
+git add src/ArksScanner.Application/Abstractions/IOcrRepository.cs src/ArksScanner.Infrastructure/Persistence tests/ArksScanner.Infrastructure.IntegrationTests/Persistence/OcrPersistenceTests.cs
 git commit -m "feat: persist normalized OCR results"
 ```
 
@@ -288,12 +288,12 @@ git commit -m "feat: persist normalized OCR results"
 ### Task 3: Provider contract, result validation, options, and deterministic fake
 
 **Files:**
-- Create: `src/SuperScanner.Application/Ocr/OcrProviderContracts.cs`
-- Create: `src/SuperScanner.Application/Ocr/OcrResultValidator.cs`
-- Create: `src/SuperScanner.Infrastructure/Ocr/OcrOptions.cs`
-- Create: `src/SuperScanner.Infrastructure/Ocr/FakeOcrProvider.cs`
-- Test: `tests/SuperScanner.Application.Tests/Ocr/OcrResultValidatorTests.cs`
-- Test: `tests/SuperScanner.Application.Tests/Ocr/FakeOcrProviderTests.cs`
+- Create: `src/ArksScanner.Application/Ocr/OcrProviderContracts.cs`
+- Create: `src/ArksScanner.Application/Ocr/OcrResultValidator.cs`
+- Create: `src/ArksScanner.Infrastructure/Ocr/OcrOptions.cs`
+- Create: `src/ArksScanner.Infrastructure/Ocr/FakeOcrProvider.cs`
+- Test: `tests/ArksScanner.Application.Tests/Ocr/OcrResultValidatorTests.cs`
+- Test: `tests/ArksScanner.Application.Tests/Ocr/FakeOcrProviderTests.cs`
 
 **Interfaces:**
 - Consumes: normalized enums and points from Task 1.
@@ -329,7 +329,7 @@ Cover invalid hierarchy parents, duplicate reading order within a parent, non-fi
 
 - [ ] **Step 2: Run focused tests and verify they fail**
 
-Run: `dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter "FullyQualifiedName~OcrResultValidatorTests|FullyQualifiedName~FakeOcrProviderTests"`
+Run: `dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter "FullyQualifiedName~OcrResultValidatorTests|FullyQualifiedName~FakeOcrProviderTests"`
 
 Expected: FAIL because provider contracts and fake provider do not exist.
 
@@ -376,14 +376,14 @@ Add `IsValid(environmentName)` so Phase 3A accepts only `Disabled` and `Fake`, `
 
 - [ ] **Step 5: Run the provider tests**
 
-Run: `dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter "FullyQualifiedName~OcrResultValidatorTests|FullyQualifiedName~FakeOcrProviderTests"`
+Run: `dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter "FullyQualifiedName~OcrResultValidatorTests|FullyQualifiedName~FakeOcrProviderTests"`
 
 Expected: PASS with no network calls or external credentials.
 
 - [ ] **Step 6: Commit Task 3**
 
 ```powershell
-git add src/SuperScanner.Application/Ocr src/SuperScanner.Infrastructure/Ocr tests/SuperScanner.Application.Tests/Ocr
+git add src/ArksScanner.Application/Ocr src/ArksScanner.Infrastructure/Ocr tests/ArksScanner.Application.Tests/Ocr
 git commit -m "feat: define provider-neutral OCR contract"
 ```
 
@@ -392,17 +392,17 @@ git commit -m "feat: define provider-neutral OCR contract"
 ### Task 4: Idempotent OCR request and current-result query services
 
 **Files:**
-- Create: `src/SuperScanner.Application/Ocr/OcrDtos.cs`
-- Create: `src/SuperScanner.Application/Ocr/OcrExceptions.cs`
-- Create: `src/SuperScanner.Application/Ocr/OcrSourceFingerprint.cs`
-- Create: `src/SuperScanner.Application/Ocr/RequestPageOcr.cs`
-- Create: `src/SuperScanner.Application/Ocr/GetPageOcr.cs`
-- Modify: `src/SuperScanner.Application/Abstractions/IProcessingJobQueue.cs`
-- Modify: `src/SuperScanner.Infrastructure/Processing/PostgresJobQueue.cs`
+- Create: `src/ArksScanner.Application/Ocr/OcrDtos.cs`
+- Create: `src/ArksScanner.Application/Ocr/OcrExceptions.cs`
+- Create: `src/ArksScanner.Application/Ocr/OcrSourceFingerprint.cs`
+- Create: `src/ArksScanner.Application/Ocr/RequestPageOcr.cs`
+- Create: `src/ArksScanner.Application/Ocr/GetPageOcr.cs`
+- Modify: `src/ArksScanner.Application/Abstractions/IProcessingJobQueue.cs`
+- Modify: `src/ArksScanner.Infrastructure/Processing/PostgresJobQueue.cs`
 - Modify: queue fakes implementing `IProcessingJobQueue` under `tests/`
-- Test: `tests/SuperScanner.Application.Tests/Ocr/RequestPageOcrTests.cs`
-- Test: `tests/SuperScanner.Application.Tests/Ocr/GetPageOcrTests.cs`
-- Test: `tests/SuperScanner.Infrastructure.IntegrationTests/Persistence/OcrRequestConcurrencyTests.cs`
+- Test: `tests/ArksScanner.Application.Tests/Ocr/RequestPageOcrTests.cs`
+- Test: `tests/ArksScanner.Application.Tests/Ocr/GetPageOcrTests.cs`
+- Test: `tests/ArksScanner.Infrastructure.IntegrationTests/Persistence/OcrRequestConcurrencyTests.cs`
 
 **Interfaces:**
 - Consumes: `IOcrRepository`, `IProcessingJobQueue`, `IClock`, OCR aggregate, and normalized element types.
@@ -426,9 +426,9 @@ In `OcrRequestConcurrencyTests`, start two scoped `RequestPageOcr` calls simulta
 
 - [ ] **Step 2: Run focused tests and verify they fail**
 
-Run: `dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter "FullyQualifiedName~RequestPageOcrTests|FullyQualifiedName~GetPageOcrTests"`
+Run: `dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter "FullyQualifiedName~RequestPageOcrTests|FullyQualifiedName~GetPageOcrTests"`
 
-Run: `dotnet test tests/SuperScanner.Infrastructure.IntegrationTests/SuperScanner.Infrastructure.IntegrationTests.csproj --filter FullyQualifiedName~OcrRequestConcurrencyTests`
+Run: `dotnet test tests/ArksScanner.Infrastructure.IntegrationTests/ArksScanner.Infrastructure.IntegrationTests.csproj --filter FullyQualifiedName~OcrRequestConcurrencyTests`
 
 Expected: FAIL because request/query services do not exist.
 
@@ -523,14 +523,14 @@ Add `RetryFailedAsync(string idempotencyKey, CancellationToken ct)` to `IProcess
 
 - [ ] **Step 5: Run command/query tests**
 
-Run: `dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter "FullyQualifiedName~RequestPageOcrTests|FullyQualifiedName~GetPageOcrTests"`
+Run: `dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter "FullyQualifiedName~RequestPageOcrTests|FullyQualifiedName~GetPageOcrTests"`
 
 Expected: PASS, including duplicate, concurrency, stale-source, and ownership cases.
 
 - [ ] **Step 6: Commit Task 4**
 
 ```powershell
-git add src/SuperScanner.Application/Ocr src/SuperScanner.Application/Abstractions/IProcessingJobQueue.cs src/SuperScanner.Infrastructure/Processing/PostgresJobQueue.cs tests
+git add src/ArksScanner.Application/Ocr src/ArksScanner.Application/Abstractions/IProcessingJobQueue.cs src/ArksScanner.Infrastructure/Processing/PostgresJobQueue.cs tests
 git commit -m "feat: request and query page OCR"
 ```
 
@@ -539,9 +539,9 @@ git commit -m "feat: request and query page OCR"
 ### Task 5: Owner-authorized OCR API
 
 **Files:**
-- Create: `src/SuperScanner.Api/Endpoints/OcrEndpoints.cs`
-- Modify: `src/SuperScanner.Api/Program.cs`
-- Test: `tests/SuperScanner.Api.IntegrationTests/Documents/OcrEndpointsTests.cs`
+- Create: `src/ArksScanner.Api/Endpoints/OcrEndpoints.cs`
+- Modify: `src/ArksScanner.Api/Program.cs`
+- Test: `tests/ArksScanner.Api.IntegrationTests/Documents/OcrEndpointsTests.cs`
 
 **Interfaces:**
 - Consumes: `RequestPageOcr`, `GetPageOcr`, `ICurrentUser`, and existing authentication/App Check middleware.
@@ -567,7 +567,7 @@ Test no-result GET as 200/NotRequested; unowned, removed, and missing pages as i
 
 - [ ] **Step 2: Run endpoint tests and verify they fail**
 
-Run: `dotnet test tests/SuperScanner.Api.IntegrationTests/SuperScanner.Api.IntegrationTests.csproj --filter FullyQualifiedName~OcrEndpointsTests`
+Run: `dotnet test tests/ArksScanner.Api.IntegrationTests/ArksScanner.Api.IntegrationTests.csproj --filter FullyQualifiedName~OcrEndpointsTests`
 
 Expected: FAIL with 404 because routes are not mapped.
 
@@ -585,14 +585,14 @@ Bind and validate `OcrOptions` in the API, register `IOcrRepository`, `RequestPa
 
 - [ ] **Step 4: Run API tests**
 
-Run: `dotnet test tests/SuperScanner.Api.IntegrationTests/SuperScanner.Api.IntegrationTests.csproj --filter "FullyQualifiedName~OcrEndpointsTests|FullyQualifiedName~AuthenticationBoundaryTests"`
+Run: `dotnet test tests/ArksScanner.Api.IntegrationTests/ArksScanner.Api.IntegrationTests.csproj --filter "FullyQualifiedName~OcrEndpointsTests|FullyQualifiedName~AuthenticationBoundaryTests"`
 
 Expected: PASS for status mapping, owner isolation, Firebase auth, and App Check.
 
 - [ ] **Step 5: Commit Task 5**
 
 ```powershell
-git add src/SuperScanner.Api/Endpoints/OcrEndpoints.cs src/SuperScanner.Api/Program.cs tests/SuperScanner.Api.IntegrationTests/Documents/OcrEndpointsTests.cs
+git add src/ArksScanner.Api/Endpoints/OcrEndpoints.cs src/ArksScanner.Api/Program.cs tests/ArksScanner.Api.IntegrationTests/Documents/OcrEndpointsTests.cs
 git commit -m "feat: expose secure page OCR endpoints"
 ```
 
@@ -601,16 +601,16 @@ git commit -m "feat: expose secure page OCR endpoints"
 ### Task 6: OCR worker execution, safe terminal failure, and stale completion
 
 **Files:**
-- Modify: `src/SuperScanner.Domain/Processing/ProcessingJob.cs`
-- Modify: `src/SuperScanner.Application/Abstractions/IProcessingJobQueue.cs`
-- Modify: `src/SuperScanner.Infrastructure/Processing/PostgresJobQueue.cs`
-- Create: `src/SuperScanner.Infrastructure/Ocr/OcrProcessor.cs`
-- Create: `src/SuperScanner.Infrastructure/Ocr/OcrMetrics.cs`
-- Modify: `src/SuperScanner.Worker/UploadValidationJobRunner.cs`
-- Modify: `src/SuperScanner.Worker/Program.cs`
+- Modify: `src/ArksScanner.Domain/Processing/ProcessingJob.cs`
+- Modify: `src/ArksScanner.Application/Abstractions/IProcessingJobQueue.cs`
+- Modify: `src/ArksScanner.Infrastructure/Processing/PostgresJobQueue.cs`
+- Create: `src/ArksScanner.Infrastructure/Ocr/OcrProcessor.cs`
+- Create: `src/ArksScanner.Infrastructure/Ocr/OcrMetrics.cs`
+- Modify: `src/ArksScanner.Worker/UploadValidationJobRunner.cs`
+- Modify: `src/ArksScanner.Worker/Program.cs`
 - Modify: queue fakes implementing `IProcessingJobQueue` under `tests/`
-- Create: `tests/SuperScanner.Application.Tests/Ocr/OcrWorkerTests.cs`
-- Modify: `tests/SuperScanner.Infrastructure.IntegrationTests/Processing/JobLeaseTests.cs`
+- Create: `tests/ArksScanner.Application.Tests/Ocr/OcrWorkerTests.cs`
+- Modify: `tests/ArksScanner.Infrastructure.IntegrationTests/Processing/JobLeaseTests.cs`
 
 **Interfaces:**
 - Consumes: OCR result ID job payload, `IOcrProvider`, `IObjectStore`, `OcrResultValidator`, `OcrOptions`, and Page current preview key.
@@ -642,7 +642,7 @@ Add tests for private object streaming, timeout cancellation, invalid output rol
 
 - [ ] **Step 2: Run worker tests and verify they fail**
 
-Run: `dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter FullyQualifiedName~OcrWorkerTests`
+Run: `dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter FullyQualifiedName~OcrWorkerTests`
 
 Expected: FAIL because the processor and queue terminal-failure operation do not exist.
 
@@ -703,16 +703,16 @@ Record queue-to-start duration, provider latency, element count, aggregate confi
 ```csharp
 public sealed class OcrMetrics
 {
-    private readonly Meter meter = new("SuperScanner.Ocr");
+    private readonly Meter meter = new("ArksScanner.Ocr");
     private readonly Counter<long> jobs;
     private readonly Histogram<double> providerMilliseconds;
     private readonly Histogram<long> elements;
 
     public OcrMetrics()
     {
-        jobs = meter.CreateCounter<long>("superscanner.ocr.jobs");
-        providerMilliseconds = meter.CreateHistogram<double>("superscanner.ocr.provider.duration", "ms");
-        elements = meter.CreateHistogram<long>("superscanner.ocr.elements");
+        jobs = meter.CreateCounter<long>("arksscanner.ocr.jobs");
+        providerMilliseconds = meter.CreateHistogram<double>("arksscanner.ocr.provider.duration", "ms");
+        elements = meter.CreateHistogram<long>("arksscanner.ocr.elements");
     }
 
     public void Completed(string provider, double elapsedMs, int elementCount, bool stale)
@@ -763,16 +763,16 @@ builder.Services.AddScoped<OcrProcessor>();
 
 - [ ] **Step 7: Run worker and queue tests**
 
-Run: `dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter "FullyQualifiedName~OcrWorkerTests|FullyQualifiedName~UploadValidationJobRunnerTests"`
+Run: `dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter "FullyQualifiedName~OcrWorkerTests|FullyQualifiedName~UploadValidationJobRunnerTests"`
 
-Run: `dotnet test tests/SuperScanner.Infrastructure.IntegrationTests/SuperScanner.Infrastructure.IntegrationTests.csproj --filter FullyQualifiedName~JobLeaseTests`
+Run: `dotnet test tests/ArksScanner.Infrastructure.IntegrationTests/ArksScanner.Infrastructure.IntegrationTests.csproj --filter FullyQualifiedName~JobLeaseTests`
 
 Expected: PASS, including retry bounds, permanent failure, stale completion, empty OCR, and existing job dispatch.
 
 - [ ] **Step 8: Commit Task 6**
 
 ```powershell
-git add src/SuperScanner.Domain/Processing src/SuperScanner.Application/Abstractions/IProcessingJobQueue.cs src/SuperScanner.Infrastructure/Ocr src/SuperScanner.Infrastructure/Processing/PostgresJobQueue.cs src/SuperScanner.Worker tests
+git add src/ArksScanner.Domain/Processing src/ArksScanner.Application/Abstractions/IProcessingJobQueue.cs src/ArksScanner.Infrastructure/Ocr src/ArksScanner.Infrastructure/Processing/PostgresJobQueue.cs src/ArksScanner.Worker tests
 git commit -m "feat: process OCR jobs safely"
 ```
 
@@ -781,13 +781,13 @@ git commit -m "feat: process OCR jobs safely"
 ### Task 7: Automatic OCR scheduling after a Ready page revision
 
 **Files:**
-- Create: `src/SuperScanner.Infrastructure/Ocr/OcrJobScheduler.cs`
-- Modify: `src/SuperScanner.Infrastructure/Processing/CropProcessor.cs`
-- Modify: `src/SuperScanner.Worker/Program.cs`
-- Modify: `src/SuperScanner.Worker/appsettings.json`
-- Modify: `src/SuperScanner.Worker/appsettings.Development.json`
-- Modify: `src/SuperScanner.Api/appsettings.json`
-- Test: `tests/SuperScanner.Application.Tests/Ocr/OcrSchedulingTests.cs`
+- Create: `src/ArksScanner.Infrastructure/Ocr/OcrJobScheduler.cs`
+- Modify: `src/ArksScanner.Infrastructure/Processing/CropProcessor.cs`
+- Modify: `src/ArksScanner.Worker/Program.cs`
+- Modify: `src/ArksScanner.Worker/appsettings.json`
+- Modify: `src/ArksScanner.Worker/appsettings.Development.json`
+- Modify: `src/ArksScanner.Api/appsettings.json`
+- Test: `tests/ArksScanner.Application.Tests/Ocr/OcrSchedulingTests.cs`
 
 **Interfaces:**
 - Consumes: page ID, newly written preview object key, `OcrOptions.Enabled`, current EF transaction, and `IProcessingJobQueue`.
@@ -817,7 +817,7 @@ Also test disabled configuration creates no OCR row/job, repeated completion is 
 
 - [ ] **Step 2: Run scheduling tests and verify they fail**
 
-Run: `dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter FullyQualifiedName~OcrSchedulingTests`
+Run: `dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter FullyQualifiedName~OcrSchedulingTests`
 
 Expected: FAIL because successful crop does not schedule OCR.
 
@@ -858,14 +858,14 @@ Keep the checked-in default disabled. Development may use Fake only when the dev
 
 - [ ] **Step 5: Run scheduling and crop regression tests**
 
-Run: `dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter "FullyQualifiedName~OcrSchedulingTests|FullyQualifiedName~CropDocumentStatusTests"`
+Run: `dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter "FullyQualifiedName~OcrSchedulingTests|FullyQualifiedName~CropDocumentStatusTests"`
 
 Expected: PASS with OCR enabled and disabled cases, plus existing crop behavior.
 
 - [ ] **Step 6: Commit Task 7**
 
 ```powershell
-git add src/SuperScanner.Infrastructure/Ocr/OcrJobScheduler.cs src/SuperScanner.Infrastructure/Processing/CropProcessor.cs src/SuperScanner.Worker/Program.cs src/SuperScanner.Worker/appsettings*.json src/SuperScanner.Api/appsettings.json tests/SuperScanner.Application.Tests/Ocr/OcrSchedulingTests.cs
+git add src/ArksScanner.Infrastructure/Ocr/OcrJobScheduler.cs src/ArksScanner.Infrastructure/Processing/CropProcessor.cs src/ArksScanner.Worker/Program.cs src/ArksScanner.Worker/appsettings*.json src/ArksScanner.Api/appsettings.json tests/ArksScanner.Application.Tests/Ocr/OcrSchedulingTests.cs
 git commit -m "feat: schedule OCR for ready page revisions"
 ```
 
@@ -987,8 +987,8 @@ git commit -m "feat: show page OCR status"
 ### Task 9: Fake-provider end-to-end acceptance and operational documentation
 
 **Files:**
-- Modify: `src/SuperScanner.Api/appsettings.E2E.json`
-- Create: `src/SuperScanner.Worker/appsettings.E2E.json`
+- Modify: `src/ArksScanner.Api/appsettings.E2E.json`
+- Create: `src/ArksScanner.Worker/appsettings.E2E.json`
 - Modify: `apps/web/e2e/server.mjs`
 - Create: `apps/web/e2e/ocr-foundation.spec.ts`
 - Create: `docs/operations/ocr-foundation.md`
@@ -1045,7 +1045,7 @@ Configure both E2E API and E2E Worker with `Ocr:Enabled=true` and `Ocr:Provider=
 
 Run from `apps/web`: `$env:E2E_OCR_READY='1'; npx playwright test e2e/ocr-foundation.spec.ts`
 
-Run: `dotnet test SuperScanner.slnx`
+Run: `dotnet test ArksScanner.slnx`
 
 Run from `apps/web`: `npm test -- --watch=false`
 
@@ -1066,7 +1066,7 @@ Expected: no matches; Phase 3A contains no live Google SDK, adapter, or selectab
 - [ ] **Step 6: Commit Task 9**
 
 ```powershell
-git add src/SuperScanner.Api/appsettings.E2E.json src/SuperScanner.Worker/appsettings.E2E.json apps/web/e2e docs/operations/ocr-foundation.md
+git add src/ArksScanner.Api/appsettings.E2E.json src/ArksScanner.Worker/appsettings.E2E.json apps/web/e2e docs/operations/ocr-foundation.md
 git commit -m "test: verify OCR foundation end to end"
 ```
 

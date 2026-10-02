@@ -45,7 +45,7 @@ Safe failure codes include:
 - `ocr_invalid_job` — queue payload or referenced result was invalid; not retryable.
 - `ocr_failed` — unexpected worker failure with provider content removed; retryable until bounded.
 
-Metrics use meter `SuperScanner.Ocr`. They record numeric queue/provider durations, element count,
+Metrics use meter `ArksScanner.Ocr`. They record numeric queue/provider durations, element count,
 aggregate confidence, job outcome, retry outcome, safe failure code, and stale-current status.
 Allowed tags are `provider`, `outcome`, `failure_code`, and `stale`. Never add OCR text, filenames,
 object keys, signed URLs, image bytes, page/result IDs, or credentials as metric tags or log text.
@@ -115,7 +115,7 @@ IAM are configured:
 
 ```powershell
 $env:GOOGLE_DOCUMENT_AI_LIVE_TEST = '1'
-dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter GoogleDocumentAiLiveTests
+dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter GoogleDocumentAiLiveTests
 Remove-Item Env:GOOGLE_DOCUMENT_AI_LIVE_TEST
 ```
 

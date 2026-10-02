@@ -1,0 +1,284 @@
+using ArksScanner.Application.Abstractions;
+using ArksScanner.Application.Uploads;
+using ArksScanner.Domain.Documents;
+using ArksScanner.Domain.Uploads;
+using ArksScanner.Application.Tests.TestDoubles;
+
+namespace ArksScanner.Application.Tests.Uploads;
+
+public sealed class CreateUploadIntentTests
+{
+    private static readonly DateTimeOffset Now = new(2026, 9, 3, 4, 0, 0, TimeSpan.Zero);
+    private readonly Document _document = Document.Create(Guid.NewGuid(), "user-a", "Tax form", Now);
+
+    public static TheoryData<string, long, string> InvalidDeclaredMetadata => new()
+    {
+        { "text/plain", 1200, new string('a', 64) },
+        { "application/pdf", 0, new string('a', 64) },
+        { "application/pdf", (25 * 1024 * 1024) + 1, new string('a', 64) },
+        { "application/pdf", 1200, new string('A', 64) },
+        { "application/pdf", 1200, new string('a', 63) },
+        { "application/pdf", 1200, new string('g', 64) }
+    };
+
+    [Fact]
+    public async Task Create_CreatesDocumentScopedIntentWithoutReservingAPage()
+    {
+        var repository = new InMemoryUploadIntentRepository(_document);
+        var store = new RecordingObjectStore();
+        var audit = new RecordingAuditWriter();
+        var handler = new CreateUploadIntent(
+            repository,
+            store,
+            new FixedClock(Now),
+            new UploadPolicy(50, 25 * 1024 * 1024),
+            audit);
+
+        var result = await handler.HandleAsync(
+            "user-a",
+            _document.Id,
+            new CreateUploadRequest(
+                "tax-form.pdf",
+                "application/pdf",
+                1200,
+                new string('a', 64)),
+            CancellationToken.None);
+
+        Assert.StartsWith($"quarantine/{_document.Id:N}/", store.LastRequest!.ObjectKey, StringComparison.Ordinal);
+        Assert.DoesNotContain("tax-form", store.LastRequest.ObjectKey, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(Now.AddMinutes(5), result.ExpiresAt);
+        Assert.Empty(_document.Pages);
+        var storedUpload = Assert.Single(repository.Uploads);
+        Assert.Equal(result.UploadId, storedUpload.Id);
+        Assert.Null(storedUpload.PageId);
+        Assert.Equal("tax-form.pdf", storedUpload.OriginalFileName);
+        var auditRequest = Assert.Single(audit.Requests);
+        Assert.Equal("upload.intent_created", auditRequest.Action);
+        Assert.Equal(_document.Id, auditRequest.TargetId);
+        Assert.Contains(result.UploadId.ToString(), auditRequest.RegionJson, StringComparison.Ordinal);
+        Assert.DoesNotContain("tax-form", auditRequest.RegionJson, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(new string('a', 64), auditRequest.RegionJson, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [MemberData(nameof(InvalidDeclaredMetadata))]
+    public async Task Create_RejectsInvalidDeclaredMetadataBeforeCreatingIntent(
+        string mediaType,
+        long sizeBytes,
+        string sha256Hex)
+    {
+        var repository = new InMemoryUploadIntentRepository(_document);
+        var handler = new CreateUploadIntent(
+            repository,
+            new RecordingObjectStore(),
+            new FixedClock(Now),
+            new UploadPolicy(50, 25 * 1024 * 1024),
+            new RecordingAuditWriter());
+
+        await Assert.ThrowsAsync<ArgumentException>(() => handler.HandleAsync(
+            "user-a",
+            _document.Id,
+            new CreateUploadRequest("scan.bin", mediaType, sizeBytes, sha256Hex),
+            CancellationToken.None));
+
+        Assert.Empty(_document.Pages);
+        Assert.Empty(repository.Uploads);
+    }
+
+    [Fact]
+    public async Task Create_AcceptsFileNameAtPersistenceLimit()
+    {
+        var fileName = new string('a', 251) + ".pdf";
+        var repository = new InMemoryUploadIntentRepository(_document);
+        var handler = new CreateUploadIntent(
+            repository,
+            new RecordingObjectStore(),
+            new FixedClock(Now),
+            new UploadPolicy(50, 25 * 1024 * 1024),
+            new RecordingAuditWriter());
+
+        await handler.HandleAsync(
+            "user-a",
+            _document.Id,
+            new CreateUploadRequest(fileName, "application/pdf", 1200, new string('a', 64)),
+            CancellationToken.None);
+
+        Assert.Equal(fileName, Assert.Single(repository.Uploads).OriginalFileName);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    public async Task Create_RejectsBlankFileNameBeforeSigning(string fileName)
+    {
+        var repository = new InMemoryUploadIntentRepository(_document);
+        var store = new RecordingObjectStore();
+        var handler = new CreateUploadIntent(
+            repository,
+            store,
+            new FixedClock(Now),
+            new UploadPolicy(50, 25 * 1024 * 1024),
+            new RecordingAuditWriter());
+
+        await Assert.ThrowsAsync<ArgumentException>(() => handler.HandleAsync(
+            "user-a",
+            _document.Id,
+            new CreateUploadRequest(fileName, "application/pdf", 1200, new string('a', 64)),
+            CancellationToken.None));
+
+        Assert.Null(store.LastRequest);
+        Assert.Empty(repository.Uploads);
+    }
+
+    [Fact]
+    public async Task Create_RejectsFileNameBeyondPersistenceLimitBeforeSigning()
+    {
+        var repository = new InMemoryUploadIntentRepository(_document);
+        var store = new RecordingObjectStore();
+        var handler = new CreateUploadIntent(
+            repository,
+            store,
+            new FixedClock(Now),
+            new UploadPolicy(50, 25 * 1024 * 1024),
+            new RecordingAuditWriter());
+
+        await Assert.ThrowsAsync<ArgumentException>(() => handler.HandleAsync(
+            "user-a",
+            _document.Id,
+            new CreateUploadRequest(new string('a', 256), "application/pdf", 1200, new string('a', 64)),
+            CancellationToken.None));
+
+        Assert.Null(store.LastRequest);
+        Assert.Empty(repository.Uploads);
+    }
+
+    [Fact]
+    public async Task Create_DoesNotRevealDocumentOwnedByAnotherUser()
+    {
+        var repository = new InMemoryUploadIntentRepository(_document);
+        var handler = new CreateUploadIntent(
+            repository,
+            new RecordingObjectStore(),
+            new FixedClock(Now),
+            new UploadPolicy(50, 25 * 1024 * 1024),
+            new RecordingAuditWriter());
+
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => handler.HandleAsync(
+            "user-b",
+            _document.Id,
+            ValidRequest(),
+            CancellationToken.None));
+
+        Assert.Empty(_document.Pages);
+        Assert.Empty(repository.Uploads);
+    }
+
+    [Fact]
+    public async Task Create_DoesNotCommitReservationWhenSigningFails()
+    {
+        var repository = new InMemoryUploadIntentRepository(_document);
+        var handler = new CreateUploadIntent(
+            repository,
+            new ThrowingObjectStore(),
+            new FixedClock(Now),
+            new UploadPolicy(50, 25 * 1024 * 1024),
+            new RecordingAuditWriter());
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => handler.HandleAsync(
+            "user-a",
+            _document.Id,
+            ValidRequest(),
+            CancellationToken.None));
+
+        Assert.Equal(0, repository.SaveCalls);
+    }
+
+    private sealed class FixedClock(DateTimeOffset utcNow) : IClock
+    {
+        public DateTimeOffset UtcNow { get; } = utcNow;
+    }
+
+    private static CreateUploadRequest ValidRequest() =>
+        new("scan.pdf", "application/pdf", 1200, new string('a', 64));
+
+    private sealed class InMemoryUploadIntentRepository(Document document) : IUploadIntentRepository
+    {
+        public List<UploadIntent> Uploads { get; } = [];
+        public int SaveCalls { get; private set; }
+
+        public Task<Document?> FindOwnedDocumentAsync(
+            string ownerFirebaseUid,
+            Guid documentId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<Document?>(
+                document.Id == documentId && document.OwnerFirebaseUid == ownerFirebaseUid ? document : null);
+
+        public Task AddAsync(
+            UploadIntent uploadIntent,
+            CancellationToken cancellationToken)
+        {
+            Uploads.Add(uploadIntent);
+            return Task.CompletedTask;
+        }
+
+        public Task<UploadIntent?> FindOwnedUploadAsync(
+            string ownerFirebaseUid,
+            Guid documentId,
+            Guid uploadId,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task SaveChangesAsync(CancellationToken cancellationToken)
+        {
+            SaveCalls++;
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class ThrowingObjectStore : IObjectStore
+    {
+        public Task<ObjectCreationResult> WriteIfAbsentAsync(string key, string mediaType, Stream content, CancellationToken ct) =>
+            throw new NotSupportedException();
+        public Task<Uri> CreatePutUrlAsync(PutObjectRequest request, CancellationToken cancellationToken) =>
+            Task.FromException<Uri>(new InvalidOperationException("Signing failed."));
+
+        public Task<StoredObjectInfo?> HeadAsync(string objectKey, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<Stream> OpenReadAsync(string objectKey, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task PromoteAsync(string quarantineKey, string acceptedKey, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task DeleteAsync(string objectKey, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+    }
+
+    private sealed class RecordingObjectStore : IObjectStore
+    {
+        public Task<ObjectCreationResult> WriteIfAbsentAsync(string key, string mediaType, Stream content, CancellationToken ct) =>
+            throw new NotSupportedException();
+        public PutObjectRequest? LastRequest { get; private set; }
+
+        public Task<Uri> CreatePutUrlAsync(PutObjectRequest request, CancellationToken cancellationToken)
+        {
+            LastRequest = request;
+            return Task.FromResult(new Uri("https://uploads.example.test/opaque"));
+        }
+
+        public Task<StoredObjectInfo?> HeadAsync(string objectKey, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<Stream> OpenReadAsync(string objectKey, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task PromoteAsync(
+            string quarantineKey,
+            string acceptedKey,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task DeleteAsync(string objectKey, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+    }
+}

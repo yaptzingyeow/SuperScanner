@@ -1,0 +1,280 @@
+using System.Text.Json;
+using ArksScanner.Domain.Documents;
+using ArksScanner.Domain.TextEditing;
+
+namespace ArksScanner.Domain.Tests.Documents;
+
+public sealed class DocumentExportTests
+{
+    private static readonly DateTimeOffset Now = DateTimeOffset.Parse("2026-09-14T00:00:00Z");
+
+    [Fact]
+    public void Create_SnapshotsRequestedA4LayoutAndLegacyDefaultsOriginal()
+    {
+        var document = Document.Create(Guid.NewGuid(), "owner", "Form", Now);
+        var page = document.AddPage(Guid.NewGuid(), 10, Now);
+        PrepareReadyPage(page, "page.jpg");
+        var a4 = DocumentExport.Create(Guid.NewGuid(), document, "owner", Now,
+            TimeSpan.FromDays(7), pageLayout: "A4");
+        var saved = Assert.Single(JsonSerializer.Deserialize<DocumentExportSnapshotEntry[]>(a4.SnapshotJson)!);
+        Assert.Equal("A4", saved.PageLayout);
+        var old = JsonSerializer.Deserialize<DocumentExportSnapshotEntry[]>(
+            $$"""[{"PageId":"{{page.Id}}","Position":1,"AppliedCropRevision":0,"AppliedFilter":"Original","ProcessedObjectKey":"page.jpg"}]""")!;
+        Assert.Equal("Original", Assert.Single(old).PageLayout);
+        Assert.Throws<ArgumentException>(() => DocumentExport.Create(Guid.NewGuid(), document,
+            "owner", Now, TimeSpan.FromDays(7), pageLayout: "Letter"));
+    }
+
+    [Fact]
+    public void Create_FreezesMarkGeometryAndStyleAfterMutation()
+    {
+        var document = Document.Create(Guid.NewGuid(), "owner", "Form", Now);
+        var page = document.AddPage(Guid.NewGuid(), 10, Now);
+        PrepareReadyPage(page, "preview.jpg");
+        var mark = PageMark.Create(Guid.NewGuid(), document.Id, page.Id, Guid.NewGuid(),
+            PageMarkKind.Check, new SignatureBox(.1, .2, .03, .04), new PageMarkStyle("#00AA00", .08), Now);
+        var export = DocumentExport.Create(Guid.NewGuid(), document, "owner", Now, TimeSpan.FromDays(7),
+            marksByPage: new Dictionary<Guid, IReadOnlyList<MarkOverlaySnapshot>>
+            { [page.Id] = [new(mark.Id, mark.Kind, mark.Box, mark.Style.Color, mark.Style.StrokeWidth)] });
+        mark.Update(PageMarkKind.Cross, new SignatureBox(.5, .5, .04, .04), new PageMarkStyle("#FF0000", .12), 0, Now);
+        mark.Delete(1, Now);
+        var entry = Assert.Single(JsonSerializer.Deserialize<DocumentExportSnapshotEntry[]>(export.SnapshotJson)!);
+        var saved = Assert.Single(entry.Marks);
+        Assert.Equal(PageMarkKind.Check, saved.Kind);
+        Assert.Equal(.1, saved.Box.X);
+        Assert.Equal("#00AA00", saved.Color);
+        Assert.Equal(.08, saved.StrokeWidth);
+    }
+
+    [Fact]
+    public void Snapshot_LegacyJsonDefaultsMarksToEmpty()
+    {
+        var json = $$"""[{"PageId":"{{Guid.NewGuid()}}","Position":1,"AppliedCropRevision":0,"AppliedFilter":"Original","ProcessedObjectKey":"page.jpg"}]""";
+        var entry = Assert.Single(JsonSerializer.Deserialize<DocumentExportSnapshotEntry[]>(json)!);
+        Assert.Empty(entry.Marks);
+    }
+
+    [Fact]
+    public void Create_FreezesSignatureGeometryAndAssetAfterMutation()
+    {
+        var document = Document.Create(Guid.NewGuid(), "owner", "Form", Now);
+        var page = document.AddPage(Guid.NewGuid(), 10, Now);
+        PrepareReadyPage(page, "preview.jpg");
+        var signature = PageSignature.Create(Guid.NewGuid(), document.Id, page.Id, Guid.NewGuid(),
+            "signature.png", 2, new SignatureBox(.1, .2, .3, .15), Now);
+        var export = DocumentExport.Create(Guid.NewGuid(), document, "owner", Now, TimeSpan.FromDays(7),
+            signaturesByPage: new Dictionary<Guid, IReadOnlyList<SignatureOverlaySnapshot>>
+            { [page.Id] = [new(signature.Id, signature.AssetKey, signature.Box, signature.ImageAspectRatio)] });
+        signature.MoveResize(new SignatureBox(.5, .5, .2, .1), 0, Now);
+        signature.Delete(1, Now);
+        var entry = Assert.Single(JsonSerializer.Deserialize<DocumentExportSnapshotEntry[]>(export.SnapshotJson)!);
+        var saved = Assert.Single(entry.Signatures);
+        Assert.Equal("signature.png", saved.AssetKey);
+        Assert.Equal(.1, saved.Box.X);
+        Assert.Equal(.2, saved.Box.Y);
+        Assert.Equal(.3, saved.Box.Width);
+        Assert.Equal(.15, saved.Box.Height);
+    }
+
+    [Fact]
+    public void Create_SnapshotsOnlyReadyPagesInVisibleOrder()
+    {
+        var document = Document.Create(Guid.NewGuid(), "firebase-user-1", "Form", Now);
+        var pages = document.AppendImportedPages(Guid.NewGuid(), [1, 2, 3], 10, Now).ToArray();
+        PrepareReadyPage(pages[0], "previews/first.png");
+        PrepareReadyPage(pages[2], "previews/third.png");
+        document.ReorderPages([pages[2].Id, pages[1].Id, pages[0].Id], document.PageOrderRevision, Now);
+
+        var export = DocumentExport.Create(Guid.NewGuid(), document, "firebase-user-1", Now, TimeSpan.FromDays(7));
+
+        using var snapshot = JsonDocument.Parse(export.SnapshotJson);
+        var entries = snapshot.RootElement.EnumerateArray().ToArray();
+        Assert.Equal(DocumentExportState.Queued, export.State);
+        Assert.Equal(document.Revision, export.DocumentRevision);
+        Assert.Equal(2, export.ReadyPageCount);
+        Assert.Equal(1, export.ExcludedPageCount);
+        Assert.Equal(Now.AddDays(7), export.ExpiresAt);
+        Assert.Equal(pages[2].Id, entries[0].GetProperty("PageId").GetGuid());
+        Assert.Equal(1, entries[0].GetProperty("Position").GetInt32());
+        Assert.Equal("previews/third.png", entries[0].GetProperty("ProcessedObjectKey").GetString());
+        Assert.Equal(pages[0].Id, entries[1].GetProperty("PageId").GetGuid());
+        Assert.Equal("previews/first.png", entries[1].GetProperty("ProcessedObjectKey").GetString());
+    }
+
+    [Fact]
+    public void Create_SnapshotsActiveEditAndLaterUndoDoesNotChangeTheSnapshot()
+    {
+        var document = Document.Create(Guid.NewGuid(), "firebase-user-1", "Form", Now);
+        var page = document.AppendImportedPages(Guid.NewGuid(), [1], 10, Now).Single();
+        PrepareReadyPage(page, "previews/original.jpg");
+        var original = PageRevision.CreateBase(Guid.NewGuid(), page.Id,
+            "previews/original.jpg", new string('a', 64), Now);
+        var edited = PageRevision.CreateDerived(Guid.NewGuid(), page.Id, original.Id,
+            Guid.NewGuid(), "page-revisions/edited.jpg", new string('b', 64), Now.AddMinutes(1));
+        page.ActivateRevision(edited);
+
+        var export = DocumentExport.Create(Guid.NewGuid(), document, "firebase-user-1",
+            Now, TimeSpan.FromDays(1));
+        page.ActivateRevision(original);
+
+        var snapshot = Assert.Single(JsonSerializer.Deserialize<DocumentExportSnapshotEntry[]>(export.SnapshotJson)!);
+        Assert.Equal("page-revisions/edited.jpg", snapshot.ProcessedObjectKey);
+    }
+
+    [Fact]
+    public void Create_SnapshotsOnlyOcrForTheExactExportSource()
+    {
+        var document = Document.Create(Guid.NewGuid(), "firebase-user-1", "Form", Now);
+        var pages = document.AppendImportedPages(Guid.NewGuid(), [1, 2], 10, Now).ToArray();
+        PrepareReadyPage(pages[0], "previews/current.jpg");
+        PrepareReadyPage(pages[1], "previews/second.jpg");
+        var matchingId = Guid.NewGuid();
+        var candidates = new Dictionary<Guid, DocumentExportOcrSnapshot>
+        {
+            [pages[0].Id] = new(matchingId, "previews/current.jpg", new string('a', 64)),
+            [pages[1].Id] = new(Guid.NewGuid(), "previews/stale.jpg", new string('b', 64))
+        };
+
+        var export = DocumentExport.Create(Guid.NewGuid(), document, "firebase-user-1",
+            Now, TimeSpan.FromDays(7), candidates);
+
+        var snapshot = JsonSerializer.Deserialize<DocumentExportSnapshotEntry[]>(export.SnapshotJson)!;
+        Assert.Equal(matchingId, snapshot[0].OcrResultId);
+        Assert.Equal("previews/current.jpg", snapshot[0].OcrSourceObjectKey);
+        Assert.Equal(new string('a', 64), snapshot[0].OcrSourceFingerprint);
+        Assert.Null(snapshot[1].OcrResultId);
+        Assert.Null(snapshot[1].OcrSourceObjectKey);
+        Assert.Null(snapshot[1].OcrSourceFingerprint);
+    }
+
+    [Fact]
+    public void Snapshot_LegacyJsonDefaultsOcrIdentityToNull()
+    {
+        var pageId = Guid.NewGuid();
+        var json = $$"""
+            [{"PageId":"{{pageId}}","Position":1,"AppliedCropRevision":0,
+              "AppliedFilter":"Original","ProcessedObjectKey":"previews/page.jpg"}]
+            """;
+
+        var entry = Assert.Single(JsonSerializer.Deserialize<DocumentExportSnapshotEntry[]>(json)!);
+
+        Assert.Null(entry.OcrResultId);
+        Assert.Null(entry.OcrSourceObjectKey);
+        Assert.Null(entry.OcrSourceFingerprint);
+    }
+
+    [Fact]
+    public void Create_RejectsDocumentWithoutReadyPages()
+    {
+        var document = Document.Create(Guid.NewGuid(), "firebase-user-1", "Form", Now);
+        document.AppendImportedPages(Guid.NewGuid(), [1], 10, Now);
+
+        var error = Assert.Throws<InvalidOperationException>(() =>
+            DocumentExport.Create(Guid.NewGuid(), document, "firebase-user-1", Now, TimeSpan.FromDays(7)));
+
+        Assert.Equal("Document has no ready pages to export.", error.Message);
+    }
+
+    [Fact]
+    public void Transitions_MoveExportFromQueuedToReady()
+    {
+        var document = Document.Create(Guid.NewGuid(), "firebase-user-1", "Form", Now);
+        var page = document.AppendImportedPages(Guid.NewGuid(), [1], 10, Now).Single();
+        PrepareReadyPage(page, "previews/first.png");
+        var export = DocumentExport.Create(Guid.NewGuid(), document, "firebase-user-1", Now, TimeSpan.FromDays(7));
+
+        export.Start(Now.AddMinutes(1));
+        export.Complete("exports/document/export/document.pdf", Now.AddMinutes(2), 1);
+
+        Assert.Equal(DocumentExportState.Ready, export.State);
+        Assert.Equal("exports/document/export/document.pdf", export.OutputObjectKey);
+        Assert.Equal(Now.AddMinutes(2), export.CompletedAt);
+        Assert.Equal(1, export.SearchablePageCount);
+        Assert.Equal("Searchable", export.Searchability);
+    }
+
+    [Theory]
+    [InlineData(0, "ImageOnly")]
+    [InlineData(1, "PartiallySearchable")]
+    [InlineData(2, "Searchable")]
+    public void Complete_ClassifiesSearchability(int searchablePages, string expected)
+    {
+        var document = Document.Create(Guid.NewGuid(), "firebase-user-1", "Form", Now);
+        foreach (var pageNumber in new[] { 1, 2 })
+            PrepareReadyPage(document.AppendImportedPages(Guid.NewGuid(), [pageNumber], 10, Now).Single(), $"preview-{pageNumber}");
+        var export = DocumentExport.Create(Guid.NewGuid(), document, "firebase-user-1", Now, TimeSpan.FromDays(7));
+        export.Start(Now);
+
+        export.Complete("exports/result.pdf", Now, searchablePages);
+
+        Assert.Equal(searchablePages, export.SearchablePageCount);
+        Assert.Equal(expected, export.Searchability);
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(2)]
+    public void Complete_RejectsSearchableCountOutsideReadyPages(int searchablePages)
+    {
+        var export = CreateReadyExport();
+        export.Start(Now);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            export.Complete("exports/result.pdf", Now, searchablePages));
+    }
+
+    [Fact]
+    public void Fail_AndQueueAgain_ResetsTerminalFailureFields()
+    {
+        var export = CreateReadyExport();
+        export.Start(Now.AddMinutes(1));
+
+        export.Fail("export_build_failed", Now.AddMinutes(2));
+
+        Assert.Equal(DocumentExportState.Failed, export.State);
+        Assert.Equal("export_build_failed", export.FailureCode);
+        Assert.Equal(Now.AddMinutes(2), export.CompletedAt);
+
+        export.Queue();
+
+        Assert.Equal(DocumentExportState.Queued, export.State);
+        Assert.Null(export.FailureCode);
+        Assert.Null(export.CompletedAt);
+        Assert.Null(export.OutputObjectKey);
+        Assert.Equal(0, export.SearchablePageCount);
+    }
+
+    [Fact]
+    public void Transitions_RejectInvalidStateChanges()
+    {
+        var export = CreateReadyExport();
+
+        Assert.Throws<InvalidOperationException>(() => export.Queue());
+        Assert.Throws<InvalidOperationException>(() =>
+            export.Complete("exports/document/export/document.pdf", Now));
+
+        export.Start(Now.AddMinutes(1));
+
+        Assert.Throws<InvalidOperationException>(() => export.Start(Now.AddMinutes(2)));
+
+        export.Complete("exports/document/export/document.pdf", Now.AddMinutes(3));
+
+        Assert.Throws<InvalidOperationException>(() => export.Fail("export_build_failed", Now.AddMinutes(4)));
+    }
+
+    private static DocumentExport CreateReadyExport()
+    {
+        var document = Document.Create(Guid.NewGuid(), "firebase-user-1", "Form", Now);
+        var page = document.AppendImportedPages(Guid.NewGuid(), [1], 10, Now).Single();
+        PrepareReadyPage(page, "previews/first.png");
+        return DocumentExport.Create(Guid.NewGuid(), document, "firebase-user-1", Now, TimeSpan.FromDays(7));
+    }
+
+    private static void PrepareReadyPage(Page page, string previewObjectKey)
+    {
+        page.MarkImportReady("page-sources/document/page/source.png", "image/png");
+        page.MarkProcessing();
+        page.SetPreview(previewObjectKey, "thumbnails/document/page/revision-1.png");
+        page.MarkReady();
+    }
+}

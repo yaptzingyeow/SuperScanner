@@ -8,7 +8,7 @@
 
 ## Purpose
 
-SuperScanner must treat a document as an ordered collection of independently editable pages. A user can import a multi-page PDF, add more photos or PDFs to the same document, crop and filter each page, reorder or remove pages, and export all currently Ready pages as one PDF.
+ArksScanner must treat a document as an ordered collection of independently editable pages. A user can import a multi-page PDF, add more photos or PDFs to the same document, crop and filter each page, reorder or remove pages, and export all currently Ready pages as one PDF.
 
 This replaces the current one-upload/one-page assumption and the current behavior that previews only the first page of a PDF.
 

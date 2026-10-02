@@ -16,7 +16,7 @@ From the repository root, run:
 & .\scripts\database\Setup-LocalDatabase.ps1
 ```
 
-The defaults target `127.0.0.1:5432`, database `SuperScannerDB`, administrator `postgres`, and application role `superscanner_app`. The command securely prompts for the administrator password and the application-role password. It creates or updates the role, creates the database when absent, applies all Entity Framework migrations, grants least-privilege access, and verifies the result.
+The defaults target `127.0.0.1:5432`, database `ArksScannerDB`, administrator `postgres`, and application role `arksscanner_app`. The command securely prompts for the administrator password and the application-role password. It creates or updates the role, creates the database when absent, applies all Entity Framework migrations, grants least-privilege access, and verifies the result.
 
 To override connection details:
 
@@ -24,9 +24,9 @@ To override connection details:
 & .\scripts\database\Setup-LocalDatabase.ps1 `
   -HostName 127.0.0.1 `
   -Port 5432 `
-  -DatabaseName SuperScannerDB `
+  -DatabaseName ArksScannerDB `
   -AdminUser postgres `
-  -ApplicationRole superscanner_app
+  -ApplicationRole arksscanner_app
 ```
 
 ## Run individual stages
@@ -41,17 +41,17 @@ Each command prompts for the administrator password. Passwords reach child proce
 
 ## Runtime connection
 
-Run the API and Worker using the restricted `superscanner_app` role, not the PostgreSQL administrator. Supply `ConnectionStrings__PostgreSql` through a process-scoped environment variable or a deployment secret store. Do not place the password in `appsettings.json`, `.env` files, Git, screenshots, or support messages.
+Run the API and Worker using the restricted `arksscanner_app` role, not the PostgreSQL administrator. Supply `ConnectionStrings__PostgreSql` through a process-scoped environment variable or a deployment secret store. Do not place the password in `appsettings.json`, `.env` files, Git, screenshots, or support messages.
 
 The connection-string shape is:
 
 ```text
-Host=127.0.0.1;Port=5432;Database=SuperScannerDB;Username=superscanner_app;Password=<prompted password>
+Host=127.0.0.1;Port=5432;Database=ArksScannerDB;Username=arksscanner_app;Password=<prompted password>
 ```
 
 ## Password rotation
 
-Running `Setup-LocalDatabase.ps1` again updates the `superscanner_app` password and safely reapplies migrations and grants. Update the API and Worker secret before restarting them.
+Running `Setup-LocalDatabase.ps1` again updates the `arksscanner_app` password and safely reapplies migrations and grants. Update the API and Worker secret before restarting them.
 
 ## Recovery
 

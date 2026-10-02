@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ArksScanner.Api/ArksScanner.Api.csproj" />
+    <Project Path="src/ArksScanner.Application/ArksScanner.Application.csproj" />
+    <Project Path="src/ArksScanner.Domain/ArksScanner.Domain.csproj" />
+    <Project Path="src/ArksScanner.Infrastructure/ArksScanner.Infrastructure.csproj" />
+    <Project Path="src/ArksScanner.Worker/ArksScanner.Worker.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ArksScanner.Api.IntegrationTests/ArksScanner.Api.IntegrationTests.csproj" />
+    <Project Path="tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj" />
+    <Project Path="tests/ArksScanner.Domain.Tests/ArksScanner.Domain.Tests.csproj" />
+    <Project Path="tests/ArksScanner.Infrastructure.IntegrationTests/ArksScanner.Infrastructure.IntegrationTests.csproj" />
+  </Folder>
+</Solution>

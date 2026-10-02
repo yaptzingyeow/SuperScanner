@@ -15,7 +15,7 @@
 - Use project `superscanner-dev`, location `asia-southeast1`, processor `fc0b14e64c62e7aa`, and endpoint `asia-southeast1-documentai.googleapis.com`.
 - English (`en`) remains the only accepted Phase 3 language.
 - Local authentication uses Application Default Credentials; never commit a credential JSON file, refresh token, access token, or service-account key.
-- Google types remain inside `SuperScanner.Infrastructure` and the Worker composition root.
+- Google types remain inside `ArksScanner.Infrastructure` and the Worker composition root.
 - Never log recognized text, image bytes, filenames, object keys, signed URLs, credential paths, tokens, raw Google requests, raw Google responses, or raw provider exception messages.
 - Preserve the Phase 3A `IOcrProvider`, API DTOs, database schema, source-fingerprint idempotency, stale-result protection, and bounded retry behavior.
 - Production and Railway keep OCR disabled in this plan; Workload Identity Federation is a later promotion gate.
@@ -24,20 +24,20 @@
 
 ## File Structure
 
-- `src/SuperScanner.Infrastructure/Ocr/GoogleDocumentAiOptions.cs` — Google resource names and input limits.
-- `src/SuperScanner.Infrastructure/Ocr/DocumentAiClient.cs` — narrow wrapper around the official client, regional endpoint, ADC, and `ProcessDocumentAsync`.
-- `src/SuperScanner.Infrastructure/Ocr/DocumentAiTextAnchorReader.cs` — safe extraction of UTF-8 indexed text segments.
-- `src/SuperScanner.Infrastructure/Ocr/DocumentAiResultMapper.cs` — provider response to normalized block/line/word hierarchy.
-- `src/SuperScanner.Infrastructure/Ocr/GoogleDocumentAiOcrProvider.cs` — media/size checks, call orchestration, safe error translation, and metrics.
-- `src/SuperScanner.Infrastructure/Ocr/OcrOptions.cs` — allow `GoogleDocumentAi` only with valid Google options.
-- `src/SuperScanner.Worker/OcrServiceCollectionExtensions.cs` — testable, exact provider selection and DI registration.
-- `src/SuperScanner.Worker/Program.cs` — invokes the provider-specific registration.
-- `tests/SuperScanner.Application.Tests/Ocr/GoogleDocumentAiOptionsTests.cs` — configuration validation.
-- `tests/SuperScanner.Application.Tests/Ocr/DocumentAiTextAnchorReaderTests.cs` — byte-index text extraction.
-- `tests/SuperScanner.Application.Tests/Ocr/DocumentAiResultMapperTests.cs` — hierarchy, geometry, confidence, and handwriting mapping.
-- `tests/SuperScanner.Application.Tests/Ocr/GoogleDocumentAiOcrProviderTests.cs` — request limits, client orchestration, cancellation, and failure codes.
-- `tests/SuperScanner.Application.Tests/Ocr/GoogleDocumentAiLiveTests.cs` — explicitly gated live acceptance.
-- `tests/SuperScanner.Application.Tests/Fixtures/Ocr/google-document-ai-response.json` — synthetic provider response only.
+- `src/ArksScanner.Infrastructure/Ocr/GoogleDocumentAiOptions.cs` — Google resource names and input limits.
+- `src/ArksScanner.Infrastructure/Ocr/DocumentAiClient.cs` — narrow wrapper around the official client, regional endpoint, ADC, and `ProcessDocumentAsync`.
+- `src/ArksScanner.Infrastructure/Ocr/DocumentAiTextAnchorReader.cs` — safe extraction of UTF-8 indexed text segments.
+- `src/ArksScanner.Infrastructure/Ocr/DocumentAiResultMapper.cs` — provider response to normalized block/line/word hierarchy.
+- `src/ArksScanner.Infrastructure/Ocr/GoogleDocumentAiOcrProvider.cs` — media/size checks, call orchestration, safe error translation, and metrics.
+- `src/ArksScanner.Infrastructure/Ocr/OcrOptions.cs` — allow `GoogleDocumentAi` only with valid Google options.
+- `src/ArksScanner.Worker/OcrServiceCollectionExtensions.cs` — testable, exact provider selection and DI registration.
+- `src/ArksScanner.Worker/Program.cs` — invokes the provider-specific registration.
+- `tests/ArksScanner.Application.Tests/Ocr/GoogleDocumentAiOptionsTests.cs` — configuration validation.
+- `tests/ArksScanner.Application.Tests/Ocr/DocumentAiTextAnchorReaderTests.cs` — byte-index text extraction.
+- `tests/ArksScanner.Application.Tests/Ocr/DocumentAiResultMapperTests.cs` — hierarchy, geometry, confidence, and handwriting mapping.
+- `tests/ArksScanner.Application.Tests/Ocr/GoogleDocumentAiOcrProviderTests.cs` — request limits, client orchestration, cancellation, and failure codes.
+- `tests/ArksScanner.Application.Tests/Ocr/GoogleDocumentAiLiveTests.cs` — explicitly gated live acceptance.
+- `tests/ArksScanner.Application.Tests/Fixtures/Ocr/google-document-ai-response.json` — synthetic provider response only.
 - `docs/operations/ocr-foundation.md` — ADC setup, local enablement, live test, disablement, and production gate.
 
 ## Review Focus
@@ -53,11 +53,11 @@
 ### Task 1: Pin the Google SDK and validate configuration
 
 **Files:**
-- Modify: `src/SuperScanner.Infrastructure/SuperScanner.Infrastructure.csproj`
-- Modify: `src/SuperScanner.Infrastructure/Ocr/OcrOptions.cs`
-- Create: `src/SuperScanner.Infrastructure/Ocr/GoogleDocumentAiOptions.cs`
-- Create: `tests/SuperScanner.Application.Tests/Ocr/GoogleDocumentAiOptionsTests.cs`
-- Modify: `src/SuperScanner.Infrastructure/packages.lock.json`
+- Modify: `src/ArksScanner.Infrastructure/ArksScanner.Infrastructure.csproj`
+- Modify: `src/ArksScanner.Infrastructure/Ocr/OcrOptions.cs`
+- Create: `src/ArksScanner.Infrastructure/Ocr/GoogleDocumentAiOptions.cs`
+- Create: `tests/ArksScanner.Application.Tests/Ocr/GoogleDocumentAiOptionsTests.cs`
+- Modify: `src/ArksScanner.Infrastructure/packages.lock.json`
 
 **Interfaces:**
 - Consumes: `OcrOptions.IsValid(string environmentName)`.
@@ -86,13 +86,13 @@ private static OcrOptions ValidGoogle() => new()
 
 - [ ] **Step 2: Run the focused tests and verify RED**
 
-Run: `dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter GoogleDocumentAiOptionsTests`
+Run: `dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter GoogleDocumentAiOptionsTests`
 
 Expected: compile failure because `GoogleDocumentAiOptions`, `OcrProviderNames`, and `OcrOptions.Google` do not exist.
 
 - [ ] **Step 3: Add the package and minimal option types**
 
-Run: `dotnet add src/SuperScanner.Infrastructure/SuperScanner.Infrastructure.csproj package Google.Cloud.DocumentAI.V1 --version 3.25.0`
+Run: `dotnet add src/ArksScanner.Infrastructure/ArksScanner.Infrastructure.csproj package Google.Cloud.DocumentAI.V1 --version 3.25.0`
 
 Add:
 
@@ -122,22 +122,22 @@ public sealed class GoogleDocumentAiOptions
 
 - [ ] **Step 4: Run focused and existing option tests**
 
-Run: `dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter "GoogleDocumentAiOptionsTests|FakeOcrProviderTests"`
+Run: `dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter "GoogleDocumentAiOptionsTests|FakeOcrProviderTests"`
 
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
 ```powershell
-git add src/SuperScanner.Infrastructure/SuperScanner.Infrastructure.csproj src/SuperScanner.Infrastructure/packages.lock.json src/SuperScanner.Infrastructure/Ocr/OcrOptions.cs src/SuperScanner.Infrastructure/Ocr/GoogleDocumentAiOptions.cs tests/SuperScanner.Application.Tests/Ocr/GoogleDocumentAiOptionsTests.cs
+git add src/ArksScanner.Infrastructure/ArksScanner.Infrastructure.csproj src/ArksScanner.Infrastructure/packages.lock.json src/ArksScanner.Infrastructure/Ocr/OcrOptions.cs src/ArksScanner.Infrastructure/Ocr/GoogleDocumentAiOptions.cs tests/ArksScanner.Application.Tests/Ocr/GoogleDocumentAiOptionsTests.cs
 git commit -m "feat: configure Google Document AI OCR"
 ```
 
 ### Task 2: Isolate the regional Document AI client
 
 **Files:**
-- Create: `src/SuperScanner.Infrastructure/Ocr/DocumentAiClient.cs`
-- Create: `tests/SuperScanner.Application.Tests/Ocr/DocumentAiClientTests.cs`
+- Create: `src/ArksScanner.Infrastructure/Ocr/DocumentAiClient.cs`
+- Create: `tests/ArksScanner.Application.Tests/Ocr/DocumentAiClientTests.cs`
 
 **Interfaces:**
 - Consumes: `GoogleDocumentAiOptions.ProcessorName`, `EffectiveEndpoint`, ADC used by `DocumentProcessorServiceClientBuilder`.
@@ -149,7 +149,7 @@ Test that a builder factory receives exactly `asia-southeast1-documentai.googlea
 
 - [ ] **Step 2: Verify RED**
 
-Run: `dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter DocumentAiClientTests`
+Run: `dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter DocumentAiClientTests`
 
 Expected: compile failure because `IDocumentAiClient` does not exist.
 
@@ -178,22 +178,22 @@ Provide a registration factory that builds `DocumentProcessorServiceClientBuilde
 
 - [ ] **Step 4: Verify GREEN**
 
-Run: `dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter DocumentAiClientTests`
+Run: `dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter DocumentAiClientTests`
 
 Expected: PASS without network access or ADC.
 
 - [ ] **Step 5: Commit**
 
 ```powershell
-git add src/SuperScanner.Infrastructure/Ocr/DocumentAiClient.cs tests/SuperScanner.Application.Tests/Ocr/DocumentAiClientTests.cs
+git add src/ArksScanner.Infrastructure/Ocr/DocumentAiClient.cs tests/ArksScanner.Application.Tests/Ocr/DocumentAiClientTests.cs
 git commit -m "feat: add regional Document AI client"
 ```
 
 ### Task 3: Resolve UTF-8 text anchors safely
 
 **Files:**
-- Create: `src/SuperScanner.Infrastructure/Ocr/DocumentAiTextAnchorReader.cs`
-- Create: `tests/SuperScanner.Application.Tests/Ocr/DocumentAiTextAnchorReaderTests.cs`
+- Create: `src/ArksScanner.Infrastructure/Ocr/DocumentAiTextAnchorReader.cs`
+- Create: `tests/ArksScanner.Application.Tests/Ocr/DocumentAiTextAnchorReaderTests.cs`
 
 **Interfaces:**
 - Consumes: provider `Document.Text` and `Document.Types.TextAnchor` whose indices are UTF-8 byte offsets.
@@ -205,7 +205,7 @@ Cover a single segment, omitted `StartIndex` meaning zero, multiple non-contiguo
 
 - [ ] **Step 2: Verify RED**
 
-Run: `dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter DocumentAiTextAnchorReaderTests`
+Run: `dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter DocumentAiTextAnchorReaderTests`
 
 Expected: compile failure because the reader does not exist.
 
@@ -215,23 +215,23 @@ Encode the full text once as UTF-8, validate every half-open `[start,end)` segme
 
 - [ ] **Step 4: Verify GREEN**
 
-Run: `dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter DocumentAiTextAnchorReaderTests`
+Run: `dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter DocumentAiTextAnchorReaderTests`
 
 Expected: PASS, including the multibyte offset case.
 
 - [ ] **Step 5: Commit**
 
 ```powershell
-git add src/SuperScanner.Infrastructure/Ocr/DocumentAiTextAnchorReader.cs tests/SuperScanner.Application.Tests/Ocr/DocumentAiTextAnchorReaderTests.cs
+git add src/ArksScanner.Infrastructure/Ocr/DocumentAiTextAnchorReader.cs tests/ArksScanner.Application.Tests/Ocr/DocumentAiTextAnchorReaderTests.cs
 git commit -m "feat: resolve Document AI text anchors"
 ```
 
 ### Task 4: Normalize hierarchy, geometry, confidence, and handwriting
 
 **Files:**
-- Create: `src/SuperScanner.Infrastructure/Ocr/DocumentAiResultMapper.cs`
-- Create: `tests/SuperScanner.Application.Tests/Ocr/DocumentAiResultMapperTests.cs`
-- Create: `tests/SuperScanner.Application.Tests/Fixtures/Ocr/google-document-ai-response.json`
+- Create: `src/ArksScanner.Infrastructure/Ocr/DocumentAiResultMapper.cs`
+- Create: `tests/ArksScanner.Application.Tests/Ocr/DocumentAiResultMapperTests.cs`
+- Create: `tests/ArksScanner.Application.Tests/Fixtures/Ocr/google-document-ai-response.json`
 
 **Interfaces:**
 - Consumes: `ProcessResponse.Document`, `DocumentAiTextAnchorReader.Read`.
@@ -245,7 +245,7 @@ Add negative tests for zero page dimensions, fewer than three polygon points, no
 
 - [ ] **Step 2: Verify RED**
 
-Run: `dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter DocumentAiResultMapperTests`
+Run: `dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter DocumentAiResultMapperTests`
 
 Expected: compile failure because the mapper does not exist.
 
@@ -255,22 +255,22 @@ Map pages in response order, blocks in page order, paragraphs as lines, and toke
 
 - [ ] **Step 4: Run mapper and validator tests**
 
-Run: `dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter "DocumentAiResultMapperTests|OcrResultValidator"`
+Run: `dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter "DocumentAiResultMapperTests|OcrResultValidator"`
 
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
 ```powershell
-git add src/SuperScanner.Infrastructure/Ocr/DocumentAiResultMapper.cs tests/SuperScanner.Application.Tests/Ocr/DocumentAiResultMapperTests.cs tests/SuperScanner.Application.Tests/Fixtures/Ocr/google-document-ai-response.json
+git add src/ArksScanner.Infrastructure/Ocr/DocumentAiResultMapper.cs tests/ArksScanner.Application.Tests/Ocr/DocumentAiResultMapperTests.cs tests/ArksScanner.Application.Tests/Fixtures/Ocr/google-document-ai-response.json
 git commit -m "feat: normalize Document AI OCR results"
 ```
 
 ### Task 5: Implement bounded provider orchestration
 
 **Files:**
-- Create: `src/SuperScanner.Infrastructure/Ocr/GoogleDocumentAiOcrProvider.cs`
-- Create: `tests/SuperScanner.Application.Tests/Ocr/GoogleDocumentAiOcrProviderTests.cs`
+- Create: `src/ArksScanner.Infrastructure/Ocr/GoogleDocumentAiOcrProvider.cs`
+- Create: `tests/ArksScanner.Application.Tests/Ocr/GoogleDocumentAiOcrProviderTests.cs`
 
 **Interfaces:**
 - Consumes: `IDocumentAiClient`, `DocumentAiResultMapper`, `OcrInput`, `GoogleDocumentAiOptions`.
@@ -282,7 +282,7 @@ Test JPEG and PNG success, `application/pdf` rejection, non-English rejection, e
 
 - [ ] **Step 2: Verify RED**
 
-Run: `dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter GoogleDocumentAiOcrProviderTests`
+Run: `dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter GoogleDocumentAiOcrProviderTests`
 
 Expected: compile failure because `GoogleDocumentAiOcrProvider` does not exist.
 
@@ -292,24 +292,24 @@ Accept only `image/jpeg` and `image/png` with language `en`. Copy through a boun
 
 - [ ] **Step 4: Verify GREEN**
 
-Run: `dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter GoogleDocumentAiOcrProviderTests`
+Run: `dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter GoogleDocumentAiOcrProviderTests`
 
 Expected: PASS, including zero client calls for the over-limit input.
 
 - [ ] **Step 5: Commit**
 
 ```powershell
-git add src/SuperScanner.Infrastructure/Ocr/GoogleDocumentAiOcrProvider.cs tests/SuperScanner.Application.Tests/Ocr/GoogleDocumentAiOcrProviderTests.cs
+git add src/ArksScanner.Infrastructure/Ocr/GoogleDocumentAiOcrProvider.cs tests/ArksScanner.Application.Tests/Ocr/GoogleDocumentAiOcrProviderTests.cs
 git commit -m "feat: call Google Document AI safely"
 ```
 
 ### Task 6: Translate Google failures and record content-safe metrics
 
 **Files:**
-- Modify: `src/SuperScanner.Infrastructure/Ocr/GoogleDocumentAiOcrProvider.cs`
-- Modify: `src/SuperScanner.Infrastructure/Ocr/OcrMetrics.cs`
-- Modify: `tests/SuperScanner.Application.Tests/Ocr/GoogleDocumentAiOcrProviderTests.cs`
-- Modify: `tests/SuperScanner.Application.Tests/Ocr/OcrWorkerTests.cs`
+- Modify: `src/ArksScanner.Infrastructure/Ocr/GoogleDocumentAiOcrProvider.cs`
+- Modify: `src/ArksScanner.Infrastructure/Ocr/OcrMetrics.cs`
+- Modify: `tests/ArksScanner.Application.Tests/Ocr/GoogleDocumentAiOcrProviderTests.cs`
+- Modify: `tests/ArksScanner.Application.Tests/Ocr/OcrWorkerTests.cs`
 
 **Interfaces:**
 - Consumes: `RpcException.StatusCode`, existing `OcrProviderException`, `OcrMetrics`.
@@ -333,7 +333,7 @@ Also assert that unknown status becomes `ocr_failed`/non-retryable, caller cance
 
 - [ ] **Step 2: Verify RED**
 
-Run: `dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter "GoogleDocumentAiOcrProviderTests|OcrWorkerTests"`
+Run: `dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter "GoogleDocumentAiOcrProviderTests|OcrWorkerTests"`
 
 Expected: failures because raw RPC exceptions are not translated.
 
@@ -343,25 +343,25 @@ Catch only expected SDK/transport exceptions around the client call. Convert sta
 
 - [ ] **Step 4: Verify GREEN**
 
-Run: `dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter "GoogleDocumentAiOcrProviderTests|OcrWorkerTests"`
+Run: `dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter "GoogleDocumentAiOcrProviderTests|OcrWorkerTests"`
 
 Expected: PASS, including permanent authentication failures and retryable transient failures.
 
 - [ ] **Step 5: Commit**
 
 ```powershell
-git add src/SuperScanner.Infrastructure/Ocr/GoogleDocumentAiOcrProvider.cs src/SuperScanner.Infrastructure/Ocr/OcrMetrics.cs tests/SuperScanner.Application.Tests/Ocr/GoogleDocumentAiOcrProviderTests.cs tests/SuperScanner.Application.Tests/Ocr/OcrWorkerTests.cs
+git add src/ArksScanner.Infrastructure/Ocr/GoogleDocumentAiOcrProvider.cs src/ArksScanner.Infrastructure/Ocr/OcrMetrics.cs tests/ArksScanner.Application.Tests/Ocr/GoogleDocumentAiOcrProviderTests.cs tests/ArksScanner.Application.Tests/Ocr/OcrWorkerTests.cs
 git commit -m "feat: classify Google OCR failures"
 ```
 
 ### Task 7: Wire provider selection into the Worker
 
 **Files:**
-- Modify: `src/SuperScanner.Worker/Program.cs`
-- Modify: `src/SuperScanner.Worker/appsettings.json`
-- Modify: `src/SuperScanner.Worker/appsettings.Development.json`
-- Create: `src/SuperScanner.Worker/OcrServiceCollectionExtensions.cs`
-- Create: `tests/SuperScanner.Application.Tests/Ocr/WorkerOcrRegistrationTests.cs`
+- Modify: `src/ArksScanner.Worker/Program.cs`
+- Modify: `src/ArksScanner.Worker/appsettings.json`
+- Modify: `src/ArksScanner.Worker/appsettings.Development.json`
+- Create: `src/ArksScanner.Worker/OcrServiceCollectionExtensions.cs`
+- Create: `tests/ArksScanner.Application.Tests/Ocr/WorkerOcrRegistrationTests.cs`
 
 **Interfaces:**
 - Consumes: `OcrOptions`, `GoogleDocumentAiOptions`, `IDocumentAiClient`, `GoogleDocumentAiOcrProvider`.
@@ -373,7 +373,7 @@ Build a Worker service collection through an extracted `AddOcrServices(IServiceC
 
 - [ ] **Step 2: Verify RED**
 
-Run: `dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter WorkerOcrRegistrationTests`
+Run: `dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter WorkerOcrRegistrationTests`
 
 Expected: compile failure because the registration method does not exist.
 
@@ -386,8 +386,8 @@ Replace the binary Fake/Disabled branch with an exact switch. Bind `OcrOptions` 
 Run both focused suites:
 
 ```powershell
-dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter WorkerOcrRegistrationTests
-dotnet test tests/SuperScanner.Api.IntegrationTests/SuperScanner.Api.IntegrationTests.csproj --filter OcrEndpointsTests
+dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter WorkerOcrRegistrationTests
+dotnet test tests/ArksScanner.Api.IntegrationTests/ArksScanner.Api.IntegrationTests.csproj --filter OcrEndpointsTests
 ```
 
 Expected: PASS without ADC or network access.
@@ -395,14 +395,14 @@ Expected: PASS without ADC or network access.
 - [ ] **Step 5: Commit**
 
 ```powershell
-git add src/SuperScanner.Worker/Program.cs src/SuperScanner.Worker/OcrServiceCollectionExtensions.cs src/SuperScanner.Worker/appsettings.json src/SuperScanner.Worker/appsettings.Development.json tests/SuperScanner.Application.Tests/Ocr/WorkerOcrRegistrationTests.cs
+git add src/ArksScanner.Worker/Program.cs src/ArksScanner.Worker/OcrServiceCollectionExtensions.cs src/ArksScanner.Worker/appsettings.json src/ArksScanner.Worker/appsettings.Development.json tests/ArksScanner.Application.Tests/Ocr/WorkerOcrRegistrationTests.cs
 git commit -m "feat: register Google OCR provider"
 ```
 
 ### Task 8: Add opt-in live acceptance and local operating instructions
 
 **Files:**
-- Create: `tests/SuperScanner.Application.Tests/Ocr/GoogleDocumentAiLiveTests.cs`
+- Create: `tests/ArksScanner.Application.Tests/Ocr/GoogleDocumentAiLiveTests.cs`
 - Modify: `docs/operations/ocr-foundation.md`
 - Modify: `.gitignore` if it does not already reject Google credential JSON patterns
 
@@ -416,7 +416,7 @@ The test must skip unless `GOOGLE_DOCUMENT_AI_LIVE_TEST=1`. It reads only these 
 
 - [ ] **Step 2: Verify the ordinary run is skipped and free**
 
-Run: `dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter GoogleDocumentAiLiveTests`
+Run: `dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter GoogleDocumentAiLiveTests`
 
 Expected: test skipped; no Google request.
 
@@ -443,7 +443,7 @@ Run:
 
 ```powershell
 $env:GOOGLE_DOCUMENT_AI_LIVE_TEST='1'
-dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter GoogleDocumentAiLiveTests
+dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter GoogleDocumentAiLiveTests
 ```
 
 Expected: PASS against `asia-southeast1`; output contains counts/latency/confidence but no recognized text. If ADC or IAM is unavailable, stop and report `ocr_auth_failed`; do not create a service-account key as a workaround.
@@ -451,7 +451,7 @@ Expected: PASS against `asia-southeast1`; output contains counts/latency/confide
 - [ ] **Step 5: Commit**
 
 ```powershell
-git add tests/SuperScanner.Application.Tests/Ocr/GoogleDocumentAiLiveTests.cs docs/operations/ocr-foundation.md .gitignore
+git add tests/ArksScanner.Application.Tests/Ocr/GoogleDocumentAiLiveTests.cs docs/operations/ocr-foundation.md .gitignore
 git commit -m "test: verify live Google OCR locally"
 ```
 
@@ -469,10 +469,10 @@ git commit -m "test: verify live Google OCR locally"
 Run:
 
 ```powershell
-dotnet test tests/SuperScanner.Domain.Tests/SuperScanner.Domain.Tests.csproj
-dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj
-dotnet test tests/SuperScanner.Infrastructure.IntegrationTests/SuperScanner.Infrastructure.IntegrationTests.csproj
-dotnet test tests/SuperScanner.Api.IntegrationTests/SuperScanner.Api.IntegrationTests.csproj
+dotnet test tests/ArksScanner.Domain.Tests/ArksScanner.Domain.Tests.csproj
+dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj
+dotnet test tests/ArksScanner.Infrastructure.IntegrationTests/ArksScanner.Infrastructure.IntegrationTests.csproj
+dotnet test tests/ArksScanner.Api.IntegrationTests/ArksScanner.Api.IntegrationTests.csproj
 ```
 
 Expected: PASS with the live test skipped unless explicitly enabled.
@@ -494,7 +494,7 @@ Run:
 
 ```powershell
 rg -n "private_key|refresh_token|client_secret|BEGIN PRIVATE KEY|GOOGLE_APPLICATION_CREDENTIALS" . -g '!**/bin/**' -g '!**/obj/**' -g '!**/node_modules/**' -g '!docs/superpowers/plans/**'
-rg -n "FullText|RawDocument|Status\.Detail|exception\.Message" src/SuperScanner.Infrastructure/Ocr src/SuperScanner.Worker
+rg -n "FullText|RawDocument|Status\.Detail|exception\.Message" src/ArksScanner.Infrastructure/Ocr src/ArksScanner.Worker
 git diff --check
 ```
 

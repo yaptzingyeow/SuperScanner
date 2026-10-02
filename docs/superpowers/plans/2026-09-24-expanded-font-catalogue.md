@@ -33,10 +33,10 @@
 ### Task 1: Extend the Catalogue Contract and Validation
 
 **Files:**
-- Modify: `src/SuperScanner.Domain/TextEditing/FontCatalogueEntry.cs`
-- Modify: `src/SuperScanner.Infrastructure/TextEditing/BundledFontCatalogue.cs`
+- Modify: `src/ArksScanner.Domain/TextEditing/FontCatalogueEntry.cs`
+- Modify: `src/ArksScanner.Infrastructure/TextEditing/BundledFontCatalogue.cs`
 - Modify: `assets/fonts/manifest.json`
-- Test: `tests/SuperScanner.Application.Tests/TextEditing/BundledFontCatalogueTests.cs`
+- Test: `tests/ArksScanner.Application.Tests/TextEditing/BundledFontCatalogueTests.cs`
 
 **Interfaces:**
 - Produces: `FontCategory` enum (`SansSerif`, `Serif`, `Monospace`, `Handwriting`)
@@ -44,11 +44,11 @@
 - Consumes: existing stable catalogue ID, version, hash, licence, web path, renderer path
 
 - [ ] **Step 1: Write failing manifest tests** for unique keys, allowed categories, real weight/style metadata, safe relative paths, stable Noto IDs, duplicate rejection, hash mismatch, and missing/invalid licence notice. The exact twenty-family inventory assertion belongs to Task 2, when those assets are introduced.
-- [ ] **Step 2: Run** `dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter FullyQualifiedName~BundledFontCatalogueTests`; expect failures for missing metadata and family count.
+- [ ] **Step 2: Run** `dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter FullyQualifiedName~BundledFontCatalogueTests`; expect failures for missing metadata and family count.
 - [ ] **Step 3: Extend the domain and manifest parser** with bounded enums/weights and separate `Enabled` from reproducible-but-not-selectable state.
 - [ ] **Step 4: Update current Noto manifest entries** without changing their IDs or versions.
 - [ ] **Step 5: Run focused tests**; expect every Task 1 contract test to pass before committing.
-- [ ] **Step 6: Commit** with `git add src/SuperScanner.Domain/TextEditing/FontCatalogueEntry.cs src/SuperScanner.Infrastructure/TextEditing/BundledFontCatalogue.cs assets/fonts/manifest.json tests/SuperScanner.Application.Tests/TextEditing/BundledFontCatalogueTests.cs && git commit -m "feat: extend font catalogue metadata"`.
+- [ ] **Step 6: Commit** with `git add src/ArksScanner.Domain/TextEditing/FontCatalogueEntry.cs src/ArksScanner.Infrastructure/TextEditing/BundledFontCatalogue.cs assets/fonts/manifest.json tests/ArksScanner.Application.Tests/TextEditing/BundledFontCatalogueTests.cs && git commit -m "feat: extend font catalogue metadata"`.
 
 ### Task 2: Add and Verify the Twenty Licensed Families
 
@@ -57,7 +57,7 @@
 - Add: `assets/fonts/<pinned-face-files>.ttf`
 - Add: `assets/fonts/licenses/<family>-OFL.txt`
 - Add: `apps/web/src/assets/fonts/<pinned-face-files>.ttf`
-- Test: `tests/SuperScanner.Application.Tests/TextEditing/BundledFontCatalogueTests.cs`
+- Test: `tests/ArksScanner.Application.Tests/TextEditing/BundledFontCatalogueTests.cs`
 
 **Interfaces:**
 - Produces: the exact twenty families listed in the spec and their supported faces
@@ -69,15 +69,15 @@
 - [ ] **Step 4: Copy identical pinned web assets** and verify web/server hashes match for each face.
 - [ ] **Step 5: Run catalogue tests and a script that recalculates every hash**; expect exactly twenty unique enabled families and no unreferenced font binaries.
 - [ ] **Step 6: Run a clean API and Worker build** to prove assets are included in publish output.
-- [ ] **Step 7: Commit** with `git add assets/fonts apps/web/src/assets/fonts tests/SuperScanner.Application.Tests/TextEditing/BundledFontCatalogueTests.cs && git commit -m "feat: add expanded licensed font catalogue"`.
+- [ ] **Step 7: Commit** with `git add assets/fonts apps/web/src/assets/fonts tests/ArksScanner.Application.Tests/TextEditing/BundledFontCatalogueTests.cs && git commit -m "feat: add expanded licensed font catalogue"`.
 
 ### Task 3: Expose a Safe Read-Only Font Catalogue API
 
 **Files:**
-- Create: `src/SuperScanner.Application/TextEditing/GetFontCatalogue.cs`
-- Modify: `src/SuperScanner.Api/Endpoints/TextEditingEndpoints.cs`
-- Modify: `src/SuperScanner.Api/Program.cs`
-- Test: `tests/SuperScanner.Api.IntegrationTests/Documents/TextEditingEndpointsTests.cs`
+- Create: `src/ArksScanner.Application/TextEditing/GetFontCatalogue.cs`
+- Modify: `src/ArksScanner.Api/Endpoints/TextEditingEndpoints.cs`
+- Modify: `src/ArksScanner.Api/Program.cs`
+- Test: `tests/ArksScanner.Api.IntegrationTests/Documents/TextEditingEndpointsTests.cs`
 
 **Interfaces:**
 - Produces: `GET /api/text-edit-fonts`
@@ -88,17 +88,17 @@
 - [ ] **Step 2: Run the focused API tests**; expect 404.
 - [ ] **Step 3: Implement the query and endpoint** with a deterministic category/name/weight order and versioned private cache semantics appropriate to the current auth boundary.
 - [ ] **Step 4: Run focused tests**; expect pass.
-- [ ] **Step 5: Commit** with `git add src/SuperScanner.Application/TextEditing/GetFontCatalogue.cs src/SuperScanner.Api/Endpoints/TextEditingEndpoints.cs src/SuperScanner.Api/Program.cs tests/SuperScanner.Api.IntegrationTests/Documents/TextEditingEndpointsTests.cs && git commit -m "feat: expose approved font catalogue"`.
+- [ ] **Step 5: Commit** with `git add src/ArksScanner.Application/TextEditing/GetFontCatalogue.cs src/ArksScanner.Api/Endpoints/TextEditingEndpoints.cs src/ArksScanner.Api/Program.cs tests/ArksScanner.Api.IntegrationTests/Documents/TextEditingEndpointsTests.cs && git commit -m "feat: expose approved font catalogue"`.
 
 ### Task 4: Rank the Expanded Catalogue Without Weakening Validation
 
 **Files:**
-- Modify: `src/SuperScanner.Infrastructure/TextEditing/TextStyleEstimator.cs`
-- Modify: `src/SuperScanner.Infrastructure/TextEditing/TextEditRenderer.cs`
-- Modify: `src/SuperScanner.Infrastructure/TextEditing/TextEditPreparation.cs`
-- Test: `tests/SuperScanner.Application.Tests/TextEditing/TextStyleEstimatorTests.cs`
-- Test: `tests/SuperScanner.Application.Tests/TextEditing/TextEditRendererTests.cs`
-- Test: `tests/SuperScanner.Application.Tests/TextEditing/TextEditPreparationTests.cs`
+- Modify: `src/ArksScanner.Infrastructure/TextEditing/TextStyleEstimator.cs`
+- Modify: `src/ArksScanner.Infrastructure/TextEditing/TextEditRenderer.cs`
+- Modify: `src/ArksScanner.Infrastructure/TextEditing/TextEditPreparation.cs`
+- Test: `tests/ArksScanner.Application.Tests/TextEditing/TextStyleEstimatorTests.cs`
+- Test: `tests/ArksScanner.Application.Tests/TextEditing/TextEditRendererTests.cs`
+- Test: `tests/ArksScanner.Application.Tests/TextEditing/TextEditPreparationTests.cs`
 
 **Interfaces:**
 - Produces: ranked candidates with real face weight/style and top-three recommendations
@@ -109,7 +109,7 @@
 - [ ] **Step 3: Update estimator ranking** to compare only selectable faces, return real metadata, and preserve deterministic ordering without loading fonts outside the pinned root.
 - [ ] **Step 4: Keep renderer validation exact**: catalogue ID, version, requested weight, file hash, and safe path must agree before rendering.
 - [ ] **Step 5: Run focused tests and existing text-edit regression tests**; expect pass.
-- [ ] **Step 6: Commit** with `git add src/SuperScanner.Infrastructure/TextEditing/TextStyleEstimator.cs src/SuperScanner.Infrastructure/TextEditing/TextEditRenderer.cs src/SuperScanner.Infrastructure/TextEditing/TextEditPreparation.cs tests/SuperScanner.Application.Tests/TextEditing && git commit -m "feat: rank expanded text fonts"`.
+- [ ] **Step 6: Commit** with `git add src/ArksScanner.Infrastructure/TextEditing/TextStyleEstimator.cs src/ArksScanner.Infrastructure/TextEditing/TextEditRenderer.cs src/ArksScanner.Infrastructure/TextEditing/TextEditPreparation.cs tests/ArksScanner.Application.Tests/TextEditing && git commit -m "feat: rank expanded text fonts"`.
 
 ### Task 5: Build the Lazy Font Picker
 
@@ -145,8 +145,8 @@
 **Files:**
 - Create: `tests/e2e/font-catalogue.spec.ts` or extend the current printed-text Playwright suite
 - Modify: `docs/operations/printed-text-editing.md`
-- Modify: `src/SuperScanner.Api/appsettings.json`
-- Modify: `src/SuperScanner.Worker/appsettings.json`
+- Modify: `src/ArksScanner.Api/appsettings.json`
+- Modify: `src/ArksScanner.Worker/appsettings.json`
 
 **Interfaces:**
 - Produces: documented catalogue upgrade, disablement, hash failure, rollback, and old-edit recovery procedure
@@ -156,5 +156,5 @@
 - [ ] **Step 3: Add an old-Noto-edit regression** proving expansion does not alter previously rendered output.
 - [ ] **Step 4: Document licence inventory, manifest upgrades, startup validation, disabling a compromised face, rollback, and retained-version recovery.**
 - [ ] **Step 5: Run all text-editing .NET tests, Angular tests, clean production builds, and the opt-in E2E**; record exact pass/skip counts.
-- [ ] **Step 6: Inspect `git diff` for unlicensed/unreferenced binaries and commit** with `git add tests/e2e docs/operations/printed-text-editing.md src/SuperScanner.Api/appsettings.json src/SuperScanner.Worker/appsettings.json && git commit -m "test: verify expanded font catalogue"`.
+- [ ] **Step 6: Inspect `git diff` for unlicensed/unreferenced binaries and commit** with `git add tests/e2e docs/operations/printed-text-editing.md src/ArksScanner.Api/appsettings.json src/ArksScanner.Worker/appsettings.json && git commit -m "test: verify expanded font catalogue"`.
 

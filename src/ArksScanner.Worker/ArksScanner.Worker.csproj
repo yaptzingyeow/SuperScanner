@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>dotnet-ArksScanner.Worker-095f7164-7e4b-4aa9-b711-fcb31e19d409</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ArksScanner.Application\ArksScanner.Application.csproj" />
+    <ProjectReference Include="..\ArksScanner.Infrastructure\ArksScanner.Infrastructure.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="..\..\assets\fonts\**\*" Link="assets\fonts\%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="processing\**\*.py;processing\requirements.txt"
+             Exclude="processing\test_*.py"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+    <Content Update="processing\models\*.json"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <Target Name="VerifyBoundaryProcessingAssets" AfterTargets="Publish">
+    <Error Condition="!Exists('$(PublishDir)processing\boundary\hybrid.py')"
+           Text="Published Worker is missing processing/boundary/hybrid.py." />
+    <Error Condition="!Exists('$(PublishDir)processing\requirements.txt')"
+           Text="Published Worker is missing processing/requirements.txt." />
+    <Error Condition="!Exists('$(PublishDir)processing\models\document-boundary-model.json')"
+           Text="Published Worker is missing processing/models/document-boundary-model.json." />
+  </Target>
+</Project>

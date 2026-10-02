@@ -30,13 +30,13 @@
 
 ## Task 1: Canonical marks and owner-checked persistence
 
-**Files:** Create `src/SuperScanner.Domain/Documents/PageMark.cs`,
-`src/SuperScanner.Infrastructure/Persistence/Configurations/PageMarkConfiguration.cs`,
-`src/SuperScanner.Api/Endpoints/PageMarkEndpoints.cs`,
-`tests/SuperScanner.Domain.Tests/Documents/PageMarkTests.cs`,
-`tests/SuperScanner.Api.IntegrationTests/Documents/PageMarkEndpointsTests.cs`.
-Modify `src/SuperScanner.Infrastructure/Persistence/AppDbContext.cs`,
-`src/SuperScanner.Api/Program.cs`; generate an EF migration under the existing migrations directory.
+**Files:** Create `src/ArksScanner.Domain/Documents/PageMark.cs`,
+`src/ArksScanner.Infrastructure/Persistence/Configurations/PageMarkConfiguration.cs`,
+`src/ArksScanner.Api/Endpoints/PageMarkEndpoints.cs`,
+`tests/ArksScanner.Domain.Tests/Documents/PageMarkTests.cs`,
+`tests/ArksScanner.Api.IntegrationTests/Documents/PageMarkEndpointsTests.cs`.
+Modify `src/ArksScanner.Infrastructure/Persistence/AppDbContext.cs`,
+`src/ArksScanner.Api/Program.cs`; generate an EF migration under the existing migrations directory.
 
 **Interfaces:** `PageMarkKind { Check, Cross }`; immutable validated
 `PageMarkStyle(string color, double strokeWidth)`; `PageMark` stores a `SignatureBox`
@@ -60,10 +60,10 @@ Use the same document FOR UPDATE lock, audit and stale-export conventions as sig
 
 ## Task 2: Immutable snapshots and vector PDF rendering
 
-**Files:** Modify `src/SuperScanner.Domain/Documents/DocumentExport.cs`,
-`src/SuperScanner.Application/Documents/CreateDocumentExport.cs`, and
-`src/SuperScanner.Infrastructure/Processing/DocumentPdfBuilder.cs`.
-Create `src/SuperScanner.Infrastructure/Processing/PdfMarkRenderer.cs`.
+**Files:** Modify `src/ArksScanner.Domain/Documents/DocumentExport.cs`,
+`src/ArksScanner.Application/Documents/CreateDocumentExport.cs`, and
+`src/ArksScanner.Infrastructure/Processing/DocumentPdfBuilder.cs`.
+Create `src/ArksScanner.Infrastructure/Processing/PdfMarkRenderer.cs`.
 Extend existing Domain/export/API/Application PDF tests in their current files.
 
 **Interfaces:** `MarkOverlaySnapshot(Guid MarkId, PageMarkKind Kind, SignatureBox Box,

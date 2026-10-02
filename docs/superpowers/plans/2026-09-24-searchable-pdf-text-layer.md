@@ -33,12 +33,12 @@
 ### Task 1: Snapshot Exact OCR Eligibility
 
 **Files:**
-- Modify: `src/SuperScanner.Domain/Documents/DocumentExport.cs`
-- Modify: `src/SuperScanner.Application/Documents/CreateDocumentExport.cs`
-- Modify: `src/SuperScanner.Application/Abstractions/IOcrRepository.cs`
-- Modify: `src/SuperScanner.Infrastructure/Persistence/EfOcrRepository.cs`
-- Test: `tests/SuperScanner.Domain.Tests/Documents/DocumentExportTests.cs`
-- Test: `tests/SuperScanner.Application.Tests/Documents/DocumentExportTests.cs`
+- Modify: `src/ArksScanner.Domain/Documents/DocumentExport.cs`
+- Modify: `src/ArksScanner.Application/Documents/CreateDocumentExport.cs`
+- Modify: `src/ArksScanner.Application/Abstractions/IOcrRepository.cs`
+- Modify: `src/ArksScanner.Infrastructure/Persistence/EfOcrRepository.cs`
+- Test: `tests/ArksScanner.Domain.Tests/Documents/DocumentExportTests.cs`
+- Test: `tests/ArksScanner.Application.Tests/Documents/DocumentExportTests.cs`
 
 **Interfaces:**
 - Produces: `DocumentExportSnapshotEntry.OcrResultId : Guid?`, `OcrSourceObjectKey : string?`, `OcrSourceFingerprint : string?`
@@ -46,7 +46,7 @@
 - Consumes: existing `PageOcrResult` source identity and `DocumentExport.Create`
 
 - [ ] **Step 1: Write failing domain tests** proving a matching Ready OCR ID is recorded, nonmatching/unfinished OCR is omitted, and deserializing old JSON yields null OCR fields.
-- [ ] **Step 2: Run the focused tests** with `dotnet test tests/SuperScanner.Domain.Tests/SuperScanner.Domain.Tests.csproj --filter FullyQualifiedName~DocumentExportTests`; expect failures for missing snapshot fields.
+- [ ] **Step 2: Run the focused tests** with `dotnet test tests/ArksScanner.Domain.Tests/ArksScanner.Domain.Tests.csproj --filter FullyQualifiedName~DocumentExportTests`; expect failures for missing snapshot fields.
 - [ ] **Step 3: Extend the snapshot contract** with nullable positional-safe properties and change `DocumentExport.Create` to accept a read-only page-to-OCR map:
 
 ```csharp
@@ -59,14 +59,14 @@ public sealed record DocumentExportSnapshotEntry(
 - [ ] **Step 4: Write failing application tests** for one batched OCR lookup, exact source matching, no OCR wait/job request, and a newer OCR result created after snapshot not changing the stored JSON.
 - [ ] **Step 5: Implement the repository query and create-handler join** using one no-tracking query with elements excluded; select only Ready results whose page and active source identity match.
 - [ ] **Step 6: Run domain and application export tests**; expect all focused tests to pass.
-- [ ] **Step 7: Commit** with `git add src/SuperScanner.Domain/Documents/DocumentExport.cs src/SuperScanner.Application/Documents/CreateDocumentExport.cs src/SuperScanner.Application/Abstractions/IOcrRepository.cs src/SuperScanner.Infrastructure/Persistence/EfOcrRepository.cs tests/SuperScanner.Domain.Tests/Documents/DocumentExportTests.cs tests/SuperScanner.Application.Tests/Documents/DocumentExportTests.cs && git commit -m "feat: snapshot export OCR eligibility"`.
+- [ ] **Step 7: Commit** with `git add src/ArksScanner.Domain/Documents/DocumentExport.cs src/ArksScanner.Application/Documents/CreateDocumentExport.cs src/ArksScanner.Application/Abstractions/IOcrRepository.cs src/ArksScanner.Infrastructure/Persistence/EfOcrRepository.cs tests/ArksScanner.Domain.Tests/Documents/DocumentExportTests.cs tests/ArksScanner.Application.Tests/Documents/DocumentExportTests.cs && git commit -m "feat: snapshot export OCR eligibility"`.
 
 ### Task 2: Isolate and Validate Searchable Words
 
 **Files:**
-- Create: `src/SuperScanner.Infrastructure/Processing/PdfTextLayerWord.cs`
-- Create: `src/SuperScanner.Infrastructure/Processing/PdfTextLayerProjector.cs`
-- Test: `tests/SuperScanner.Application.Tests/Processing/PdfTextLayerProjectorTests.cs`
+- Create: `src/ArksScanner.Infrastructure/Processing/PdfTextLayerWord.cs`
+- Create: `src/ArksScanner.Infrastructure/Processing/PdfTextLayerProjector.cs`
+- Test: `tests/ArksScanner.Application.Tests/Processing/PdfTextLayerProjectorTests.cs`
 
 **Interfaces:**
 - Produces: `PdfTextLayerWord(string Text, double X, double Y, double Width, double Height, double AngleDegrees, int ReadingOrder)`
@@ -74,20 +74,20 @@ public sealed record DocumentExportSnapshotEntry(
 - Consumes: `OcrElementKind.Word`, normalized four-point polygons, stored reading order
 
 - [ ] **Step 1: Write failing projection tests** for coordinate-origin conversion, ordered words, mild rotation, horizontal scaling bounds, empty text, malformed geometry, out-of-range points, collapsed boxes, maximum word count, and maximum character count.
-- [ ] **Step 2: Run** `dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter FullyQualifiedName~PdfTextLayerProjectorTests`; expect compile failure because the projector does not exist.
+- [ ] **Step 2: Run** `dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter FullyQualifiedName~PdfTextLayerProjectorTests`; expect compile failure because the projector does not exist.
 - [ ] **Step 3: Implement immutable projection types and limits** with finite-number checks, clipping policy from the spec, deterministic ordering, and no logging or exception messages containing `Text`.
 - [ ] **Step 4: Run the focused tests**; expect every projection and skip case to pass.
-- [ ] **Step 5: Commit** with `git add src/SuperScanner.Infrastructure/Processing/PdfTextLayerWord.cs src/SuperScanner.Infrastructure/Processing/PdfTextLayerProjector.cs tests/SuperScanner.Application.Tests/Processing/PdfTextLayerProjectorTests.cs && git commit -m "feat: project OCR words into PDF coordinates"`.
+- [ ] **Step 5: Commit** with `git add src/ArksScanner.Infrastructure/Processing/PdfTextLayerWord.cs src/ArksScanner.Infrastructure/Processing/PdfTextLayerProjector.cs tests/ArksScanner.Application.Tests/Processing/PdfTextLayerProjectorTests.cs && git commit -m "feat: project OCR words into PDF coordinates"`.
 
 ### Task 3: Write the Invisible PDF Text Layer
 
 **Files:**
-- Create: `src/SuperScanner.Infrastructure/Processing/IPdfTextLayerWriter.cs`
-- Create: `src/SuperScanner.Infrastructure/Processing/PdfSharpTextLayerWriter.cs`
+- Create: `src/ArksScanner.Infrastructure/Processing/IPdfTextLayerWriter.cs`
+- Create: `src/ArksScanner.Infrastructure/Processing/PdfSharpTextLayerWriter.cs`
 - Add: `assets/fonts/NotoSans-Regular.ttf` only if the existing pinned asset cannot be reused at publish time
-- Modify: `src/SuperScanner.Infrastructure/SuperScanner.Infrastructure.csproj`
-- Modify: `tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj` (add a pinned PDF text-extraction test dependency if PDFsharp cannot verify extraction)
-- Test: `tests/SuperScanner.Application.Tests/Processing/PdfSharpTextLayerWriterTests.cs`
+- Modify: `src/ArksScanner.Infrastructure/ArksScanner.Infrastructure.csproj`
+- Modify: `tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj` (add a pinned PDF text-extraction test dependency if PDFsharp cannot verify extraction)
+- Test: `tests/ArksScanner.Application.Tests/Processing/PdfSharpTextLayerWriterTests.cs`
 
 **Interfaces:**
 - Produces: `IPdfTextLayerWriter.Write(PdfPage page, IReadOnlyList<PdfTextLayerWord> words)`
@@ -98,17 +98,17 @@ public sealed record DocumentExportSnapshotEntry(
 - [ ] **Step 3: Implement the writer** using PDF invisible text rendering mode (`Tr 3`), an embedded pinned Noto Sans font, bounded font size, baseline rotation, and horizontal text scaling. Keep low-level PDF operator handling inside this class.
 - [ ] **Step 4: Add failure tests** for unsupported glyphs, zero dimensions, oversized word lists, and a corrupt/missing font; assert safe codes contain no OCR text.
 - [ ] **Step 5: Run the writer tests** and render the produced PDF to an image for pixel comparison; expect extraction to pass and no visible glyphs.
-- [ ] **Step 6: Commit** with `git add src/SuperScanner.Infrastructure/Processing/IPdfTextLayerWriter.cs src/SuperScanner.Infrastructure/Processing/PdfSharpTextLayerWriter.cs src/SuperScanner.Infrastructure/SuperScanner.Infrastructure.csproj tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj tests/SuperScanner.Application.Tests/Processing/PdfSharpTextLayerWriterTests.cs assets/fonts/NotoSans-Regular.ttf && git commit -m "feat: write invisible PDF text layers"` (omit the font path if reused unchanged).
+- [ ] **Step 6: Commit** with `git add src/ArksScanner.Infrastructure/Processing/IPdfTextLayerWriter.cs src/ArksScanner.Infrastructure/Processing/PdfSharpTextLayerWriter.cs src/ArksScanner.Infrastructure/ArksScanner.Infrastructure.csproj tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj tests/ArksScanner.Application.Tests/Processing/PdfSharpTextLayerWriterTests.cs assets/fonts/NotoSans-Regular.ttf && git commit -m "feat: write invisible PDF text layers"` (omit the font path if reused unchanged).
 
 ### Task 4: Integrate OCR into PDF Assembly with Image-Only Fallback
 
 **Files:**
-- Modify: `src/SuperScanner.Infrastructure/Processing/DocumentPdfBuilder.cs`
-- Modify: `src/SuperScanner.Infrastructure/Processing/PdfTextLayerProjector.cs`
-- Modify: `src/SuperScanner.Api/Program.cs`
-- Modify: `src/SuperScanner.Worker/Program.cs`
-- Test: `tests/SuperScanner.Application.Tests/Processing/DocumentPdfBuilderTests.cs`
-- Test: `tests/SuperScanner.Infrastructure.IntegrationTests/Persistence/OcrPersistenceTests.cs`
+- Modify: `src/ArksScanner.Infrastructure/Processing/DocumentPdfBuilder.cs`
+- Modify: `src/ArksScanner.Infrastructure/Processing/PdfTextLayerProjector.cs`
+- Modify: `src/ArksScanner.Api/Program.cs`
+- Modify: `src/ArksScanner.Worker/Program.cs`
+- Test: `tests/ArksScanner.Application.Tests/Processing/DocumentPdfBuilderTests.cs`
+- Test: `tests/ArksScanner.Infrastructure.IntegrationTests/Persistence/OcrPersistenceTests.cs`
 
 **Interfaces:**
 - Consumes: nullable OCR snapshot identity from Task 1
@@ -116,23 +116,23 @@ public sealed record DocumentExportSnapshotEntry(
 - Produces: per-build `SearchablePageCount` and `SkippedWordCount` without text-bearing telemetry
 
 - [ ] **Step 1: Add failing builder tests** for fully searchable, partially searchable, no OCR, stale source identity, missing row, invalid single word, newer-result substitution prevention, cancellation, and legacy snapshot JSON.
-- [ ] **Step 2: Run** `dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter FullyQualifiedName~DocumentPdfBuilderTests`; expect new cases to fail.
+- [ ] **Step 2: Run** `dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter FullyQualifiedName~DocumentPdfBuilderTests`; expect new cases to fail.
 - [ ] **Step 3: Refactor `DocumentPdfBuilder` dependencies** to accept the focused projector/writer, and load only the exact snapshotted OCR IDs with `Elements` in a bounded query.
 - [ ] **Step 4: Draw image first, then write eligible invisible words**; downgrade eligibility/data problems to image-only and retain hard failure for corrupt output, font, resource-limit, or storage failures.
 - [ ] **Step 5: Add a log-capture assertion** using a distinctive sensitive phrase and verify it appears in neither success nor failure logs.
 - [ ] **Step 6: Run focused application and infrastructure tests**; expect all cases to pass.
-- [ ] **Step 7: Commit** with `git add src/SuperScanner.Infrastructure/Processing/DocumentPdfBuilder.cs src/SuperScanner.Infrastructure/Processing/PdfTextLayerProjector.cs src/SuperScanner.Api/Program.cs src/SuperScanner.Worker/Program.cs tests/SuperScanner.Application.Tests/Processing/DocumentPdfBuilderTests.cs tests/SuperScanner.Infrastructure.IntegrationTests/Persistence/OcrPersistenceTests.cs && git commit -m "feat: build searchable document PDFs"`.
+- [ ] **Step 7: Commit** with `git add src/ArksScanner.Infrastructure/Processing/DocumentPdfBuilder.cs src/ArksScanner.Infrastructure/Processing/PdfTextLayerProjector.cs src/ArksScanner.Api/Program.cs src/ArksScanner.Worker/Program.cs tests/ArksScanner.Application.Tests/Processing/DocumentPdfBuilderTests.cs tests/ArksScanner.Infrastructure.IntegrationTests/Persistence/OcrPersistenceTests.cs && git commit -m "feat: build searchable document PDFs"`.
 
 ### Task 5: Persist and Expose Searchability Classification
 
 **Files:**
-- Modify: `src/SuperScanner.Domain/Documents/DocumentExport.cs`
-- Modify: `src/SuperScanner.Application/Documents/GetDocumentExport.cs`
-- Modify: `src/SuperScanner.Infrastructure/Persistence/Configurations/DocumentExportConfiguration.cs`
-- Create: `src/SuperScanner.Infrastructure/Persistence/Migrations/<timestamp>_SearchableDocumentExports.cs`
-- Modify: `src/SuperScanner.Infrastructure/Persistence/Migrations/AppDbContextModelSnapshot.cs`
-- Test: `tests/SuperScanner.Domain.Tests/Documents/DocumentExportTests.cs`
-- Test: `tests/SuperScanner.Api.IntegrationTests/Documents/DocumentExportEndpointsTests.cs`
+- Modify: `src/ArksScanner.Domain/Documents/DocumentExport.cs`
+- Modify: `src/ArksScanner.Application/Documents/GetDocumentExport.cs`
+- Modify: `src/ArksScanner.Infrastructure/Persistence/Configurations/DocumentExportConfiguration.cs`
+- Create: `src/ArksScanner.Infrastructure/Persistence/Migrations/<timestamp>_SearchableDocumentExports.cs`
+- Modify: `src/ArksScanner.Infrastructure/Persistence/Migrations/AppDbContextModelSnapshot.cs`
+- Test: `tests/ArksScanner.Domain.Tests/Documents/DocumentExportTests.cs`
+- Test: `tests/ArksScanner.Api.IntegrationTests/Documents/DocumentExportEndpointsTests.cs`
 
 **Interfaces:**
 - Produces: `SearchablePageCount : int`
@@ -145,7 +145,7 @@ public sealed record DocumentExportSnapshotEntry(
 - [ ] **Step 4: Generate and inspect the EF migration** so existing rows default to zero and no document/export data is rewritten.
 - [ ] **Step 5: Extend `DocumentExportResult` and endpoint JSON** without exposing OCR IDs or text.
 - [ ] **Step 6: Run focused tests and apply the migration to the disposable PostgreSQL test database**; expect all assertions to pass.
-- [ ] **Step 7: Commit** with `git add src/SuperScanner.Domain/Documents/DocumentExport.cs src/SuperScanner.Application/Documents/GetDocumentExport.cs src/SuperScanner.Infrastructure/Persistence/Configurations/DocumentExportConfiguration.cs src/SuperScanner.Infrastructure/Persistence/Migrations tests/SuperScanner.Domain.Tests/Documents/DocumentExportTests.cs tests/SuperScanner.Api.IntegrationTests/Documents/DocumentExportEndpointsTests.cs && git commit -m "feat: report PDF searchability"`.
+- [ ] **Step 7: Commit** with `git add src/ArksScanner.Domain/Documents/DocumentExport.cs src/ArksScanner.Application/Documents/GetDocumentExport.cs src/ArksScanner.Infrastructure/Persistence/Configurations/DocumentExportConfiguration.cs src/ArksScanner.Infrastructure/Persistence/Migrations tests/ArksScanner.Domain.Tests/Documents/DocumentExportTests.cs tests/ArksScanner.Api.IntegrationTests/Documents/DocumentExportEndpointsTests.cs && git commit -m "feat: report PDF searchability"`.
 
 ### Task 6: Present Searchability in Angular
 
@@ -171,8 +171,8 @@ public sealed record DocumentExportSnapshotEntry(
 **Files:**
 - Create: `tests/e2e/searchable-pdf.spec.ts` or extend the repository's current Playwright export suite
 - Modify: `docs/operations/pdf-export.md` (create if absent)
-- Modify: `src/SuperScanner.Api/appsettings.json`
-- Modify: `src/SuperScanner.Worker/appsettings.json`
+- Modify: `src/ArksScanner.Api/appsettings.json`
+- Modify: `src/ArksScanner.Worker/appsettings.json`
 
 **Interfaces:**
 - Produces: `PdfExport:SearchableTextEnabled` and bounded text-layer settings validated at startup
@@ -181,5 +181,5 @@ public sealed record DocumentExportSnapshotEntry(
 - [ ] **Step 2: Add a mixed-page E2E case** with one Ready OCR page and one image-only page; assert `PartiallySearchable` and successful download.
 - [ ] **Step 3: Add validated configuration and an operational disable/rollback procedure**; disabling the feature must preserve image-only export.
 - [ ] **Step 4: Run all .NET test projects, Angular tests, production builds, and the opt-in E2E**; record exact pass/skip counts in the task ledger.
-- [ ] **Step 5: Inspect `git diff`, verify no OCR text fixture contains production data, and commit** with `git add tests/e2e docs/operations/pdf-export.md src/SuperScanner.Api/appsettings.json src/SuperScanner.Worker/appsettings.json && git commit -m "test: verify searchable PDF export"`.
+- [ ] **Step 5: Inspect `git diff`, verify no OCR text fixture contains production data, and commit** with `git add tests/e2e docs/operations/pdf-export.md src/ArksScanner.Api/appsettings.json src/ArksScanner.Worker/appsettings.json && git commit -m "test: verify searchable PDF export"`.
 

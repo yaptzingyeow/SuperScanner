@@ -6,7 +6,7 @@
 
 ## Purpose
 
-SuperScanner must identify the physical outer boundary of a photographed paper document, estimate four perspective-aware corners, and let the user correct those corners before applying a full-resolution perspective transform. The detector must handle folds, shadows, clutter, weak edges, and printed lines that can be mistaken for paper edges.
+ArksScanner must identify the physical outer boundary of a photographed paper document, estimate four perspective-aware corners, and let the user correct those corners before applying a full-resolution perspective transform. The detector must handle folds, shadows, clutter, weak edges, and printed lines that can be mistaken for paper edges.
 
 Phase 1 runs detection in the existing server Worker after upload validation. Phase 2 will reuse the selected ONNX model on the phone for live camera guidance and automatic capture. Google Cloud Vision remains an OCR service after cropping; its Crop Hints output is not used for physical paper-boundary detection.
 
@@ -148,7 +148,7 @@ Server and mobile implementations share golden input images, expected masks or c
 
 ## Security and Privacy
 
-- Detection runs in SuperScanner infrastructure for Phase 1 and does not send the image to Google.
+- Detection runs in ArksScanner infrastructure for Phase 1 and does not send the image to Google.
 - Google OCR is invoked only by the separate OCR stage when enabled.
 - Model files are verified by checksum before loading.
 - Input dimensions, decode time, inference time, and memory are bounded.

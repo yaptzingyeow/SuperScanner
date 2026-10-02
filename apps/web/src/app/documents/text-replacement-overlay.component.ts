@@ -31,7 +31,7 @@ export class TextReplacementOverlayComponent implements OnChanges {
       Math.max(...ys) > box.y;
   }));
   protected readonly fontFamily = computed(() => this.selectedWebFamily() ??
-    (this.style().fontId === 'noto-serif' ? 'SuperScanner Noto Serif v1' : 'SuperScanner Noto Sans v1'));
+    (this.style().fontId === 'noto-serif' ? 'ArksScanner Noto Serif v1' : 'ArksScanner Noto Sans v1'));
   protected readonly sourceArea = computed(() => {
     const points = this.originalPolygon();
     const left = Math.min(...points.map((point) => point.x));

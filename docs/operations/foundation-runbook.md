@@ -7,8 +7,8 @@ Use separate Railway projects for production and non-production. Only `web` and 
 | Service | Exposure | Health path | Container |
 | --- | --- | --- | --- |
 | Web | Public | `/health` | `apps/web/Dockerfile` |
-| API | Public | `/health` | `src/SuperScanner.Api/Dockerfile` |
-| Worker | Private only | `/health` | `src/SuperScanner.Worker/Dockerfile` |
+| API | Public | `/health` | `src/ArksScanner.Api/Dockerfile` |
+| Worker | Private only | `/health` | `src/ArksScanner.Worker/Dockerfile` |
 | PostgreSQL | Private only | Railway TCP health check | Railway PostgreSQL |
 
 Never reuse Firebase projects, R2 buckets, database credentials, audit keys, or provider accounts between environments.
@@ -19,8 +19,8 @@ Docker Desktop must be running. The Compose defaults are deliberately local-only
 
 ```powershell
 docker compose up -d --wait
-dotnet run --project src/SuperScanner.Api
-dotnet run --project src/SuperScanner.Worker
+dotnet run --project src/ArksScanner.Api
+dotnet run --project src/ArksScanner.Worker
 npm --prefix apps/web start
 ```
 
@@ -37,7 +37,7 @@ Use at least 32 random bytes for the audit signing key, Base64 encoded. Store se
 ## Deploy and migrate
 
 1. Back up PostgreSQL and confirm the target environment and R2 bucket.
-2. Deploy a one-off migration job containing the .NET SDK and run `dotnet ef database update --project src/SuperScanner.Infrastructure --startup-project src/SuperScanner.Infrastructure`. Do not run migrations from the runtime-only API image.
+2. Deploy a one-off migration job containing the .NET SDK and run `dotnet ef database update --project src/ArksScanner.Infrastructure --startup-project src/ArksScanner.Infrastructure`. Do not run migrations from the runtime-only API image.
 3. Start the API and verify `/health`, then start the private worker and verify `/health` from Railway's private network.
 4. Deploy web with `API_UPSTREAM` pointing to the API private hostname. Verify authentication, App Check, upload, validation, and owner isolation before promoting traffic.
 

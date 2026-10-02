@@ -34,13 +34,13 @@
 ### Task 1: Page rotation in domain, API and worker
 
 **Files:**
-- Modify: `src/SuperScanner.Domain/Documents/Page.cs` (add `Rotation`, `SetRotation`)
-- Modify: `src/SuperScanner.Infrastructure/Persistence/Configurations/PageConfiguration.cs` (column `Rotation`, int, not null, default 0)
-- Create: migration `PageRotation` under `src/SuperScanner.Infrastructure/Persistence/Migrations/`
-- Modify: `src/SuperScanner.Api/Endpoints/CropEndpoints.cs` (`CropRequest`, `ToDto`)
-- Modify: `src/SuperScanner.Infrastructure/Processing/CropProcessor.cs` (pass rotation to the subprocess)
-- Modify: `src/SuperScanner.Worker/processing/crop_image.py` (`apply` honours rotation)
-- Test: `tests/SuperScanner.Domain.Tests/Documents/PageRotationTests.cs`, `src/SuperScanner.Worker/processing/test_crop_cli.py`, `tests/SuperScanner.Api.IntegrationTests/Documents/CropEndpointsRotationTests.cs`
+- Modify: `src/ArksScanner.Domain/Documents/Page.cs` (add `Rotation`, `SetRotation`)
+- Modify: `src/ArksScanner.Infrastructure/Persistence/Configurations/PageConfiguration.cs` (column `Rotation`, int, not null, default 0)
+- Create: migration `PageRotation` under `src/ArksScanner.Infrastructure/Persistence/Migrations/`
+- Modify: `src/ArksScanner.Api/Endpoints/CropEndpoints.cs` (`CropRequest`, `ToDto`)
+- Modify: `src/ArksScanner.Infrastructure/Processing/CropProcessor.cs` (pass rotation to the subprocess)
+- Modify: `src/ArksScanner.Worker/processing/crop_image.py` (`apply` honours rotation)
+- Test: `tests/ArksScanner.Domain.Tests/Documents/PageRotationTests.cs`, `src/ArksScanner.Worker/processing/test_crop_cli.py`, `tests/ArksScanner.Api.IntegrationTests/Documents/CropEndpointsRotationTests.cs`
 
 **Interfaces:**
 - Produces: `Page.Rotation : int`; `Page.SetRotation(int degrees)` throws `ArgumentException` unless 0/90/180/270; `CropRequest(int Revision, CropPoint[]? Points, string? Filter = null, int? Rotation = null)`; crop DTO gains `rotation`; CLI `apply <source> <points> <preview> <thumb> <filter> <rotation>` (rotation optional, default 0).
@@ -49,8 +49,8 @@
   - Domain `Rotation_accepts_quarter_turns_and_rejects_others`: `SetRotation(90)` → `Rotation == 90`; `SetRotation(45)` and `SetRotation(360)` throw `ArgumentException`.
   - Python `test_apply_rotates_output_clockwise`: 400×200 source, full-image corners, filter `Original`, rotation `90` → printed size `{"width": 200, "height": 400}`-proportioned (height > width) and the top-left source pixel colour appears at the output's top-right.
   - API `Apply_with_rotation_persists_and_returns_it`: POST `/crop/apply` with `rotation: 270` → 202, then GET `/crop` returns `rotation: 270`; `rotation: 45` → 400 with key `rotation`.
-- [ ] **Step 2: Run them, expect failures** (`dotnet test tests/SuperScanner.Domain.Tests --artifacts-path .task-tools/test-artifacts --filter PageRotation`; `python -m unittest test_crop_cli` in `src/SuperScanner.Worker/processing`; API filter `CropEndpointsRotation`).
-- [ ] **Step 3: Implement.** `SubmitAsync` validates `request.Rotation` with the same rule and calls `page.SetRotation` before queuing; `CropProcessor` appends `page.Rotation.ToString(CultureInfo.InvariantCulture)` after the filter argument; `crop_image.py` applies `cv2.rotate` (`ROTATE_90_CLOCKWISE`, `ROTATE_180`, `ROTATE_90_COUNTERCLOCKWISE`) to the filtered image in `write_outputs`'s caller for both the Magic and legacy paths. Generate the migration with `dotnet tool restore` then `dotnet ef migrations add PageRotation --project src/SuperScanner.Infrastructure --startup-project src/SuperScanner.Infrastructure`.
+- [ ] **Step 2: Run them, expect failures** (`dotnet test tests/ArksScanner.Domain.Tests --artifacts-path .task-tools/test-artifacts --filter PageRotation`; `python -m unittest test_crop_cli` in `src/ArksScanner.Worker/processing`; API filter `CropEndpointsRotation`).
+- [ ] **Step 3: Implement.** `SubmitAsync` validates `request.Rotation` with the same rule and calls `page.SetRotation` before queuing; `CropProcessor` appends `page.Rotation.ToString(CultureInfo.InvariantCulture)` after the filter argument; `crop_image.py` applies `cv2.rotate` (`ROTATE_90_CLOCKWISE`, `ROTATE_180`, `ROTATE_90_COUNTERCLOCKWISE`) to the filtered image in `write_outputs`'s caller for both the Magic and legacy paths. Generate the migration with `dotnet tool restore` then `dotnet ef migrations add PageRotation --project src/ArksScanner.Infrastructure --startup-project src/ArksScanner.Infrastructure`.
 - [ ] **Step 4: Run all three suites, expect pass;** also the full Python suite (77 tests) and `CropEndpoints` API tests.
 - [ ] **Step 5: Apply the migration locally** — ask the user to run `scripts/database/Apply-DatabaseMigrations.ps1` (needs the PostgreSQL admin password; it also applies the pending `PageRepairOperations` migration). Restart API/Worker and verify `/api/documents` 200.
 - [ ] **Step 6: Commit** (only if the user asked for commits).

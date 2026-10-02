@@ -2,9 +2,9 @@
 param(
     [string]$HostName = '127.0.0.1',
     [ValidateRange(1, 65535)][int]$Port = 5432,
-    [string]$DatabaseName = 'SuperScannerDB',
+    [string]$DatabaseName = 'ArksScannerDB',
     [string]$AdminUser = 'postgres',
-    [string]$ApplicationRole = 'superscanner_app',
+    [string]$ApplicationRole = 'arksscanner_app',
     [Security.SecureString]$AdminPassword
 )
 

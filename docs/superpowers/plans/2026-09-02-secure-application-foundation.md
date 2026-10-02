@@ -8,7 +8,7 @@
 
 **Tech Stack:** Angular 22, TypeScript, Node.js 22, ASP.NET Core 10, C# 14, EF Core 10, Npgsql, PostgreSQL, Firebase Admin SDK, Cloudflare R2 through the S3 API, xUnit, Testcontainers, Vitest, Playwright, Docker, and ClamAV.
 
-**Spec:** `docs/superpowers/specs/2026-09-02-superscanner-phase-1-design.md`
+**Spec:** `docs/superpowers/specs/2026-09-02-arksscanner-phase-1-design.md`
 
 ## Global Constraints
 
@@ -29,20 +29,20 @@
 ## File Structure
 
 ```text
-SuperScanner.slnx
+ArksScanner.slnx
 global.json
 Directory.Build.props
 docker-compose.yml
 .github/workflows/ci.yml
 src/
-  SuperScanner.Domain/
+  ArksScanner.Domain/
     Documents/Document.cs
     Documents/DocumentStatus.cs
     Documents/Page.cs
     Uploads/UploadIntent.cs
     Processing/ProcessingJob.cs
     Auditing/AuditEvent.cs
-  SuperScanner.Application/
+  ArksScanner.Application/
     Abstractions/IAuditWriter.cs
     Abstractions/IClock.cs
     Abstractions/IObjectStore.cs
@@ -52,7 +52,7 @@ src/
     Uploads/CreateUploadIntent.cs
     Uploads/CompleteUpload.cs
     Uploads/ValidateUpload.cs
-  SuperScanner.Infrastructure/
+  ArksScanner.Infrastructure/
     Persistence/AppDbContext.cs
     Persistence/Configurations/*.cs
     Persistence/Migrations/*
@@ -61,7 +61,7 @@ src/
     Processing/PostgresJobQueue.cs
     Security/ClamAvMalwareScanner.cs
     Auditing/HmacAuditWriter.cs
-  SuperScanner.Api/
+  ArksScanner.Api/
     Auth/CurrentUser.cs
     Auth/FirebaseAuthenticationHandler.cs
     Auth/AppCheckMiddleware.cs
@@ -69,15 +69,15 @@ src/
     Endpoints/UploadsEndpoints.cs
     Program.cs
     Dockerfile
-  SuperScanner.Worker/
+  ArksScanner.Worker/
     UploadValidationWorker.cs
     Program.cs
     Dockerfile
 tests/
-  SuperScanner.Domain.Tests/
-  SuperScanner.Application.Tests/
-  SuperScanner.Infrastructure.IntegrationTests/
-  SuperScanner.Api.IntegrationTests/
+  ArksScanner.Domain.Tests/
+  ArksScanner.Application.Tests/
+  ArksScanner.Infrastructure.IntegrationTests/
+  ArksScanner.Api.IntegrationTests/
 apps/web/
   src/app/core/auth/*
   src/app/core/api/*
@@ -96,16 +96,16 @@ The Domain project owns invariants and state transitions. Application owns use c
 **Files:**
 - Create: `global.json`
 - Create: `Directory.Build.props`
-- Create: `SuperScanner.slnx`
-- Create: `src/SuperScanner.Domain/SuperScanner.Domain.csproj`
-- Create: `src/SuperScanner.Application/SuperScanner.Application.csproj`
-- Create: `src/SuperScanner.Infrastructure/SuperScanner.Infrastructure.csproj`
-- Create: `src/SuperScanner.Api/SuperScanner.Api.csproj`
-- Create: `src/SuperScanner.Worker/SuperScanner.Worker.csproj`
-- Create: `tests/SuperScanner.Domain.Tests/SuperScanner.Domain.Tests.csproj`
-- Create: `tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj`
-- Create: `tests/SuperScanner.Infrastructure.IntegrationTests/SuperScanner.Infrastructure.IntegrationTests.csproj`
-- Create: `tests/SuperScanner.Api.IntegrationTests/SuperScanner.Api.IntegrationTests.csproj`
+- Create: `ArksScanner.slnx`
+- Create: `src/ArksScanner.Domain/ArksScanner.Domain.csproj`
+- Create: `src/ArksScanner.Application/ArksScanner.Application.csproj`
+- Create: `src/ArksScanner.Infrastructure/ArksScanner.Infrastructure.csproj`
+- Create: `src/ArksScanner.Api/ArksScanner.Api.csproj`
+- Create: `src/ArksScanner.Worker/ArksScanner.Worker.csproj`
+- Create: `tests/ArksScanner.Domain.Tests/ArksScanner.Domain.Tests.csproj`
+- Create: `tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj`
+- Create: `tests/ArksScanner.Infrastructure.IntegrationTests/ArksScanner.Infrastructure.IntegrationTests.csproj`
+- Create: `tests/ArksScanner.Api.IntegrationTests/ArksScanner.Api.IntegrationTests.csproj`
 - Create: `apps/web/*` from Angular CLI
 
 **Interfaces:**
@@ -143,28 +143,28 @@ Create `Directory.Build.props`:
 
 - [ ] **Step 2: Scaffold the solution and projects**
 
-Run from `C:\yeow\SuperScanner`:
+Run from `C:\yeow\ArksScanner`:
 
 ```powershell
-dotnet new sln -n SuperScanner
-dotnet new classlib -n SuperScanner.Domain -o src/SuperScanner.Domain
-dotnet new classlib -n SuperScanner.Application -o src/SuperScanner.Application
-dotnet new classlib -n SuperScanner.Infrastructure -o src/SuperScanner.Infrastructure
-dotnet new webapi -n SuperScanner.Api -o src/SuperScanner.Api --use-controllers false
-dotnet new worker -n SuperScanner.Worker -o src/SuperScanner.Worker
-dotnet new xunit -n SuperScanner.Domain.Tests -o tests/SuperScanner.Domain.Tests
-dotnet new xunit -n SuperScanner.Application.Tests -o tests/SuperScanner.Application.Tests
-dotnet new xunit -n SuperScanner.Infrastructure.IntegrationTests -o tests/SuperScanner.Infrastructure.IntegrationTests
-dotnet new xunit -n SuperScanner.Api.IntegrationTests -o tests/SuperScanner.Api.IntegrationTests
-dotnet sln SuperScanner.slnx add (Get-ChildItem src,tests -Recurse -Filter *.csproj | Select-Object -ExpandProperty FullName)
-dotnet add src/SuperScanner.Application reference src/SuperScanner.Domain
-dotnet add src/SuperScanner.Infrastructure reference src/SuperScanner.Domain src/SuperScanner.Application
-dotnet add src/SuperScanner.Api reference src/SuperScanner.Application src/SuperScanner.Infrastructure
-dotnet add src/SuperScanner.Worker reference src/SuperScanner.Application src/SuperScanner.Infrastructure
-dotnet add tests/SuperScanner.Domain.Tests reference src/SuperScanner.Domain
-dotnet add tests/SuperScanner.Application.Tests reference src/SuperScanner.Application src/SuperScanner.Domain
-dotnet add tests/SuperScanner.Infrastructure.IntegrationTests reference src/SuperScanner.Infrastructure
-dotnet add tests/SuperScanner.Api.IntegrationTests reference src/SuperScanner.Api
+dotnet new sln -n ArksScanner
+dotnet new classlib -n ArksScanner.Domain -o src/ArksScanner.Domain
+dotnet new classlib -n ArksScanner.Application -o src/ArksScanner.Application
+dotnet new classlib -n ArksScanner.Infrastructure -o src/ArksScanner.Infrastructure
+dotnet new webapi -n ArksScanner.Api -o src/ArksScanner.Api --use-controllers false
+dotnet new worker -n ArksScanner.Worker -o src/ArksScanner.Worker
+dotnet new xunit -n ArksScanner.Domain.Tests -o tests/ArksScanner.Domain.Tests
+dotnet new xunit -n ArksScanner.Application.Tests -o tests/ArksScanner.Application.Tests
+dotnet new xunit -n ArksScanner.Infrastructure.IntegrationTests -o tests/ArksScanner.Infrastructure.IntegrationTests
+dotnet new xunit -n ArksScanner.Api.IntegrationTests -o tests/ArksScanner.Api.IntegrationTests
+dotnet sln ArksScanner.slnx add (Get-ChildItem src,tests -Recurse -Filter *.csproj | Select-Object -ExpandProperty FullName)
+dotnet add src/ArksScanner.Application reference src/ArksScanner.Domain
+dotnet add src/ArksScanner.Infrastructure reference src/ArksScanner.Domain src/ArksScanner.Application
+dotnet add src/ArksScanner.Api reference src/ArksScanner.Application src/ArksScanner.Infrastructure
+dotnet add src/ArksScanner.Worker reference src/ArksScanner.Application src/ArksScanner.Infrastructure
+dotnet add tests/ArksScanner.Domain.Tests reference src/ArksScanner.Domain
+dotnet add tests/ArksScanner.Application.Tests reference src/ArksScanner.Application src/ArksScanner.Domain
+dotnet add tests/ArksScanner.Infrastructure.IntegrationTests reference src/ArksScanner.Infrastructure
+dotnet add tests/ArksScanner.Api.IntegrationTests reference src/ArksScanner.Api
 ```
 
 - [ ] **Step 3: Scaffold Angular 22 with routing, SCSS, and Vitest**
@@ -180,7 +180,7 @@ node "C:\Program Files\nodejs\node_modules\npm\bin\npx-cli.js" -p @angular/cli@2
 Run:
 
 ```powershell
-dotnet build SuperScanner.slnx
+dotnet build ArksScanner.slnx
 node "C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js" --prefix apps/web test -- --watch=false
 node "C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js" --prefix apps/web run build
 ```
@@ -190,8 +190,8 @@ Expected: all commands exit 0; no compiler warning is emitted.
 - [ ] **Step 5: Commit**
 
 ```powershell
-git add SuperScanner.slnx global.json Directory.Build.props src tests apps/web
-git commit -m "build: scaffold SuperScanner applications"
+git add ArksScanner.slnx global.json Directory.Build.props src tests apps/web
+git commit -m "build: scaffold ArksScanner applications"
 ```
 
 ---
@@ -199,10 +199,10 @@ git commit -m "build: scaffold SuperScanner applications"
 ### Task 2: Document Aggregate and Invariants
 
 **Files:**
-- Create: `src/SuperScanner.Domain/Documents/DocumentStatus.cs`
-- Create: `src/SuperScanner.Domain/Documents/Document.cs`
-- Create: `src/SuperScanner.Domain/Documents/Page.cs`
-- Test: `tests/SuperScanner.Domain.Tests/Documents/DocumentTests.cs`
+- Create: `src/ArksScanner.Domain/Documents/DocumentStatus.cs`
+- Create: `src/ArksScanner.Domain/Documents/Document.cs`
+- Create: `src/ArksScanner.Domain/Documents/Page.cs`
+- Test: `tests/ArksScanner.Domain.Tests/Documents/DocumentTests.cs`
 
 **Interfaces:**
 - Consumes: `Guid`, Firebase UID as a non-empty `string`, and UTC `DateTimeOffset` values.
@@ -211,9 +211,9 @@ git commit -m "build: scaffold SuperScanner applications"
 - [ ] **Step 1: Write failing aggregate tests**
 
 ```csharp
-using SuperScanner.Domain.Documents;
+using ArksScanner.Domain.Documents;
 
-namespace SuperScanner.Domain.Tests.Documents;
+namespace ArksScanner.Domain.Tests.Documents;
 
 public sealed class DocumentTests
 {
@@ -245,14 +245,14 @@ public sealed class DocumentTests
 
 - [ ] **Step 2: Run the tests and confirm failure**
 
-Run: `dotnet test tests/SuperScanner.Domain.Tests --filter FullyQualifiedName~DocumentTests`
+Run: `dotnet test tests/ArksScanner.Domain.Tests --filter FullyQualifiedName~DocumentTests`
 
-Expected: FAIL because `SuperScanner.Domain.Documents.Document` does not exist.
+Expected: FAIL because `ArksScanner.Domain.Documents.Document` does not exist.
 
 - [ ] **Step 3: Implement the minimum aggregate**
 
 ```csharp
-namespace SuperScanner.Domain.Documents;
+namespace ArksScanner.Domain.Documents;
 
 public enum DocumentStatus { Draft, Uploading, Processing, Ready, Editing, Exporting, Completed, Failed }
 
@@ -307,14 +307,14 @@ public sealed class Page
 
 - [ ] **Step 4: Run all domain tests**
 
-Run: `dotnet test tests/SuperScanner.Domain.Tests`
+Run: `dotnet test tests/ArksScanner.Domain.Tests`
 
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
 ```powershell
-git add src/SuperScanner.Domain tests/SuperScanner.Domain.Tests
+git add src/ArksScanner.Domain tests/ArksScanner.Domain.Tests
 git commit -m "feat: add document lifecycle aggregate"
 ```
 
@@ -323,12 +323,12 @@ git commit -m "feat: add document lifecycle aggregate"
 ### Task 3: PostgreSQL Persistence and Migration
 
 **Files:**
-- Create: `src/SuperScanner.Infrastructure/Persistence/AppDbContext.cs`
-- Create: `src/SuperScanner.Infrastructure/Persistence/Configurations/DocumentConfiguration.cs`
-- Create: `src/SuperScanner.Infrastructure/Persistence/Configurations/PageConfiguration.cs`
-- Create: `src/SuperScanner.Infrastructure/Persistence/DesignTimeDbContextFactory.cs`
-- Create: `src/SuperScanner.Infrastructure/Persistence/Migrations/*InitialSchema*`
-- Test: `tests/SuperScanner.Infrastructure.IntegrationTests/Persistence/DocumentPersistenceTests.cs`
+- Create: `src/ArksScanner.Infrastructure/Persistence/AppDbContext.cs`
+- Create: `src/ArksScanner.Infrastructure/Persistence/Configurations/DocumentConfiguration.cs`
+- Create: `src/ArksScanner.Infrastructure/Persistence/Configurations/PageConfiguration.cs`
+- Create: `src/ArksScanner.Infrastructure/Persistence/DesignTimeDbContextFactory.cs`
+- Create: `src/ArksScanner.Infrastructure/Persistence/Migrations/*InitialSchema*`
+- Test: `tests/ArksScanner.Infrastructure.IntegrationTests/Persistence/DocumentPersistenceTests.cs`
 
 **Interfaces:**
 - Consumes: `Document` and `Page` from Task 2 plus a PostgreSQL connection string.
@@ -337,11 +337,11 @@ git commit -m "feat: add document lifecycle aggregate"
 - [ ] **Step 1: Add EF Core, Npgsql, and Testcontainers packages**
 
 ```powershell
-dotnet add src/SuperScanner.Infrastructure package Microsoft.EntityFrameworkCore
-dotnet add src/SuperScanner.Infrastructure package Microsoft.EntityFrameworkCore.Design
-dotnet add src/SuperScanner.Infrastructure package Npgsql.EntityFrameworkCore.PostgreSQL
-dotnet add tests/SuperScanner.Infrastructure.IntegrationTests package Testcontainers.PostgreSql
-dotnet add tests/SuperScanner.Infrastructure.IntegrationTests package Microsoft.EntityFrameworkCore.Relational
+dotnet add src/ArksScanner.Infrastructure package Microsoft.EntityFrameworkCore
+dotnet add src/ArksScanner.Infrastructure package Microsoft.EntityFrameworkCore.Design
+dotnet add src/ArksScanner.Infrastructure package Npgsql.EntityFrameworkCore.PostgreSQL
+dotnet add tests/ArksScanner.Infrastructure.IntegrationTests package Testcontainers.PostgreSql
+dotnet add tests/ArksScanner.Infrastructure.IntegrationTests package Microsoft.EntityFrameworkCore.Relational
 ```
 
 - [ ] **Step 2: Write a failing PostgreSQL round-trip test**
@@ -372,7 +372,7 @@ public sealed class DocumentPersistenceTests : IAsyncLifetime
 
 - [ ] **Step 3: Run the test and confirm failure**
 
-Run: `dotnet test tests/SuperScanner.Infrastructure.IntegrationTests --filter FullyQualifiedName~DocumentPersistenceTests`
+Run: `dotnet test tests/ArksScanner.Infrastructure.IntegrationTests --filter FullyQualifiedName~DocumentPersistenceTests`
 
 Expected: FAIL because `AppDbContext` does not exist.
 
@@ -405,8 +405,8 @@ public sealed class DocumentConfiguration : IEntityTypeConfiguration<Document>
 - [ ] **Step 5: Create and apply the migration**
 
 ```powershell
-dotnet ef migrations add InitialSchema --project src/SuperScanner.Infrastructure --startup-project src/SuperScanner.Api --output-dir Persistence/Migrations
-dotnet test tests/SuperScanner.Infrastructure.IntegrationTests --filter FullyQualifiedName~DocumentPersistenceTests
+dotnet ef migrations add InitialSchema --project src/ArksScanner.Infrastructure --startup-project src/ArksScanner.Api --output-dir Persistence/Migrations
+dotnet test tests/ArksScanner.Infrastructure.IntegrationTests --filter FullyQualifiedName~DocumentPersistenceTests
 ```
 
 Expected: PASS and migration files contain `documents` and `pages` tables.
@@ -414,7 +414,7 @@ Expected: PASS and migration files contain `documents` and `pages` tables.
 - [ ] **Step 6: Commit**
 
 ```powershell
-git add src/SuperScanner.Infrastructure tests/SuperScanner.Infrastructure.IntegrationTests
+git add src/ArksScanner.Infrastructure tests/ArksScanner.Infrastructure.IntegrationTests
 git commit -m "feat: persist private document metadata"
 ```
 
@@ -423,13 +423,13 @@ git commit -m "feat: persist private document metadata"
 ### Task 4: Firebase Authentication and App Check Boundary
 
 **Files:**
-- Create: `src/SuperScanner.Application/Abstractions/IRequestIdentityVerifier.cs`
-- Create: `src/SuperScanner.Infrastructure/Auth/FirebaseRequestIdentityVerifier.cs`
-- Create: `src/SuperScanner.Api/Auth/CurrentUser.cs`
-- Create: `src/SuperScanner.Api/Auth/FirebaseAuthenticationHandler.cs`
-- Create: `src/SuperScanner.Api/Auth/AppCheckMiddleware.cs`
-- Modify: `src/SuperScanner.Api/Program.cs`
-- Test: `tests/SuperScanner.Api.IntegrationTests/Auth/AuthenticationBoundaryTests.cs`
+- Create: `src/ArksScanner.Application/Abstractions/IRequestIdentityVerifier.cs`
+- Create: `src/ArksScanner.Infrastructure/Auth/FirebaseRequestIdentityVerifier.cs`
+- Create: `src/ArksScanner.Api/Auth/CurrentUser.cs`
+- Create: `src/ArksScanner.Api/Auth/FirebaseAuthenticationHandler.cs`
+- Create: `src/ArksScanner.Api/Auth/AppCheckMiddleware.cs`
+- Modify: `src/ArksScanner.Api/Program.cs`
+- Test: `tests/ArksScanner.Api.IntegrationTests/Auth/AuthenticationBoundaryTests.cs`
 
 **Interfaces:**
 - Consumes: `Authorization: Bearer <Firebase-ID-token>` and `X-Firebase-AppCheck: <token>` headers.
@@ -471,7 +471,7 @@ public async Task Me_ReturnsVerifiedFirebaseUid()
 
 - [ ] **Step 3: Run tests and confirm failure**
 
-Run: `dotnet test tests/SuperScanner.Api.IntegrationTests --filter FullyQualifiedName~AuthenticationBoundaryTests`
+Run: `dotnet test tests/ArksScanner.Api.IntegrationTests --filter FullyQualifiedName~AuthenticationBoundaryTests`
 
 Expected: FAIL because `/api/me` and the authentication boundary do not exist.
 
@@ -488,14 +488,14 @@ app.MapGet("/api/me", (ICurrentUser currentUser) => Results.Ok(new { firebaseUid
 
 - [ ] **Step 5: Run authentication tests**
 
-Run: `dotnet test tests/SuperScanner.Api.IntegrationTests --filter FullyQualifiedName~AuthenticationBoundaryTests`
+Run: `dotnet test tests/ArksScanner.Api.IntegrationTests --filter FullyQualifiedName~AuthenticationBoundaryTests`
 
 Expected: PASS for valid paired tokens; missing, expired, malformed, or mismatched tokens return 401.
 
 - [ ] **Step 6: Commit**
 
 ```powershell
-git add src/SuperScanner.Application src/SuperScanner.Infrastructure/Auth src/SuperScanner.Api/Auth src/SuperScanner.Api/Program.cs tests/SuperScanner.Api.IntegrationTests/Auth
+git add src/ArksScanner.Application src/ArksScanner.Infrastructure/Auth src/ArksScanner.Api/Auth src/ArksScanner.Api/Program.cs tests/ArksScanner.Api.IntegrationTests/Auth
 git commit -m "feat: enforce Firebase identity and app attestation"
 ```
 
@@ -504,11 +504,11 @@ git commit -m "feat: enforce Firebase identity and app attestation"
 ### Task 5: Owner-Scoped Document API
 
 **Files:**
-- Create: `src/SuperScanner.Application/Abstractions/IClock.cs`
-- Create: `src/SuperScanner.Application/Documents/CreateDocument.cs`
-- Create: `src/SuperScanner.Application/Documents/ListDocuments.cs`
-- Create: `src/SuperScanner.Api/Endpoints/DocumentsEndpoints.cs`
-- Test: `tests/SuperScanner.Api.IntegrationTests/Documents/DocumentsEndpointsTests.cs`
+- Create: `src/ArksScanner.Application/Abstractions/IClock.cs`
+- Create: `src/ArksScanner.Application/Documents/CreateDocument.cs`
+- Create: `src/ArksScanner.Application/Documents/ListDocuments.cs`
+- Create: `src/ArksScanner.Api/Endpoints/DocumentsEndpoints.cs`
+- Test: `tests/ArksScanner.Api.IntegrationTests/Documents/DocumentsEndpointsTests.cs`
 
 **Interfaces:**
 - Consumes: `ICurrentUser.FirebaseUid`, `CreateDocumentRequest(string Title)`, `AppDbContext`, and `IClock.UtcNow`.
@@ -534,7 +534,7 @@ public async Task List_ReturnsOnlyCurrentUsersDocuments()
 
 - [ ] **Step 2: Run and confirm failure**
 
-Run: `dotnet test tests/SuperScanner.Api.IntegrationTests --filter FullyQualifiedName~DocumentsEndpointsTests`
+Run: `dotnet test tests/ArksScanner.Api.IntegrationTests --filter FullyQualifiedName~DocumentsEndpointsTests`
 
 Expected: FAIL with 404 because document endpoints are absent.
 
@@ -569,14 +569,14 @@ Validate titles as 1-200 trimmed characters and return RFC 9457 problem details 
 
 - [ ] **Step 4: Run API tests**
 
-Run: `dotnet test tests/SuperScanner.Api.IntegrationTests --filter FullyQualifiedName~DocumentsEndpointsTests`
+Run: `dotnet test tests/ArksScanner.Api.IntegrationTests --filter FullyQualifiedName~DocumentsEndpointsTests`
 
 Expected: PASS, including user isolation and invalid-title cases.
 
 - [ ] **Step 5: Commit**
 
 ```powershell
-git add src/SuperScanner.Application src/SuperScanner.Api/Endpoints tests/SuperScanner.Api.IntegrationTests/Documents
+git add src/ArksScanner.Application src/ArksScanner.Api/Endpoints tests/ArksScanner.Api.IntegrationTests/Documents
 git commit -m "feat: add owner-scoped document API"
 ```
 
@@ -585,14 +585,14 @@ git commit -m "feat: add owner-scoped document API"
 ### Task 6: Quarantined Direct Upload Intents
 
 **Files:**
-- Create: `src/SuperScanner.Domain/Uploads/UploadIntent.cs`
-- Create: `src/SuperScanner.Application/Abstractions/IObjectStore.cs`
-- Create: `src/SuperScanner.Application/Uploads/CreateUploadIntent.cs`
-- Create: `src/SuperScanner.Application/Uploads/CompleteUpload.cs`
-- Create: `src/SuperScanner.Infrastructure/ObjectStorage/R2ObjectStore.cs`
-- Create: `src/SuperScanner.Api/Endpoints/UploadsEndpoints.cs`
-- Test: `tests/SuperScanner.Application.Tests/Uploads/CreateUploadIntentTests.cs`
-- Test: `tests/SuperScanner.Api.IntegrationTests/Uploads/UploadOwnershipTests.cs`
+- Create: `src/ArksScanner.Domain/Uploads/UploadIntent.cs`
+- Create: `src/ArksScanner.Application/Abstractions/IObjectStore.cs`
+- Create: `src/ArksScanner.Application/Uploads/CreateUploadIntent.cs`
+- Create: `src/ArksScanner.Application/Uploads/CompleteUpload.cs`
+- Create: `src/ArksScanner.Infrastructure/ObjectStorage/R2ObjectStore.cs`
+- Create: `src/ArksScanner.Api/Endpoints/UploadsEndpoints.cs`
+- Test: `tests/ArksScanner.Application.Tests/Uploads/CreateUploadIntentTests.cs`
+- Test: `tests/ArksScanner.Api.IntegrationTests/Uploads/UploadOwnershipTests.cs`
 
 **Interfaces:**
 - Consumes: owned `Document`, `CreateUploadRequest(FileName, MediaType, SizeBytes, Sha256Hex)`, policy limits, and `IObjectStore`.
@@ -617,7 +617,7 @@ public async Task Create_UsesOpaqueQuarantineKeyAndNeverUserFilename()
 
 - [ ] **Step 2: Run and confirm failure**
 
-Run: `dotnet test tests/SuperScanner.Application.Tests --filter FullyQualifiedName~CreateUploadIntentTests`
+Run: `dotnet test tests/ArksScanner.Application.Tests --filter FullyQualifiedName~CreateUploadIntentTests`
 
 Expected: FAIL because upload contracts do not exist.
 
@@ -650,8 +650,8 @@ Configure `AmazonS3Client` with the R2 endpoint, path-style access, and server-s
 - [ ] **Step 6: Run upload tests**
 
 ```powershell
-dotnet test tests/SuperScanner.Application.Tests --filter FullyQualifiedName~CreateUploadIntentTests
-dotnet test tests/SuperScanner.Api.IntegrationTests --filter FullyQualifiedName~UploadOwnershipTests
+dotnet test tests/ArksScanner.Application.Tests --filter FullyQualifiedName~CreateUploadIntentTests
+dotnet test tests/ArksScanner.Api.IntegrationTests --filter FullyQualifiedName~UploadOwnershipTests
 ```
 
 Expected: PASS; another user receives 404 rather than learning whether a document or upload exists.
@@ -659,7 +659,7 @@ Expected: PASS; another user receives 404 rather than learning whether a documen
 - [ ] **Step 7: Commit**
 
 ```powershell
-git add src/SuperScanner.Domain/Uploads src/SuperScanner.Application/Uploads src/SuperScanner.Application/Abstractions/IObjectStore.cs src/SuperScanner.Infrastructure/ObjectStorage src/SuperScanner.Api/Endpoints/UploadsEndpoints.cs tests
+git add src/ArksScanner.Domain/Uploads src/ArksScanner.Application/Uploads src/ArksScanner.Application/Abstractions/IObjectStore.cs src/ArksScanner.Infrastructure/ObjectStorage src/ArksScanner.Api/Endpoints/UploadsEndpoints.cs tests
 git commit -m "feat: issue private quarantined upload intents"
 ```
 
@@ -668,16 +668,16 @@ git commit -m "feat: issue private quarantined upload intents"
 ### Task 7: PostgreSQL Job Leasing and Upload Validation Worker
 
 **Files:**
-- Create: `src/SuperScanner.Domain/Processing/ProcessingJob.cs`
-- Create: `src/SuperScanner.Application/Abstractions/IMalwareScanner.cs`
-- Create: `src/SuperScanner.Application/Uploads/UploadFileSignature.cs`
-- Create: `src/SuperScanner.Application/Uploads/ValidateUpload.cs`
-- Create: `src/SuperScanner.Infrastructure/Processing/PostgresJobQueue.cs`
-- Create: `src/SuperScanner.Infrastructure/Security/ClamAvMalwareScanner.cs`
-- Create: `src/SuperScanner.Worker/UploadValidationWorker.cs`
-- Modify: `src/SuperScanner.Worker/Program.cs`
-- Test: `tests/SuperScanner.Application.Tests/Uploads/ValidateUploadTests.cs`
-- Test: `tests/SuperScanner.Infrastructure.IntegrationTests/Processing/JobLeaseTests.cs`
+- Create: `src/ArksScanner.Domain/Processing/ProcessingJob.cs`
+- Create: `src/ArksScanner.Application/Abstractions/IMalwareScanner.cs`
+- Create: `src/ArksScanner.Application/Uploads/UploadFileSignature.cs`
+- Create: `src/ArksScanner.Application/Uploads/ValidateUpload.cs`
+- Create: `src/ArksScanner.Infrastructure/Processing/PostgresJobQueue.cs`
+- Create: `src/ArksScanner.Infrastructure/Security/ClamAvMalwareScanner.cs`
+- Create: `src/ArksScanner.Worker/UploadValidationWorker.cs`
+- Modify: `src/ArksScanner.Worker/Program.cs`
+- Test: `tests/ArksScanner.Application.Tests/Uploads/ValidateUploadTests.cs`
+- Test: `tests/ArksScanner.Infrastructure.IntegrationTests/Processing/JobLeaseTests.cs`
 
 **Interfaces:**
 - Consumes: `ProcessingJob`, `IObjectStore`, `IMalwareScanner.ScanAsync(Stream, CancellationToken)`, declared upload metadata, and a UTC clock.
@@ -709,7 +709,7 @@ public async Task InfectedUploadIsDeletedAndNeverAccepted()
 
 - [ ] **Step 2: Run and confirm failure**
 
-Run: `dotnet test tests/SuperScanner.Application.Tests tests/SuperScanner.Infrastructure.IntegrationTests --filter "FullyQualifiedName~ValidateUploadTests|FullyQualifiedName~JobLeaseTests"`
+Run: `dotnet test tests/ArksScanner.Application.Tests tests/ArksScanner.Infrastructure.IntegrationTests --filter "FullyQualifiedName~ValidateUploadTests|FullyQualifiedName~JobLeaseTests"`
 
 Expected: FAIL because validation and leasing do not exist.
 
@@ -743,14 +743,14 @@ Stream once into a bounded temporary file while computing SHA-256 and enforcing 
 
 - [ ] **Step 7: Run worker and queue tests**
 
-Run: `dotnet test tests/SuperScanner.Application.Tests tests/SuperScanner.Infrastructure.IntegrationTests`
+Run: `dotnet test tests/ArksScanner.Application.Tests tests/ArksScanner.Infrastructure.IntegrationTests`
 
 Expected: PASS, including clean promotion, infected deletion, signature mismatch, hash mismatch, scanner outage retry, duplicate enqueue, and concurrent claim cases.
 
 - [ ] **Step 8: Commit**
 
 ```powershell
-git add src/SuperScanner.Domain/Processing src/SuperScanner.Application/Uploads src/SuperScanner.Infrastructure/Processing src/SuperScanner.Infrastructure/Security src/SuperScanner.Worker tests
+git add src/ArksScanner.Domain/Processing src/ArksScanner.Application/Uploads src/ArksScanner.Infrastructure/Processing src/ArksScanner.Infrastructure/Security src/ArksScanner.Worker tests
 git commit -m "feat: validate uploads in a leased background worker"
 ```
 
@@ -759,12 +759,12 @@ git commit -m "feat: validate uploads in a leased background worker"
 ### Task 8: Tamper-Evident Audit Chain
 
 **Files:**
-- Create: `src/SuperScanner.Domain/Auditing/AuditEvent.cs`
-- Create: `src/SuperScanner.Application/Abstractions/IAuditWriter.cs`
-- Create: `src/SuperScanner.Infrastructure/Auditing/CanonicalAuditPayload.cs`
-- Create: `src/SuperScanner.Infrastructure/Auditing/HmacAuditWriter.cs`
+- Create: `src/ArksScanner.Domain/Auditing/AuditEvent.cs`
+- Create: `src/ArksScanner.Application/Abstractions/IAuditWriter.cs`
+- Create: `src/ArksScanner.Infrastructure/Auditing/CanonicalAuditPayload.cs`
+- Create: `src/ArksScanner.Infrastructure/Auditing/HmacAuditWriter.cs`
 - Modify: document, upload-intent, completion, validation, and rejection handlers
-- Test: `tests/SuperScanner.Infrastructure.IntegrationTests/Auditing/AuditChainTests.cs`
+- Test: `tests/ArksScanner.Infrastructure.IntegrationTests/Auditing/AuditChainTests.cs`
 
 **Interfaces:**
 - Consumes: `AuditWriteRequest(ActorUid, Action, TargetType, TargetId, RegionJson, OccurredAt)` and a protected HMAC key.
@@ -789,7 +789,7 @@ public async Task VerificationFailsAfterStoredEventMutation()
 
 - [ ] **Step 2: Run and confirm failure**
 
-Run: `dotnet test tests/SuperScanner.Infrastructure.IntegrationTests --filter FullyQualifiedName~AuditChainTests`
+Run: `dotnet test tests/ArksScanner.Infrastructure.IntegrationTests --filter FullyQualifiedName~AuditChainTests`
 
 Expected: FAIL because audit persistence and verification do not exist.
 
@@ -810,14 +810,14 @@ Record `document.created`, `upload.intent_created`, `upload.completed`, `upload.
 
 - [ ] **Step 5: Run audit and API regression tests**
 
-Run: `dotnet test SuperScanner.slnx`
+Run: `dotnet test ArksScanner.slnx`
 
 Expected: PASS and the isolation tests still demonstrate no cross-owner access.
 
 - [ ] **Step 6: Commit**
 
 ```powershell
-git add src/SuperScanner.Domain/Auditing src/SuperScanner.Application/Abstractions/IAuditWriter.cs src/SuperScanner.Infrastructure/Auditing src/SuperScanner.Application tests
+git add src/ArksScanner.Domain/Auditing src/ArksScanner.Application/Abstractions/IAuditWriter.cs src/ArksScanner.Infrastructure/Auditing src/ArksScanner.Application tests
 git commit -m "feat: record tamper-evident document audit events"
 ```
 
@@ -888,7 +888,7 @@ Never place tokens in URLs, local storage, logs, errors, or analytics.
 
 - [ ] **Step 4: Implement the responsive shell and document list**
 
-Recreate the reviewed product hierarchy: SuperScanner brand, Home/Scan/Edit/Export navigation, private-by-default indicator, primary New Scan action, and recent-document list. At 320 px, collapse navigation labels without hiding the brand icon or user avatar. Use semantic buttons, landmarks, visible focus, 44 px coarse-pointer targets, and an `aria-live` region for loading/failure status.
+Recreate the reviewed product hierarchy: ArksScanner brand, Home/Scan/Edit/Export navigation, private-by-default indicator, primary New Scan action, and recent-document list. At 320 px, collapse navigation labels without hiding the brand icon or user avatar. Use semantic buttons, landmarks, visible focus, 44 px coarse-pointer targets, and an `aria-live` region for loading/failure status.
 
 - [ ] **Step 5: Add document-list tests**
 
@@ -983,8 +983,8 @@ git commit -m "feat: add quarantined document upload flow"
 **Files:**
 - Create: `docker-compose.yml`
 - Create: `.env.example`
-- Create: `src/SuperScanner.Api/Dockerfile`
-- Create: `src/SuperScanner.Worker/Dockerfile`
+- Create: `src/ArksScanner.Api/Dockerfile`
+- Create: `src/ArksScanner.Worker/Dockerfile`
 - Create: `apps/web/Dockerfile`
 - Create: `apps/web/nginx.conf`
 - Create: `.github/workflows/ci.yml`
@@ -1038,9 +1038,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with: { dotnet-version: '10.0.x' }
-      - run: dotnet restore SuperScanner.slnx --locked-mode
-      - run: dotnet build SuperScanner.slnx --no-restore
-      - run: dotnet test SuperScanner.slnx --no-build
+      - run: dotnet restore ArksScanner.slnx --locked-mode
+      - run: dotnet build ArksScanner.slnx --no-restore
+      - run: dotnet test ArksScanner.slnx --no-build
   frontend:
     steps:
       - uses: actions/checkout@v4
@@ -1060,7 +1060,7 @@ Add container builds and a Playwright job after unit/integration jobs pass.
 
 ```powershell
 docker compose up -d --wait
-dotnet test SuperScanner.slnx
+dotnet test ArksScanner.slnx
 node "C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js" --prefix apps/web test -- --watch=false
 node "C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js" --prefix apps/web run build
 Push-Location apps/web
@@ -1078,7 +1078,7 @@ The runbook specifies public web/API services, private Worker/PostgreSQL service
 - [ ] **Step 8: Commit**
 
 ```powershell
-git add docker-compose.yml .env.example .github src/SuperScanner.Api/Dockerfile src/SuperScanner.Worker/Dockerfile apps/web/Dockerfile apps/web/nginx.conf apps/web/playwright.config.ts apps/web/e2e docs/operations
+git add docker-compose.yml .env.example .github src/ArksScanner.Api/Dockerfile src/ArksScanner.Worker/Dockerfile apps/web/Dockerfile apps/web/nginx.conf apps/web/playwright.config.ts apps/web/e2e docs/operations
 git commit -m "chore: add secure foundation delivery pipeline"
 ```
 

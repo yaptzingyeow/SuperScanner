@@ -29,7 +29,7 @@ export class E2eIdentityStore
 
   set(tokens: E2eIdentityTokens): void {
     this.tokens = tokens;
-    this.user.next({ uid: 'e2e-user', email: 'e2e@superscanner.test' } as User);
+    this.user.next({ uid: 'e2e-user', email: 'e2e@arksscanner.test' } as User);
   }
 
   observe(): Observable<User | null> {

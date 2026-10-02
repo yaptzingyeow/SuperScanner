@@ -2,7 +2,7 @@
 param(
     [string]$HostName = '127.0.0.1',
     [ValidateRange(1, 65535)][int]$Port = 5432,
-    [string]$DatabaseName = 'SuperScannerDB',
+    [string]$DatabaseName = 'ArksScannerDB',
     [string]$AdminUser = 'postgres',
     [Security.SecureString]$AdminPassword
 )
@@ -28,8 +28,8 @@ try {
             & dotnet tool restore
             if ($LASTEXITCODE -ne 0) { throw 'dotnet tool restore failed.' }
             & dotnet ef database update `
-                --project src/SuperScanner.Infrastructure/SuperScanner.Infrastructure.csproj `
-                --startup-project src/SuperScanner.Infrastructure/SuperScanner.Infrastructure.csproj
+                --project src/ArksScanner.Infrastructure/ArksScanner.Infrastructure.csproj `
+                --startup-project src/ArksScanner.Infrastructure/ArksScanner.Infrastructure.csproj
             if ($LASTEXITCODE -ne 0) { throw 'Entity Framework migration failed.' }
         }
         finally {

@@ -28,16 +28,16 @@
 
 ### New Worker processing files
 
-- `src/SuperScanner.Worker/processing/boundary/__init__.py` — public boundary-detection package exports.
-- `src/SuperScanner.Worker/processing/boundary/contracts.py` — typed points, detector result, and diagnostics contract.
-- `src/SuperScanner.Worker/processing/boundary/preprocess.py` — aspect-preserving letterbox transform and inverse coordinate mapping.
-- `src/SuperScanner.Worker/processing/boundary/onnx_segmenter.py` — checksum-verified ONNX Runtime session and probability-mask inference.
-- `src/SuperScanner.Worker/processing/boundary/geometry.py` — mask cleanup, contour selection, supporting-line fitting, and ordered intersections.
-- `src/SuperScanner.Worker/processing/boundary/confidence.py` — confidence evidence and high/medium/low policy.
-- `src/SuperScanner.Worker/processing/boundary/hybrid.py` — orchestration of AI, OpenCV fallback, and full-image/manual outcomes.
-- `src/SuperScanner.Worker/processing/requirements.txt` — pinned runtime dependencies.
+- `src/ArksScanner.Worker/processing/boundary/__init__.py` — public boundary-detection package exports.
+- `src/ArksScanner.Worker/processing/boundary/contracts.py` — typed points, detector result, and diagnostics contract.
+- `src/ArksScanner.Worker/processing/boundary/preprocess.py` — aspect-preserving letterbox transform and inverse coordinate mapping.
+- `src/ArksScanner.Worker/processing/boundary/onnx_segmenter.py` — checksum-verified ONNX Runtime session and probability-mask inference.
+- `src/ArksScanner.Worker/processing/boundary/geometry.py` — mask cleanup, contour selection, supporting-line fitting, and ordered intersections.
+- `src/ArksScanner.Worker/processing/boundary/confidence.py` — confidence evidence and high/medium/low policy.
+- `src/ArksScanner.Worker/processing/boundary/hybrid.py` — orchestration of AI, OpenCV fallback, and full-image/manual outcomes.
+- `src/ArksScanner.Worker/processing/requirements.txt` — pinned runtime dependencies.
 - `tools/document-boundary/requirements-dev.txt` — pinned ONNX fixture-generation and benchmark dependencies.
-- `src/SuperScanner.Worker/processing/models/document-boundary-model.json` — model version, source, license, tensor contract, and checksum metadata; never the model binary.
+- `src/ArksScanner.Worker/processing/models/document-boundary-model.json` — model version, source, license, tensor contract, and checksum metadata; never the model binary.
 
 ### New evaluation files
 
@@ -49,23 +49,23 @@
 
 ### New and modified .NET files
 
-- `src/SuperScanner.Infrastructure/Processing/DocumentBoundaryOptions.cs` — bound and validated detector configuration.
-- `src/SuperScanner.Infrastructure/Processing/DocumentBoundaryHealth.cs` — Worker-lifetime AI circuit breaker for non-transient model failures.
-- `src/SuperScanner.Infrastructure/Processing/DocumentBoundaryRollout.cs` — stable page-ID rollout selection.
-- `src/SuperScanner.Infrastructure/Processing/CropDetectionResult.cs` — provider-neutral subprocess response contract.
-- `src/SuperScanner.Infrastructure/Persistence/Migrations/20260914000000_AiDocumentBoundary.cs` — adds model version and safe diagnostics code to pages.
-- `src/SuperScanner.Domain/Documents/Page.cs` — adds detection provenance fields.
-- `src/SuperScanner.Infrastructure/Persistence/Configurations/PageConfiguration.cs` — bounds provenance column lengths.
-- `src/SuperScanner.Infrastructure/Processing/CropProcessor.cs` — passes detector configuration and persists validated results.
-- `src/SuperScanner.Worker/Program.cs` — registers and validates boundary options.
-- `src/SuperScanner.Worker/appsettings.json` — safe defaults with `OpenCvOnly` production mode.
-- `src/SuperScanner.Worker/appsettings.Development.json` — safe development defaults; local environment variables opt into `AiPreferred` after model provisioning.
-- `src/SuperScanner.Worker/SuperScanner.Worker.csproj` — publishes Python package and model metadata.
-- `src/SuperScanner.Worker/Dockerfile` — installs pinned Python inference dependencies and verifies model provisioning.
+- `src/ArksScanner.Infrastructure/Processing/DocumentBoundaryOptions.cs` — bound and validated detector configuration.
+- `src/ArksScanner.Infrastructure/Processing/DocumentBoundaryHealth.cs` — Worker-lifetime AI circuit breaker for non-transient model failures.
+- `src/ArksScanner.Infrastructure/Processing/DocumentBoundaryRollout.cs` — stable page-ID rollout selection.
+- `src/ArksScanner.Infrastructure/Processing/CropDetectionResult.cs` — provider-neutral subprocess response contract.
+- `src/ArksScanner.Infrastructure/Persistence/Migrations/20260914000000_AiDocumentBoundary.cs` — adds model version and safe diagnostics code to pages.
+- `src/ArksScanner.Domain/Documents/Page.cs` — adds detection provenance fields.
+- `src/ArksScanner.Infrastructure/Persistence/Configurations/PageConfiguration.cs` — bounds provenance column lengths.
+- `src/ArksScanner.Infrastructure/Processing/CropProcessor.cs` — passes detector configuration and persists validated results.
+- `src/ArksScanner.Worker/Program.cs` — registers and validates boundary options.
+- `src/ArksScanner.Worker/appsettings.json` — safe defaults with `OpenCvOnly` production mode.
+- `src/ArksScanner.Worker/appsettings.Development.json` — safe development defaults; local environment variables opt into `AiPreferred` after model provisioning.
+- `src/ArksScanner.Worker/ArksScanner.Worker.csproj` — publishes Python package and model metadata.
+- `src/ArksScanner.Worker/Dockerfile` — installs pinned Python inference dependencies and verifies model provisioning.
 
 ### Modified API and web files
 
-- `src/SuperScanner.Api/Endpoints/CropEndpoints.cs` — returns source, confidence, model version, and safe diagnostics code.
+- `src/ArksScanner.Api/Endpoints/CropEndpoints.cs` — returns source, confidence, model version, and safe diagnostics code.
 - `apps/web/src/app/documents/crop-editor.component.ts` — maps confidence/source to a stable view state.
 - `apps/web/src/app/documents/crop-editor.component.html` — displays accurate, verify, or manual guidance.
 - `apps/web/src/app/documents/crop-editor.component.scss` — styles non-alarming confidence guidance.
@@ -75,10 +75,10 @@
 ### Task 1: Establish a Safe Classical Detector Seam
 
 **Files:**
-- Modify: `src/SuperScanner.Worker/processing/crop_image.py`
-- Create: `src/SuperScanner.Worker/processing/boundary/__init__.py`
-- Create: `src/SuperScanner.Worker/processing/boundary/contracts.py`
-- Test: `src/SuperScanner.Worker/processing/test_crop_detection.py`
+- Modify: `src/ArksScanner.Worker/processing/crop_image.py`
+- Create: `src/ArksScanner.Worker/processing/boundary/__init__.py`
+- Create: `src/ArksScanner.Worker/processing/boundary/contracts.py`
+- Test: `src/ArksScanner.Worker/processing/test_crop_detection.py`
 
 **Interfaces:**
 - Consumes: existing `detect(image: numpy.ndarray) -> dict` behavior.
@@ -101,7 +101,7 @@ def test_boundary_result_serializes_provider_neutral_fields(self):
 
 - [x] **Step 2: Run the focused test and verify RED**
 
-Run: `C:\yeow\SuperScanner\.task-tools\crop-runtime\Scripts\python.exe -m unittest discover -s src/SuperScanner.Worker/processing -p "test_crop_detection.py" -v`
+Run: `C:\yeow\ArksScanner\.task-tools\crop-runtime\Scripts\python.exe -m unittest discover -s src/ArksScanner.Worker/processing -p "test_crop_detection.py" -v`
 
 Expected: FAIL because `boundary.contracts` does not exist.
 
@@ -135,22 +135,22 @@ Move the current OpenCV body to `detect_with_opencv`. Delete the development-onl
 
 - [x] **Step 4: Run existing crop regressions and verify GREEN**
 
-Run: `C:\yeow\SuperScanner\.task-tools\crop-runtime\Scripts\python.exe -m unittest discover -s src/SuperScanner.Worker/processing -p "test_*.py" -v`
+Run: `C:\yeow\ArksScanner\.task-tools\crop-runtime\Scripts\python.exe -m unittest discover -s src/ArksScanner.Worker/processing -p "test_*.py" -v`
 
 Expected: all current paper-boundary regression tests PASS with unchanged coordinates/tolerances.
 
 - [x] **Step 5: Commit the seam**
 
 ```powershell
-git add src/SuperScanner.Worker/processing/crop_image.py src/SuperScanner.Worker/processing/boundary src/SuperScanner.Worker/processing/test_crop_detection.py
+git add src/ArksScanner.Worker/processing/crop_image.py src/ArksScanner.Worker/processing/boundary src/ArksScanner.Worker/processing/test_crop_detection.py
 git commit -m "refactor: isolate classical document detector"
 ```
 
 ### Task 2: Add Deterministic Letterbox Preprocessing
 
 **Files:**
-- Create: `src/SuperScanner.Worker/processing/boundary/preprocess.py`
-- Create: `src/SuperScanner.Worker/processing/test_boundary_preprocess.py`
+- Create: `src/ArksScanner.Worker/processing/boundary/preprocess.py`
+- Create: `src/ArksScanner.Worker/processing/test_boundary_preprocess.py`
 
 **Interfaces:**
 - Consumes: BGR `numpy.ndarray`, configured square input size.
@@ -169,7 +169,7 @@ def test_letterbox_preserves_aspect_ratio_and_inverts_points(self):
 
 - [x] **Step 2: Run the test and verify RED**
 
-Run: `C:\yeow\SuperScanner\.task-tools\crop-runtime\Scripts\python.exe -m unittest discover -s src/SuperScanner.Worker/processing -p "test_boundary_preprocess.py" -v`
+Run: `C:\yeow\ArksScanner\.task-tools\crop-runtime\Scripts\python.exe -m unittest discover -s src/ArksScanner.Worker/processing -p "test_boundary_preprocess.py" -v`
 
 Expected: FAIL because `letterbox` is undefined.
 
@@ -196,25 +196,25 @@ Use `cv2.INTER_AREA` when shrinking, `cv2.INTER_LINEAR` when enlarging, symmetri
 
 - [x] **Step 4: Run preprocessing tests and the full Python crop suite**
 
-Run: `C:\yeow\SuperScanner\.task-tools\crop-runtime\Scripts\python.exe -m unittest discover -s src/SuperScanner.Worker/processing -p "test_*.py" -v`
+Run: `C:\yeow\ArksScanner\.task-tools\crop-runtime\Scripts\python.exe -m unittest discover -s src/ArksScanner.Worker/processing -p "test_*.py" -v`
 
 Expected: all tests PASS.
 
 - [x] **Step 5: Commit preprocessing**
 
 ```powershell
-git add src/SuperScanner.Worker/processing/boundary/preprocess.py src/SuperScanner.Worker/processing/test_boundary_preprocess.py
+git add src/ArksScanner.Worker/processing/boundary/preprocess.py src/ArksScanner.Worker/processing/test_boundary_preprocess.py
 git commit -m "feat: add portable boundary preprocessing"
 ```
 
 ### Task 3: Add Checksum-Verified ONNX Segmentation
 
 **Files:**
-- Create: `src/SuperScanner.Worker/processing/boundary/onnx_segmenter.py`
-- Create: `src/SuperScanner.Worker/processing/test_onnx_segmenter.py`
-- Create: `src/SuperScanner.Worker/processing/requirements.txt`
+- Create: `src/ArksScanner.Worker/processing/boundary/onnx_segmenter.py`
+- Create: `src/ArksScanner.Worker/processing/test_onnx_segmenter.py`
+- Create: `src/ArksScanner.Worker/processing/requirements.txt`
 - Create: `tools/document-boundary/requirements-dev.txt`
-- Create: `src/SuperScanner.Worker/processing/models/document-boundary-model.json`
+- Create: `src/ArksScanner.Worker/processing/models/document-boundary-model.json`
 - Create: `tests/fixtures/document-boundary/create_fixture_model.py`
 - Create: `tests/fixtures/document-boundary/tiny-segmenter.onnx`
 
@@ -250,7 +250,7 @@ def test_returns_probability_mask_in_source_letterbox_space(self):
 
 - [x] **Step 3: Run tests and verify RED**
 
-Run: `python -m unittest discover -s src/SuperScanner.Worker/processing -p "test_onnx_segmenter.py" -v`
+Run: `python -m unittest discover -s src/ArksScanner.Worker/processing -p "test_onnx_segmenter.py" -v`
 
 Expected: FAIL because `OnnxDocumentSegmenter` does not exist.
 
@@ -294,10 +294,10 @@ The constructor must reject `enabled: true` unless `sha256` is exactly 64 lowerc
 Run:
 
 ```powershell
-python -m pip install -r src/SuperScanner.Worker/processing/requirements.txt
+python -m pip install -r src/ArksScanner.Worker/processing/requirements.txt
 python -m pip install -r tools/document-boundary/requirements-dev.txt
 python -c "import cv2,numpy,onnxruntime; print(cv2.__version__, numpy.__version__, onnxruntime.__version__)"
-python -m unittest discover -s src/SuperScanner.Worker/processing -p "test_*.py" -v
+python -m unittest discover -s src/ArksScanner.Worker/processing -p "test_*.py" -v
 ```
 
 Expected: versions `4.14.0`, `2.3.3`, and `1.30.0` are reported and all tests PASS.
@@ -305,15 +305,15 @@ Expected: versions `4.14.0`, `2.3.3`, and `1.30.0` are reported and all tests PA
 - [x] **Step 6: Commit runtime support**
 
 ```powershell
-git add src/SuperScanner.Worker/processing/boundary/onnx_segmenter.py src/SuperScanner.Worker/processing/test_onnx_segmenter.py src/SuperScanner.Worker/processing/requirements.txt src/SuperScanner.Worker/processing/models/document-boundary-model.json tools/document-boundary/requirements-dev.txt tests/fixtures/document-boundary
+git add src/ArksScanner.Worker/processing/boundary/onnx_segmenter.py src/ArksScanner.Worker/processing/test_onnx_segmenter.py src/ArksScanner.Worker/processing/requirements.txt src/ArksScanner.Worker/processing/models/document-boundary-model.json tools/document-boundary/requirements-dev.txt tests/fixtures/document-boundary
 git commit -m "feat: add verified ONNX boundary runtime"
 ```
 
 ### Task 4: Convert Segmentation Masks into Four Corners
 
 **Files:**
-- Create: `src/SuperScanner.Worker/processing/boundary/geometry.py`
-- Create: `src/SuperScanner.Worker/processing/test_boundary_geometry.py`
+- Create: `src/ArksScanner.Worker/processing/boundary/geometry.py`
+- Create: `src/ArksScanner.Worker/processing/test_boundary_geometry.py`
 
 **Interfaces:**
 - Consumes: probability mask, threshold, and `LetterboxedImage` mapping.
@@ -339,7 +339,7 @@ Also assert ordered clockwise points, finite coordinates in `[0,1]`, rejection o
 
 - [x] **Step 2: Run tests and verify RED**
 
-Run: `python -m unittest discover -s src/SuperScanner.Worker/processing -p "test_boundary_geometry.py" -v`
+Run: `python -m unittest discover -s src/ArksScanner.Worker/processing -p "test_boundary_geometry.py" -v`
 
 Expected: FAIL because `estimate_boundary` does not exist.
 
@@ -365,24 +365,24 @@ Threshold the mask, close gaps with a kernel capped at 2% of the short side, rem
 
 - [x] **Step 4: Run geometry and full Python suites**
 
-Run: `python -m unittest discover -s src/SuperScanner.Worker/processing -p "test_*.py" -v`
+Run: `python -m unittest discover -s src/ArksScanner.Worker/processing -p "test_*.py" -v`
 
 Expected: all tests PASS.
 
 - [x] **Step 5: Commit geometry extraction**
 
 ```powershell
-git add src/SuperScanner.Worker/processing/boundary/geometry.py src/SuperScanner.Worker/processing/test_boundary_geometry.py
+git add src/ArksScanner.Worker/processing/boundary/geometry.py src/ArksScanner.Worker/processing/test_boundary_geometry.py
 git commit -m "feat: refine document masks into corners"
 ```
 
 ### Task 5: Implement Confidence and Hybrid Fallback Policy
 
 **Files:**
-- Create: `src/SuperScanner.Worker/processing/boundary/confidence.py`
-- Create: `src/SuperScanner.Worker/processing/boundary/hybrid.py`
-- Create: `src/SuperScanner.Worker/processing/test_boundary_confidence.py`
-- Create: `src/SuperScanner.Worker/processing/test_hybrid_detector.py`
+- Create: `src/ArksScanner.Worker/processing/boundary/confidence.py`
+- Create: `src/ArksScanner.Worker/processing/boundary/hybrid.py`
+- Create: `src/ArksScanner.Worker/processing/test_boundary_confidence.py`
+- Create: `src/ArksScanner.Worker/processing/test_hybrid_detector.py`
 
 **Interfaces:**
 - Consumes: `GeometryEstimate`, optional OpenCV result, configured thresholds.
@@ -408,7 +408,7 @@ def test_two_unreliable_detectors_require_manual_selection(self):
 
 - [x] **Step 2: Run policy tests and verify RED**
 
-Run: `python -m unittest discover -s src/SuperScanner.Worker/processing -p "test_boundary_*.py" -v`
+Run: `python -m unittest discover -s src/ArksScanner.Worker/processing -p "test_boundary_*.py" -v`
 
 Expected: FAIL because the policy modules do not exist.
 
@@ -432,26 +432,26 @@ def score_geometry(e: GeometryEvidence) -> float:
 
 - [x] **Step 4: Run policy and regression suites**
 
-Run: `python -m unittest discover -s src/SuperScanner.Worker/processing -p "test_*.py" -v`
+Run: `python -m unittest discover -s src/ArksScanner.Worker/processing -p "test_*.py" -v`
 
 Expected: all tests PASS.
 
 - [x] **Step 5: Commit policy**
 
 ```powershell
-git add src/SuperScanner.Worker/processing/boundary/confidence.py src/SuperScanner.Worker/processing/boundary/hybrid.py src/SuperScanner.Worker/processing/test_boundary_confidence.py src/SuperScanner.Worker/processing/test_hybrid_detector.py
+git add src/ArksScanner.Worker/processing/boundary/confidence.py src/ArksScanner.Worker/processing/boundary/hybrid.py src/ArksScanner.Worker/processing/test_boundary_confidence.py src/ArksScanner.Worker/processing/test_hybrid_detector.py
 git commit -m "feat: add safe hybrid boundary policy"
 ```
 
 ### Task 6: Connect Hybrid Detection to the Crop Subprocess
 
 **Files:**
-- Modify: `src/SuperScanner.Worker/processing/crop_image.py`
-- Modify: `src/SuperScanner.Worker/processing/boundary/__init__.py`
-- Create: `src/SuperScanner.Worker/processing/test_crop_cli.py`
+- Modify: `src/ArksScanner.Worker/processing/crop_image.py`
+- Modify: `src/ArksScanner.Worker/processing/boundary/__init__.py`
+- Create: `src/ArksScanner.Worker/processing/test_crop_cli.py`
 
 **Interfaces:**
-- Consumes: CLI environment values `SUPERSCANNER_BOUNDARY_MODE`, `SUPERSCANNER_BOUNDARY_MODEL_METADATA`, `SUPERSCANNER_BOUNDARY_MASK_THRESHOLD`, `SUPERSCANNER_BOUNDARY_HIGH_CONFIDENCE`, and `SUPERSCANNER_BOUNDARY_MEDIUM_CONFIDENCE`.
+- Consumes: CLI environment values `ARKSSCANNER_BOUNDARY_MODE`, `ARKSSCANNER_BOUNDARY_MODEL_METADATA`, `ARKSSCANNER_BOUNDARY_MASK_THRESHOLD`, `ARKSSCANNER_BOUNDARY_HIGH_CONFIDENCE`, and `ARKSSCANNER_BOUNDARY_MEDIUM_CONFIDENCE`.
 - Produces: one JSON `DocumentBoundaryResult` on stdout and safe diagnostics on stderr; existing `apply` CLI remains unchanged.
 
 - [x] **Step 1: Write failing subprocess contract tests**
@@ -470,7 +470,7 @@ Add tests that `ManualOnly` emits `FullImage`, an absent model in `AiPreferred` 
 
 - [x] **Step 2: Run CLI tests and verify RED**
 
-Run: `python -m unittest discover -s src/SuperScanner.Worker/processing -p "test_crop_cli.py" -v`
+Run: `python -m unittest discover -s src/ArksScanner.Worker/processing -p "test_crop_cli.py" -v`
 
 Expected: FAIL because the CLI still emits the legacy three-field object.
 
@@ -478,7 +478,7 @@ Expected: FAIL because the CLI still emits the legacy three-field object.
 
 ```python
 def create_boundary_detector(env: Mapping[str, str]) -> HybridBoundaryDetector:
-    mode = env.get("SUPERSCANNER_BOUNDARY_MODE", "OpenCvOnly")
+    mode = env.get("ARKSSCANNER_BOUNDARY_MODE", "OpenCvOnly")
     if mode not in {"AiPreferred", "OpenCvOnly", "ManualOnly"}:
         raise ModelConfigurationError("boundary_mode_invalid")
     return HybridBoundaryDetector.from_configuration(mode=mode, env=env,
@@ -489,36 +489,36 @@ Keep stdout exclusively machine-readable JSON. Map known failures to diagnostics
 
 - [x] **Step 4: Run CLI and all Python tests**
 
-Run: `python -m unittest discover -s src/SuperScanner.Worker/processing -p "test_*.py" -v`
+Run: `python -m unittest discover -s src/ArksScanner.Worker/processing -p "test_*.py" -v`
 
 Expected: all tests PASS.
 
 - [x] **Step 5: Commit CLI integration**
 
 ```powershell
-git add src/SuperScanner.Worker/processing/crop_image.py src/SuperScanner.Worker/processing/boundary/__init__.py src/SuperScanner.Worker/processing/test_crop_cli.py
+git add src/ArksScanner.Worker/processing/crop_image.py src/ArksScanner.Worker/processing/boundary/__init__.py src/ArksScanner.Worker/processing/test_crop_cli.py
 git commit -m "feat: connect hybrid detector to crop jobs"
 ```
 
 ### Task 7: Validate Configuration and Persist Detection Provenance
 
 **Files:**
-- Create: `src/SuperScanner.Infrastructure/Processing/DocumentBoundaryOptions.cs`
-- Create: `src/SuperScanner.Infrastructure/Processing/DocumentBoundaryHealth.cs`
-- Create: `src/SuperScanner.Infrastructure/Processing/DocumentBoundaryRollout.cs`
-- Create: `src/SuperScanner.Infrastructure/Processing/CropDetectionResult.cs`
-- Modify: `src/SuperScanner.Infrastructure/Processing/CropProcessor.cs`
-- Modify: `src/SuperScanner.Worker/Program.cs`
-- Modify: `src/SuperScanner.Worker/appsettings.json`
-- Modify: `src/SuperScanner.Worker/appsettings.Development.json`
-- Modify: `src/SuperScanner.Domain/Documents/Page.cs`
-- Modify: `src/SuperScanner.Infrastructure/Persistence/Configurations/PageConfiguration.cs`
-- Create: `src/SuperScanner.Infrastructure/Persistence/Migrations/20260914000000_AiDocumentBoundary.cs`
-- Create: `src/SuperScanner.Infrastructure/Persistence/Migrations/20260914000000_AiDocumentBoundary.Designer.cs`
-- Modify: `src/SuperScanner.Infrastructure/Persistence/Migrations/AppDbContextModelSnapshot.cs`
-- Create: `tests/SuperScanner.Infrastructure.IntegrationTests/Processing/CropDetectionResultTests.cs`
-- Create: `tests/SuperScanner.Infrastructure.IntegrationTests/Processing/DocumentBoundaryPolicyTests.cs`
-- Modify: `tests/SuperScanner.Infrastructure.IntegrationTests/Persistence/DocumentPersistenceTests.cs`
+- Create: `src/ArksScanner.Infrastructure/Processing/DocumentBoundaryOptions.cs`
+- Create: `src/ArksScanner.Infrastructure/Processing/DocumentBoundaryHealth.cs`
+- Create: `src/ArksScanner.Infrastructure/Processing/DocumentBoundaryRollout.cs`
+- Create: `src/ArksScanner.Infrastructure/Processing/CropDetectionResult.cs`
+- Modify: `src/ArksScanner.Infrastructure/Processing/CropProcessor.cs`
+- Modify: `src/ArksScanner.Worker/Program.cs`
+- Modify: `src/ArksScanner.Worker/appsettings.json`
+- Modify: `src/ArksScanner.Worker/appsettings.Development.json`
+- Modify: `src/ArksScanner.Domain/Documents/Page.cs`
+- Modify: `src/ArksScanner.Infrastructure/Persistence/Configurations/PageConfiguration.cs`
+- Create: `src/ArksScanner.Infrastructure/Persistence/Migrations/20260914000000_AiDocumentBoundary.cs`
+- Create: `src/ArksScanner.Infrastructure/Persistence/Migrations/20260914000000_AiDocumentBoundary.Designer.cs`
+- Modify: `src/ArksScanner.Infrastructure/Persistence/Migrations/AppDbContextModelSnapshot.cs`
+- Create: `tests/ArksScanner.Infrastructure.IntegrationTests/Processing/CropDetectionResultTests.cs`
+- Create: `tests/ArksScanner.Infrastructure.IntegrationTests/Processing/DocumentBoundaryPolicyTests.cs`
+- Modify: `tests/ArksScanner.Infrastructure.IntegrationTests/Persistence/DocumentPersistenceTests.cs`
 
 **Interfaces:**
 - Consumes: Python JSON from Task 6.
@@ -548,7 +548,7 @@ public void AcceptsKnownSources(string source)
 
 - [x] **Step 2: Run focused .NET tests and verify RED**
 
-Run: `dotnet test tests/SuperScanner.Infrastructure.IntegrationTests/SuperScanner.Infrastructure.IntegrationTests.csproj --filter FullyQualifiedName~CropDetectionResultTests`
+Run: `dotnet test tests/ArksScanner.Infrastructure.IntegrationTests/ArksScanner.Infrastructure.IntegrationTests.csproj --filter FullyQualifiedName~CropDetectionResultTests`
 
 Expected: FAIL because `CropDetectionResult` does not exist.
 
@@ -572,7 +572,7 @@ Use `AddOptions<DocumentBoundaryOptions>().BindConfiguration(...).Validate(...)`
 
 - [x] **Step 4: Pass configuration through `ProcessStartInfo.Environment`**
 
-Set the five `SUPERSCANNER_BOUNDARY_*` variables explicitly in `CropProcessor`; never inherit model choice from arbitrary request data. Deserialize `CropDetectionResult`, call `IsValid`, and persist its exact source, model version, confidence, and diagnostics code. `DocumentBoundaryRollout.ShouldUseAi` must use the first unsigned 32 bits of SHA-256 over RFC-4122 page-ID bytes, modulo 100, so the same page always receives the same rollout decision.
+Set the five `ARKSSCANNER_BOUNDARY_*` variables explicitly in `CropProcessor`; never inherit model choice from arbitrary request data. Deserialize `CropDetectionResult`, call `IsValid`, and persist its exact source, model version, confidence, and diagnostics code. `DocumentBoundaryRollout.ShouldUseAi` must use the first unsigned 32 bits of SHA-256 over RFC-4122 page-ID bytes, modulo 100, so the same page always receives the same rollout decision.
 
 - [x] **Step 5: Add the Worker-lifetime circuit breaker and structured telemetry**
 
@@ -592,7 +592,7 @@ Register it as a singleton. When the subprocess reports `ai_checksum_invalid`, `
 Add nullable `CropModelVersion` and `CropDiagnosticsCode` properties with maximum lengths 100 and 64. Generate the migration with:
 
 ```powershell
-dotnet ef migrations add AiDocumentBoundary --project src/SuperScanner.Infrastructure --startup-project src/SuperScanner.Api --output-dir Persistence/Migrations
+dotnet ef migrations add AiDocumentBoundary --project src/ArksScanner.Infrastructure --startup-project src/ArksScanner.Api --output-dir Persistence/Migrations
 ```
 
 Rename the generated timestamp to the repository convention only if EF generated a different timestamp; keep migration ID, designer attribute, and snapshot consistent.
@@ -602,8 +602,8 @@ Rename the generated timestamp to the repository convention only if EF generated
 Run:
 
 ```powershell
-dotnet test tests/SuperScanner.Infrastructure.IntegrationTests/SuperScanner.Infrastructure.IntegrationTests.csproj --filter "FullyQualifiedName~CropDetectionResultTests|FullyQualifiedName~DocumentBoundaryPolicyTests|FullyQualifiedName~DocumentPersistenceTests"
-dotnet build SuperScanner.slnx --no-restore
+dotnet test tests/ArksScanner.Infrastructure.IntegrationTests/ArksScanner.Infrastructure.IntegrationTests.csproj --filter "FullyQualifiedName~CropDetectionResultTests|FullyQualifiedName~DocumentBoundaryPolicyTests|FullyQualifiedName~DocumentPersistenceTests"
+dotnet build ArksScanner.slnx --no-restore
 ```
 
 Expected: focused tests PASS and solution build succeeds.
@@ -611,19 +611,19 @@ Expected: focused tests PASS and solution build succeeds.
 - [x] **Step 8: Commit configuration and persistence**
 
 ```powershell
-git add src/SuperScanner.Infrastructure/Processing src/SuperScanner.Worker/Program.cs src/SuperScanner.Worker/appsettings*.json src/SuperScanner.Domain/Documents/Page.cs src/SuperScanner.Infrastructure/Persistence tests/SuperScanner.Infrastructure.IntegrationTests
+git add src/ArksScanner.Infrastructure/Processing src/ArksScanner.Worker/Program.cs src/ArksScanner.Worker/appsettings*.json src/ArksScanner.Domain/Documents/Page.cs src/ArksScanner.Infrastructure/Persistence tests/ArksScanner.Infrastructure.IntegrationTests
 git commit -m "feat: persist boundary detector provenance"
 ```
 
 ### Task 8: Expose Confidence Guidance in the Existing Crop Editor
 
 **Files:**
-- Modify: `src/SuperScanner.Api/Endpoints/CropEndpoints.cs`
+- Modify: `src/ArksScanner.Api/Endpoints/CropEndpoints.cs`
 - Modify: `apps/web/src/app/documents/crop-editor.component.ts`
 - Modify: `apps/web/src/app/documents/crop-editor.component.html`
 - Modify: `apps/web/src/app/documents/crop-editor.component.scss`
 - Create: `apps/web/src/app/documents/crop-editor.component.spec.ts`
-- Modify: `tests/SuperScanner.Api.IntegrationTests/Documents/DocumentsEndpointsTests.cs`
+- Modify: `tests/ArksScanner.Api.IntegrationTests/Documents/DocumentsEndpointsTests.cs`
 
 **Interfaces:**
 - Consumes: `source`, `confidence`, `modelVersion`, and `diagnosticsCode` from the crop status endpoint.
@@ -673,7 +673,7 @@ Run:
 
 ```powershell
 npm --prefix apps/web test -- --watch=false --include src/app/documents/crop-editor.component.spec.ts
-dotnet test tests/SuperScanner.Api.IntegrationTests/SuperScanner.Api.IntegrationTests.csproj --filter FullyQualifiedName~DocumentsEndpointsTests
+dotnet test tests/ArksScanner.Api.IntegrationTests/ArksScanner.Api.IntegrationTests.csproj --filter FullyQualifiedName~DocumentsEndpointsTests
 ```
 
 Expected: all focused tests PASS.
@@ -681,15 +681,15 @@ Expected: all focused tests PASS.
 - [x] **Step 6: Commit UI guidance**
 
 ```powershell
-git add src/SuperScanner.Api/Endpoints/CropEndpoints.cs apps/web/src/app/documents/crop-editor.component.* tests/SuperScanner.Api.IntegrationTests/Documents/DocumentsEndpointsTests.cs
+git add src/ArksScanner.Api/Endpoints/CropEndpoints.cs apps/web/src/app/documents/crop-editor.component.* tests/ArksScanner.Api.IntegrationTests/Documents/DocumentsEndpointsTests.cs
 git commit -m "feat: explain boundary confidence in crop editor"
 ```
 
 ### Task 9: Package the Runtime and Model Safely
 
 **Files:**
-- Modify: `src/SuperScanner.Worker/SuperScanner.Worker.csproj`
-- Modify: `src/SuperScanner.Worker/Dockerfile`
+- Modify: `src/ArksScanner.Worker/ArksScanner.Worker.csproj`
+- Modify: `src/ArksScanner.Worker/Dockerfile`
 - Create: `tools/document-boundary/fetch_u2netp_model.ps1`
 - Create: `tools/document-boundary/README.md`
 - Modify: `.gitignore`
@@ -702,7 +702,7 @@ git commit -m "feat: explain boundary confidence in crop editor"
 
 Add an MSBuild target named `VerifyBoundaryProcessingAssets` that runs after `Publish` and errors when `processing/boundary/hybrid.py`, `processing/requirements.txt`, or `processing/models/document-boundary-model.json` is absent. Run publish before adding content items and verify it fails.
 
-Run: `dotnet publish src/SuperScanner.Worker/SuperScanner.Worker.csproj -c Release -o .task-tools/boundary-publish`
+Run: `dotnet publish src/ArksScanner.Worker/ArksScanner.Worker.csproj -c Release -o .task-tools/boundary-publish`
 
 Expected: FAIL at `VerifyBoundaryProcessingAssets`.
 
@@ -737,9 +737,9 @@ The script downloads the U-2-Net small candidate from `https://github.com/daniel
 Run:
 
 ```powershell
-dotnet publish src/SuperScanner.Worker/SuperScanner.Worker.csproj -c Release -o .task-tools/boundary-publish
-docker build -f src/SuperScanner.Worker/Dockerfile -t superscanner-worker:boundary .
-docker run --rm --entrypoint python3 superscanner-worker:boundary -c "import cv2,numpy,onnxruntime; print('boundary runtime ready')"
+dotnet publish src/ArksScanner.Worker/ArksScanner.Worker.csproj -c Release -o .task-tools/boundary-publish
+docker build -f src/ArksScanner.Worker/Dockerfile -t arksscanner-worker:boundary .
+docker run --rm --entrypoint python3 arksscanner-worker:boundary -c "import cv2,numpy,onnxruntime; print('boundary runtime ready')"
 ```
 
 Expected: publish succeeds, Docker build succeeds, and the container prints `boundary runtime ready`.
@@ -747,7 +747,7 @@ Expected: publish succeeds, Docker build succeeds, and the container prints `bou
 - [x] **Step 6: Commit packaging**
 
 ```powershell
-git add src/SuperScanner.Worker/SuperScanner.Worker.csproj src/SuperScanner.Worker/Dockerfile tools/document-boundary .gitignore
+git add src/ArksScanner.Worker/ArksScanner.Worker.csproj src/ArksScanner.Worker/Dockerfile tools/document-boundary .gitignore
 git commit -m "build: package document boundary runtime"
 ```
 
@@ -851,7 +851,7 @@ If and only if `promotionPassed` is true, copy the evaluated model version, exac
 - [x] **Step 9: Commit the benchmark harness, not private data or results**
 
 ```powershell
-git add tools/document-boundary/benchmark.py tools/document-boundary/manifest.example.json tools/document-boundary/test_benchmark.py tools/document-boundary/README.md src/SuperScanner.Worker/processing/models/document-boundary-model.json
+git add tools/document-boundary/benchmark.py tools/document-boundary/manifest.example.json tools/document-boundary/test_benchmark.py tools/document-boundary/README.md src/ArksScanner.Worker/processing/models/document-boundary-model.json
 git commit -m "test: gate boundary model promotion on accuracy"
 ```
 
@@ -875,12 +875,12 @@ Document exact Railway variables, model checksum provisioning, startup validatio
 Run:
 
 ```powershell
-python -m unittest discover -s src/SuperScanner.Worker/processing -p "test_*.py" -v
+python -m unittest discover -s src/ArksScanner.Worker/processing -p "test_*.py" -v
 python -m unittest discover -s tools/document-boundary -p "test_benchmark.py" -v
-dotnet test SuperScanner.slnx --no-restore
+dotnet test ArksScanner.slnx --no-restore
 npm --prefix apps/web test -- --watch=false
 npm --prefix apps/web run build
-dotnet publish src/SuperScanner.Worker/SuperScanner.Worker.csproj -c Release -o .task-tools/boundary-publish
+dotnet publish src/ArksScanner.Worker/ArksScanner.Worker.csproj -c Release -o .task-tools/boundary-publish
 ```
 
 Expected: every command exits `0`.

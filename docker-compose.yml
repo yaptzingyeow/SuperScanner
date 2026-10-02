@@ -1,8 +1,8 @@
-name: superscanner
+name: arksscanner
 
 # Apply this environment block to API/Worker containers when they are added to
 # the local compose stack. The current stack intentionally hosts dependencies only.
-x-superscanner-document-processing: &superscanner-document-processing
+x-arksscanner-document-processing: &arksscanner-document-processing
   DocumentImport__MaxUploadBytes: ${DOCUMENTIMPORT__MAXUPLOADBYTES:-26214400}
   DocumentImport__MaxPagesPerImport: ${DOCUMENTIMPORT__MAXPAGESPERIMPORT:-50}
   DocumentImport__MaxPagesPerDocument: ${DOCUMENTIMPORT__MAXPAGESPERDOCUMENT:-50}
@@ -19,9 +19,9 @@ services:
   postgres:
     image: postgres:17-alpine
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-superscanner}
-      POSTGRES_USER: ${POSTGRES_USER:-superscanner_local}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-superscanner_local_only}
+      POSTGRES_DB: ${POSTGRES_DB:-arksscanner}
+      POSTGRES_USER: ${POSTGRES_USER:-arksscanner_local}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-arksscanner_local_only}
     ports:
       - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
     volumes:
@@ -37,8 +37,8 @@ services:
     image: minio/minio:latest
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-superscanner_local}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-superscanner_local_only_password}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-arksscanner_local}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-arksscanner_local_only_password}
     ports:
       - "127.0.0.1:${MINIO_API_PORT:-9000}:9000"
       - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
@@ -57,9 +57,9 @@ services:
       minio:
         condition: service_healthy
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-superscanner_local}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-superscanner_local_only_password}
-      MINIO_BUCKET: ${MINIO_BUCKET:-superscanner-private}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-arksscanner_local}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-arksscanner_local_only_password}
+      MINIO_BUCKET: ${MINIO_BUCKET:-arksscanner-private}
     entrypoint:
       - /bin/sh
       - -ec

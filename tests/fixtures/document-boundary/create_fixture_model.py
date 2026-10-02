@@ -20,7 +20,7 @@ def create_model(output_path: Path) -> None:
         nodes, "tiny-boundary-segmenter", [model_input], [model_output], [axes])
     model = helper.make_model(
         graph,
-        producer_name="superscanner-test-fixture",
+        producer_name="arksscanner-test-fixture",
         opset_imports=[helper.make_opsetid("", 18)])
     model.ir_version = 10
     onnx.checker.check_model(model)

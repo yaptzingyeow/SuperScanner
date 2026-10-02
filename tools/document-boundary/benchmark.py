@@ -98,12 +98,12 @@ def summarize(results):
 
 
 def _load_detector(mode):
-    processing = Path(__file__).resolve().parents[2] / "src" / "SuperScanner.Worker" / "processing"
+    processing = Path(__file__).resolve().parents[2] / "src" / "ArksScanner.Worker" / "processing"
     sys.path.insert(0, str(processing))
     from crop_image import create_boundary_detector
 
     environment = os.environ.copy()
-    environment["SUPERSCANNER_BOUNDARY_MODE"] = mode
+    environment["ARKSSCANNER_BOUNDARY_MODE"] = mode
     return create_boundary_detector(environment)
 
 

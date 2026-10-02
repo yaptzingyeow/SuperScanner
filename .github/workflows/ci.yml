@@ -15,9 +15,9 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
-      - run: dotnet restore SuperScanner.slnx --locked-mode
-      - run: dotnet build SuperScanner.slnx --no-restore
-      - run: dotnet test SuperScanner.slnx --no-build
+      - run: dotnet restore ArksScanner.slnx --locked-mode
+      - run: dotnet build ArksScanner.slnx --no-restore
+      - run: dotnet test ArksScanner.slnx --no-build
 
   frontend:
     runs-on: ubuntu-latest
@@ -47,9 +47,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker compose config --quiet
-      - run: docker build --file src/SuperScanner.Api/Dockerfile --tag superscanner-api:test .
-      - run: docker build --file src/SuperScanner.Worker/Dockerfile --tag superscanner-worker:test .
-      - run: docker build --file apps/web/Dockerfile --tag superscanner-web:test .
+      - run: docker build --file src/ArksScanner.Api/Dockerfile --tag arksscanner-api:test .
+      - run: docker build --file src/ArksScanner.Worker/Dockerfile --tag arksscanner-worker:test .
+      - run: docker build --file apps/web/Dockerfile --tag arksscanner-web:test .
 
   e2e:
     needs: [backend, frontend, containers]
@@ -64,8 +64,8 @@ jobs:
           node-version: 22.22.3
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
-      - run: dotnet restore SuperScanner.slnx --locked-mode
-      - run: dotnet build SuperScanner.slnx --no-restore
+      - run: dotnet restore ArksScanner.slnx --locked-mode
+      - run: dotnet build ArksScanner.slnx --no-restore
       - run: npm ci
         working-directory: apps/web
       - run: npx playwright install --with-deps chromium

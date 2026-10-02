@@ -1,6 +1,6 @@
-# SuperScanner Phase 1 Delivery Roadmap
+# ArksScanner Phase 1 Delivery Roadmap
 
-**Spec:** `docs/superpowers/specs/2026-09-02-superscanner-phase-1-design.md`
+**Spec:** `docs/superpowers/specs/2026-09-02-arksscanner-phase-1-design.md`
 
 The approved design contains independent subsystems with different risk profiles. Each plan below must end in deployable, testable software and receive its own review before the next plan begins.
 

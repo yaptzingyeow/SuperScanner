@@ -1,4 +1,4 @@
-# SuperScanner Google Document AI OCR Design
+# ArksScanner Google Document AI OCR Design
 
 **Date:** 2026-09-22  
 **Status:** Proposed for user review  

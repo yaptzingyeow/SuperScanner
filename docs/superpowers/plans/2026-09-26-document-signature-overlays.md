@@ -30,12 +30,12 @@
 
 ## File Structure
 
-- `src/SuperScanner.Domain/Documents/PageSignature.cs`: geometry, revision, lifecycle invariants.
-- `src/SuperScanner.Application/Abstractions/IPageSignatureRepository.cs`: active overlay reads for export and API orchestration.
-- `src/SuperScanner.Infrastructure/Persistence/Configurations/PageSignatureConfiguration.cs` and a new EF migration: database mapping.
-- `src/SuperScanner.Infrastructure/Persistence/EfPageSignatureRepository.cs`: active overlays for export snapshots.
-- `src/SuperScanner.Infrastructure/Signatures/SignatureImageNormalizer.cs`: bounded decode and canonical PNG encode.
-- `src/SuperScanner.Api/Endpoints/PageSignatureEndpoints.cs`: owner-scoped asset and overlay operations.
+- `src/ArksScanner.Domain/Documents/PageSignature.cs`: geometry, revision, lifecycle invariants.
+- `src/ArksScanner.Application/Abstractions/IPageSignatureRepository.cs`: active overlay reads for export and API orchestration.
+- `src/ArksScanner.Infrastructure/Persistence/Configurations/PageSignatureConfiguration.cs` and a new EF migration: database mapping.
+- `src/ArksScanner.Infrastructure/Persistence/EfPageSignatureRepository.cs`: active overlays for export snapshots.
+- `src/ArksScanner.Infrastructure/Signatures/SignatureImageNormalizer.cs`: bounded decode and canonical PNG encode.
+- `src/ArksScanner.Api/Endpoints/PageSignatureEndpoints.cs`: owner-scoped asset and overlay operations.
 - `apps/web/src/app/documents/signature-image.ts`: pure Canvas image processing.
 - `apps/web/src/app/documents/signature-creator.component.*`: upload/draw/preview draft UI.
 - `apps/web/src/app/documents/page-signature-overlay.component.*`: selectable placement and edit controls.
@@ -46,13 +46,13 @@
 ### Task 1: Canonical overlay model and persistence
 
 **Files:**
-- Create: `src/SuperScanner.Domain/Documents/PageSignature.cs`
-- Create: `src/SuperScanner.Application/Abstractions/IPageSignatureRepository.cs`
-- Create: `src/SuperScanner.Infrastructure/Persistence/Configurations/PageSignatureConfiguration.cs`
-- Create: `src/SuperScanner.Infrastructure/Persistence/EfPageSignatureRepository.cs`
-- Create: a generated `PageSignatures` migration and designer in `src/SuperScanner.Infrastructure/Persistence/Migrations/`
-- Modify: `src/SuperScanner.Infrastructure/Persistence/AppDbContext.cs`, `src/SuperScanner.Infrastructure/Persistence/Migrations/AppDbContextModelSnapshot.cs`
-- Test: `tests/SuperScanner.Domain.Tests/Documents/PageSignatureTests.cs`, `tests/SuperScanner.Infrastructure.IntegrationTests/Persistence/PageSignaturePersistenceTests.cs`
+- Create: `src/ArksScanner.Domain/Documents/PageSignature.cs`
+- Create: `src/ArksScanner.Application/Abstractions/IPageSignatureRepository.cs`
+- Create: `src/ArksScanner.Infrastructure/Persistence/Configurations/PageSignatureConfiguration.cs`
+- Create: `src/ArksScanner.Infrastructure/Persistence/EfPageSignatureRepository.cs`
+- Create: a generated `PageSignatures` migration and designer in `src/ArksScanner.Infrastructure/Persistence/Migrations/`
+- Modify: `src/ArksScanner.Infrastructure/Persistence/AppDbContext.cs`, `src/ArksScanner.Infrastructure/Persistence/Migrations/AppDbContextModelSnapshot.cs`
+- Test: `tests/ArksScanner.Domain.Tests/Documents/PageSignatureTests.cs`, `tests/ArksScanner.Infrastructure.IntegrationTests/Persistence/PageSignaturePersistenceTests.cs`
 
 **Interfaces:**
 - Produce `SignatureBox(double X, double Y, double Width, double Height)` with positive normalized dimensions fully inside `[0,1]`.
@@ -60,7 +60,7 @@
 - Produce `IPageSignatureRepository.GetActiveForDocumentAsync(Guid documentId, CancellationToken ct): Task<IReadOnlyList<PageSignature>>` for Task 6.
 
 - [ ] **Step 1: Write failing domain and persistence tests.** `Create_rejects_out_of_page_box`, `MoveResize_rejects_stale_revision`, `Delete_hides_overlay_without_losing_asset_key`, and `Round_trip_preserves_box_aspect_ratio_and_revision` assert those concrete outcomes.
-- [ ] **Step 2: Run RED.** `dotnet test tests/SuperScanner.Domain.Tests/SuperScanner.Domain.Tests.csproj --filter FullyQualifiedName~PageSignature` and `dotnet test tests/SuperScanner.Infrastructure.IntegrationTests/SuperScanner.Infrastructure.IntegrationTests.csproj --filter FullyQualifiedName~PageSignaturePersistence`; expect missing type/behavior failures.
+- [ ] **Step 2: Run RED.** `dotnet test tests/ArksScanner.Domain.Tests/ArksScanner.Domain.Tests.csproj --filter FullyQualifiedName~PageSignature` and `dotnet test tests/ArksScanner.Infrastructure.IntegrationTests/ArksScanner.Infrastructure.IntegrationTests.csproj --filter FullyQualifiedName~PageSignaturePersistence`; expect missing type/behavior failures.
 - [ ] **Step 3: Implement model, repository, EF configuration, and migration.** Use a soft-deleted row and concurrency revision; index `(DocumentId, PageId, DeletedAt)` and uniquely constrain `(DocumentId, ClientRequestId)` for idempotent create. Do not create a reusable user signature table.
 - [ ] **Step 4: Run GREEN.** Repeat both filtered commands; expect zero failures.
 - [ ] **Step 5: Commit only Task 1 files:** `feat: persist editable page signature overlays`.
@@ -68,10 +68,10 @@
 ### Task 2: Secure signature lifecycle API
 
 **Files:**
-- Create: `src/SuperScanner.Infrastructure/Signatures/SignatureImageNormalizer.cs`
-- Create: `src/SuperScanner.Api/Endpoints/PageSignatureEndpoints.cs`
-- Modify: `src/SuperScanner.Api/Program.cs`, `src/SuperScanner.Domain/Documents/Document.cs`
-- Test: `tests/SuperScanner.Api.IntegrationTests/Documents/PageSignatureEndpointsTests.cs`, `tests/SuperScanner.Infrastructure.IntegrationTests/Signatures/SignatureImageNormalizerTests.cs`
+- Create: `src/ArksScanner.Infrastructure/Signatures/SignatureImageNormalizer.cs`
+- Create: `src/ArksScanner.Api/Endpoints/PageSignatureEndpoints.cs`
+- Modify: `src/ArksScanner.Api/Program.cs`, `src/ArksScanner.Domain/Documents/Document.cs`
+- Test: `tests/ArksScanner.Api.IntegrationTests/Documents/PageSignatureEndpointsTests.cs`, `tests/ArksScanner.Infrastructure.IntegrationTests/Signatures/SignatureImageNormalizerTests.cs`
 
 **Interfaces:**
 - Produce `POST /api/documents/{documentId}/pages/{pageId}/signatures` with multipart PNG, normalized `SignatureBox`, and a UUID `Idempotency-Key` header; return ID, revision, box, aspect ratio, image URL.
@@ -79,7 +79,7 @@
 - Produce `SignatureImageNormalizer.NormalizeAsync(Stream input, CancellationToken ct): Task<NormalizedSignatureImage>` where the result holds canonical PNG bytes, width, height, and aspect ratio.
 
 - [ ] **Step 1: Write failing tests.** Test owner-only operations, unauthorized App Check/Auth, valid PNG creation/read, JPEG rejected at this canonical endpoint, invalid/oversized/empty-transparent images, metadata removal, stale revision `409`, inactive page `404`, an idempotent create retry, and failed create leaving neither an active row nor a live orphaned asset. Use a small valid fixture, not a file-extension-only fake.
-- [ ] **Step 2: Run RED.** `dotnet test tests/SuperScanner.Api.IntegrationTests/SuperScanner.Api.IntegrationTests.csproj --filter FullyQualifiedName~PageSignature` and `dotnet test tests/SuperScanner.Infrastructure.IntegrationTests/SuperScanner.Infrastructure.IntegrationTests.csproj --filter FullyQualifiedName~SignatureImageNormalizer`; expect missing endpoint/type failures.
+- [ ] **Step 2: Run RED.** `dotnet test tests/ArksScanner.Api.IntegrationTests/ArksScanner.Api.IntegrationTests.csproj --filter FullyQualifiedName~PageSignature` and `dotnet test tests/ArksScanner.Infrastructure.IntegrationTests/ArksScanner.Infrastructure.IntegrationTests.csproj --filter FullyQualifiedName~SignatureImageNormalizer`; expect missing endpoint/type failures.
 - [ ] **Step 3: Implement minimal owner-scoped endpoints and bounded normalizer.** Register `EfPageSignatureRepository` in `Program.cs`. Browser converts JPEG to PNG before POST. Cap input at 5 MiB and decoded image at 12 megapixels; reject an entirely transparent image, strip metadata, write immutable private PNG with `WriteIfAbsentAsync`; use `Document.MarkContentChanged` on create/update/delete. If asset write succeeds but DB commit fails, delete the new asset or queue orphan cleanup. Never expose object keys or storage credentials in JSON.
 - [ ] **Step 4: Run GREEN.** Repeat both filtered commands; expect zero failures.
 - [ ] **Step 5: Commit only Task 2 files:** `feat: add secure page signature API`.
@@ -135,8 +135,8 @@
 ### Task 6: Immutable PDF signature snapshots
 
 **Files:**
-- Modify: `src/SuperScanner.Domain/Documents/DocumentExport.cs`, `src/SuperScanner.Application/Documents/CreateDocumentExport.cs`, `src/SuperScanner.Infrastructure/Processing/DocumentPdfBuilder.cs`
-- Test: `tests/SuperScanner.Domain.Tests/Documents/DocumentExportTests.cs`, `tests/SuperScanner.Application.Tests/Documents/DocumentExportTests.cs`, `tests/SuperScanner.Application.Tests/Processing/DocumentPdfBuilderTests.cs`
+- Modify: `src/ArksScanner.Domain/Documents/DocumentExport.cs`, `src/ArksScanner.Application/Documents/CreateDocumentExport.cs`, `src/ArksScanner.Infrastructure/Processing/DocumentPdfBuilder.cs`
+- Test: `tests/ArksScanner.Domain.Tests/Documents/DocumentExportTests.cs`, `tests/ArksScanner.Application.Tests/Documents/DocumentExportTests.cs`, `tests/ArksScanner.Application.Tests/Processing/DocumentPdfBuilderTests.cs`
 
 **Interfaces:**
 - Produce `SignatureOverlaySnapshot(Guid SignatureId, string AssetKey, SignatureBox Box, double ImageAspectRatio)`.
@@ -144,7 +144,7 @@
 - Consume `IPageSignatureRepository.GetActiveForDocumentAsync` from Task 1 when creating an export.
 
 - [ ] **Step 1: Write failing tests.** Export creation snapshots exact signature asset key and box; updating/deleting later does not alter that snapshot; no-signature exports remain readable; PDF draws transparent ink at normalized coordinates over the page; missing/corrupt snapshotted image fails export rather than silently omitting it; a signature mutation marks the prior export outdated.
-- [ ] **Step 2: Run RED.** `dotnet test tests/SuperScanner.Domain.Tests/SuperScanner.Domain.Tests.csproj --filter FullyQualifiedName~DocumentExport` and `dotnet test tests/SuperScanner.Application.Tests/SuperScanner.Application.Tests.csproj --filter 'FullyQualifiedName~DocumentExport|FullyQualifiedName~DocumentPdfBuilder'`; expect snapshot/render failures.
+- [ ] **Step 2: Run RED.** `dotnet test tests/ArksScanner.Domain.Tests/ArksScanner.Domain.Tests.csproj --filter FullyQualifiedName~DocumentExport` and `dotnet test tests/ArksScanner.Application.Tests/ArksScanner.Application.Tests.csproj --filter 'FullyQualifiedName~DocumentExport|FullyQualifiedName~DocumentPdfBuilder'`; expect snapshot/render failures.
 - [ ] **Step 3: Implement export snapshot and PDF drawing.** Serialize immutable overlay entries at export creation. Draw each PNG in snapshot order using PdfSharp after page JPEG and before searchable text layer; calculate bounds from normalized geometry and guard source/total byte limits. Keep older snapshot JSON compatible.
 - [ ] **Step 4: Run GREEN.** Repeat the targeted commands; expect zero failures.
 - [ ] **Step 5: Commit only Task 6 files:** `feat: render signature overlays in PDF exports`.
@@ -152,19 +152,19 @@
 ### Task 7: Retired asset cleanup and whole-flow verification
 
 **Files:**
-- Create: `src/SuperScanner.Infrastructure/Signatures/SignatureAssetCleanup.cs`
-- Create: `src/SuperScanner.Worker/SignatureCleanupWorker.cs`
-- Modify: `src/SuperScanner.Worker/Program.cs`
-- Test: `tests/SuperScanner.Infrastructure.IntegrationTests/Signatures/SignatureAssetCleanupTests.cs`
+- Create: `src/ArksScanner.Infrastructure/Signatures/SignatureAssetCleanup.cs`
+- Create: `src/ArksScanner.Worker/SignatureCleanupWorker.cs`
+- Modify: `src/ArksScanner.Worker/Program.cs`
+- Test: `tests/ArksScanner.Infrastructure.IntegrationTests/Signatures/SignatureAssetCleanupTests.cs`
 
 **Interfaces:**
 - Produce `SignatureAssetCleanup.RunAsync(CancellationToken ct): Task` for a scheduled maintenance job.
 - Consume active signature rows, immutable export snapshots, and their `ExpiresAt` values before deleting any private object.
 
 - [ ] **Step 1: Write failing tests.** A deleted signature asset referenced by a queued or unexpired export is retained; an asset with no active signature and no unexpired export reference is deleted; a cleanup retry after object deletion is safe; an active signature asset is never deleted.
-- [ ] **Step 2: Run RED.** `dotnet test tests/SuperScanner.Infrastructure.IntegrationTests/SuperScanner.Infrastructure.IntegrationTests.csproj --filter FullyQualifiedName~SignatureAssetCleanup`; expect missing service/behavior failures.
+- [ ] **Step 2: Run RED.** `dotnet test tests/ArksScanner.Infrastructure.IntegrationTests/ArksScanner.Infrastructure.IntegrationTests.csproj --filter FullyQualifiedName~SignatureAssetCleanup`; expect missing service/behavior failures.
 - [ ] **Step 3: Implement cleanup and register a periodic hosted service in `Program.cs`.** Delete only private objects whose DB references are provably no longer live; use bounded batches and preserve retryability.
-- [ ] **Step 4: Run GREEN and broad verification.** Repeat targeted command; then run `dotnet test SuperScanner.slnx` and, from `apps/web`, `npm test -- --watch=false`. Expect zero failures and no skipped signature tests.
+- [ ] **Step 4: Run GREEN and broad verification.** Repeat targeted command; then run `dotnet test ArksScanner.slnx` and, from `apps/web`, `npm test -- --watch=false`. Expect zero failures and no skipped signature tests.
 - [ ] **Step 5: Commit only Task 7 files:** `feat: clean up retired signature assets`.
 
 ## Execution handoff

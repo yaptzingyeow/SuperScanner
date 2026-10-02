@@ -1,4 +1,4 @@
-# SuperScanner OCR Foundation Design
+# ArksScanner OCR Foundation Design
 
 **Date:** 2026-09-22
 **Status:** Proposed for user review

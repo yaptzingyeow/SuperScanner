@@ -4,15 +4,15 @@ import { resolve } from 'node:path';
 const webRoot = resolve(__dirname, '..');
 const repositoryRoot = resolve(__dirname, '../../..');
 const localConnection =
-  'Host=127.0.0.1;Port=5433;Database=superscanner;Username=superscanner_local;Password=superscanner_local_only';
+  'Host=127.0.0.1;Port=5433;Database=arksscanner;Username=arksscanner_local;Password=arksscanner_local_only';
 const sharedEnvironment = {
   ...process.env,
   ASPNETCORE_ENVIRONMENT: 'E2E',
   ConnectionStrings__PostgreSql: localConnection,
   R2__ServiceUrl: 'http://127.0.0.1:9000',
-  R2__AccessKeyId: 'superscanner_local',
-  R2__SecretAccessKey: 'superscanner_local_only_password',
-  R2__BucketName: 'superscanner-private',
+  R2__AccessKeyId: 'arksscanner_local',
+  R2__SecretAccessKey: 'arksscanner_local_only_password',
+  R2__BucketName: 'arksscanner-private',
   Crop__PythonPath: process.env['E2E_CROP_PYTHON'] ?? 'python3',
   DocumentBoundary__Mode: 'ManualOnly',
   Audit__SigningKeyBase64: 'MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=',
@@ -73,7 +73,7 @@ function stop(processToStop: ChildProcess): void {
 export default async function globalSetup(): Promise<() => Promise<void>> {
   const api = start(
     'dotnet',
-    [resolve(repositoryRoot, 'src/SuperScanner.Api/bin/Debug/net10.0/SuperScanner.Api.dll')],
+    [resolve(repositoryRoot, 'src/ArksScanner.Api/bin/Debug/net10.0/ArksScanner.Api.dll')],
     {
       ...sharedEnvironment,
       ASPNETCORE_URLS: 'http://127.0.0.1:5080',
@@ -82,7 +82,7 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
   );
   const worker = start(
     'dotnet',
-    [resolve(repositoryRoot, 'src/SuperScanner.Worker/bin/Debug/net10.0/SuperScanner.Worker.dll')],
+    [resolve(repositoryRoot, 'src/ArksScanner.Worker/bin/Debug/net10.0/ArksScanner.Worker.dll')],
     {
       ...sharedEnvironment,
       ASPNETCORE_URLS: 'http://127.0.0.1:5081',

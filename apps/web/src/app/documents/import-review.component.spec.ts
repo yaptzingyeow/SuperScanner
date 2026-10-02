@@ -421,7 +421,7 @@ describe('ImportReviewComponent', () => {
   });
 
   it('returning from Adjust corners with checked=<id> clears that page\'s Check corners', async () => {
-    sessionStorage.setItem('superscanner:import-check:doc-1', JSON.stringify({ check: ['p1', 'p2'], decided: ['p1', 'p2'] }));
+    sessionStorage.setItem('arksscanner:import-check:doc-1', JSON.stringify({ check: ['p1', 'p2'], decided: ['p1', 'p2'] }));
     setup(doc([page('p1', 1), page('p2', 2)]), 'up-1', { checked: 'p2' });
     api.getCrop.mockResolvedValue(crop({ source: 'Manual', confidence: 1 }));
     await flush();
@@ -431,7 +431,7 @@ describe('ImportReviewComponent', () => {
     expect(navigate).toHaveBeenCalledWith([], expect.objectContaining({
       queryParams: { checked: null }, queryParamsHandling: 'merge', replaceUrl: true,
     }));
-    expect(JSON.parse(sessionStorage.getItem('superscanner:import-check:doc-1')!).check).toEqual(['p1']);
+    expect(JSON.parse(sessionStorage.getItem('arksscanner:import-check:doc-1')!).check).toEqual(['p1']);
   });
 
   it('upload originals reports skipped pages and stays on the screen', async () => {

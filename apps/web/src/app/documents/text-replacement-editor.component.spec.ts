@@ -21,16 +21,16 @@ describe('TextReplacementEditorComponent', () => {
   async function setup(proposalError?: unknown, mode: 'replace' | 'delete' | 'add' = 'replace', historyError?: unknown) {
     const fonts = { list: vi.fn().mockResolvedValue([
       { catalogueId: 'noto-sans', version: 'archive-main-regular', familyName: 'Noto Sans',
-        category: 'SansSerif', weight: 400, webFamilyName: 'SuperScanner Noto Sans v1',
+        category: 'SansSerif', weight: 400, webFamilyName: 'ArksScanner Noto Sans v1',
         webAssetUrl: '/assets/fonts/NotoSans-Regular.ttf', enabled: true },
       { catalogueId: 'noto-sans', version: 'archive-main-bold', familyName: 'Noto Sans',
-        category: 'SansSerif', weight: 700, webFamilyName: 'SuperScanner Noto Sans v1',
+        category: 'SansSerif', weight: 700, webFamilyName: 'ArksScanner Noto Sans v1',
         webAssetUrl: '/assets/fonts/NotoSans-Bold.ttf', enabled: true },
       { catalogueId: 'noto-serif', version: 'archive-main-regular', familyName: 'Noto Serif',
-        category: 'Serif', weight: 400, webFamilyName: 'SuperScanner Noto Serif v1',
+        category: 'Serif', weight: 400, webFamilyName: 'ArksScanner Noto Serif v1',
         webAssetUrl: '/assets/fonts/NotoSerif-Regular.ttf', enabled: true },
       { catalogueId: 'carlito', version: 'v1-regular', familyName: 'Carlito',
-        category: 'SansSerif', weight: 400, webFamilyName: 'SuperScanner Carlito v1',
+        category: 'SansSerif', weight: 400, webFamilyName: 'ArksScanner Carlito v1',
         webAssetUrl: '/assets/fonts/Carlito-Regular.ttf', enabled: true },
     ]), loadFace: vi.fn().mockResolvedValue(undefined) };
     const api = {
