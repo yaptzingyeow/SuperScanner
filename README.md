@@ -1,4 +1,6 @@
-# SuperScanner
+# Arks Scanner
+
+_Arks Scanner by [ArkSoft](https://arksoft.dev/). Internal project, solution and code names keep the original `SuperScanner` identifier._
 
 Private document scanning and printed-text editing with Angular, ASP.NET Core, PostgreSQL, Firebase Auth/App Check, and private object storage.
 

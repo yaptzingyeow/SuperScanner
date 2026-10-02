@@ -1,4 +1,4 @@
-# SuperScanner secure foundation runbook
+# Arks Scanner secure foundation runbook
 
 ## Topology
 
