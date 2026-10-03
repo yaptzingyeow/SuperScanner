@@ -22,7 +22,7 @@ Delivered in three pieces; this spec covers 1 and 2:
 - Free limits once enforced (all editable in the admin portal): **5 OCR pages per day**,
   **3 custom-watermark exports per day**, **30 documents maximum**, documents **deleted 7 days after
   creation**.
-- Pro: unlimited OCR (hidden fair-use cap, default 200 pages/day), unlimited custom watermarks,
+- Pro: unlimited OCR (no cap; decided 2026-10-03), unlimited custom watermarks,
   **no brand stamp**, documents kept with no time limit.
 - Website Free users: daily limits, **no ads**. Mobile Free users (later): watch an ad to unlock OCR / PDF;
   the counters reserve a "bonus from ads" slot now, ads are not built now.
@@ -42,7 +42,7 @@ Delivered in three pieces; this spec covers 1 and 2:
 
 | Rule | Test | Enforced, Free | Enforced, Pro |
 |---|---|---|---|
-| OCR pages per day | unlimited (Pro fair-use cap applies) | `FreeOcrPagesPerDay` (5) | `ProOcrPagesPerDayCap` (200) |
+| OCR pages per day | unlimited | `FreeOcrPagesPerDay` (5) | unlimited |
 | Custom-watermark exports per day | unlimited | `FreeWatermarkExportsPerDay` (3) | unlimited |
 | Brand stamp on PDF / Print | on | on | **off** |
 | Maximum documents | unlimited | `FreeMaxDocuments` (30) | unlimited |
@@ -94,7 +94,7 @@ UsageSummary GetUsage(accountUid, now)                                     // to
 ### 2.4 Plan settings
 
 One settings row (versioned by `UpdatedAt`) holds: `Phase`, `EnforceFromUtc`, `FreeOcrPagesPerDay`,
-`FreeWatermarkExportsPerDay`, `FreeMaxDocuments`, `FreeRetentionDays`, `ProOcrPagesPerDayCap`,
+`FreeWatermarkExportsPerDay`, `FreeMaxDocuments`, `FreeRetentionDays`,
 `UsageTimeZone`. Initial values come from configuration section `Plans` (seed only). Edits apply on the
 next request (cached ≤ 30 s). Validation: non-negative integers within sane bounds (OCR ≤ 10 000/day,
 documents ≤ 100 000, retention 1–3650 days, a valid IANA time zone). Every change is audited with old →
@@ -172,7 +172,7 @@ PDF built later reflects the plan at request time.
 ## 7. Testing
 
 - Domain/application: entitlements per phase and plan, Pro window edges, day rollover in
-  `Asia/Kuala_Lumpur`, fair-use cap, bonus pages, settings validation.
+  `Asia/Kuala_Lumpur`, bonus pages, settings validation.
 - Persistence/integration: concurrent consumption never exceeds the limit; retention job deletes only
   expired Free documents and skips accounts that became Pro; grace on Pro end; last-admin guard;
   account upsert and backfill.
