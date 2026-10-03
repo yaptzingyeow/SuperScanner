@@ -7,7 +7,7 @@ public static class PlanEndpoints
 {
     public static void Map(IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapGet("/api/me/plan", async (ICurrentUser user, PlanService plans, HttpContext context, CancellationToken ct) =>
+        endpoints.MapGet("/api/me/plan", async (ICurrentUser user, PlanService plans, IAccountDirectory accounts, HttpContext context, CancellationToken ct) =>
         {
             context.Response.Headers.CacheControl = "private, no-store";
             var entitlements = await plans.GetEntitlementsAsync(user.FirebaseUid, ct);
@@ -34,6 +34,7 @@ public static class PlanEndpoints
                     resetsAt = usage.ResetsAt,
                 },
                 documentCount = await plans.CountActiveDocumentsAsync(user.FirebaseUid, ct),
+                isAdmin = await accounts.IsAdminAsync(user.FirebaseUid, ct),
             });
         }).RequireAuthorization();
     }

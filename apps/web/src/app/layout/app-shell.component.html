@@ -22,6 +22,12 @@
         <span class="nav-icon" aria-hidden="true">▤</span>
         <span class="nav-label">My documents</span>
       </a>
+      @if (plans.isAdmin()) {
+        <a routerLink="/admin" routerLinkActive="active" aria-label="Admin" data-admin-link>
+          <span class="nav-icon" aria-hidden="true">⚙</span>
+          <span class="nav-label">Admin</span>
+        </a>
+      }
     </nav>
 
     <div class="topbar__actions">

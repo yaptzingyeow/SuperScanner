@@ -16,6 +16,10 @@ export class AppShellComponent {
   protected readonly plans = inject(PlanService);
   protected readonly menuOpen = signal(false);
 
+  constructor() {
+    void this.plans.refresh();
+  }
+
   protected toggleMenu(): void {
     this.menuOpen.update((value) => !value);
     if (this.menuOpen()) void this.plans.refresh();

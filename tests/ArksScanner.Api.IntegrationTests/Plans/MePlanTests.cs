@@ -32,4 +32,14 @@ public sealed class MePlanTests : IAsyncLifetime
         Assert.True(body.GetProperty("usage").GetProperty("resetsAt").GetDateTimeOffset() > DateTimeOffset.UtcNow);
         Assert.Equal(0, body.GetProperty("documentCount").GetInt32());
     }
+
+    [Fact]
+    public async Task Me_plan_reports_whether_the_caller_is_an_admin()
+    {
+        using var owner = fixture.Client("owner");
+        using var member = fixture.Client("member");
+
+        Assert.True((await owner.GetFromJsonAsync<JsonElement>("/api/me/plan")).GetProperty("isAdmin").GetBoolean());
+        Assert.False((await member.GetFromJsonAsync<JsonElement>("/api/me/plan")).GetProperty("isAdmin").GetBoolean());
+    }
 }

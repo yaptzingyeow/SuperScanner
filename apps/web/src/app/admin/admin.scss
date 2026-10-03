@@ -1,0 +1,64 @@
+// Shared look for every admin page (matches the workspace cards and buttons).
+:host { display: block; }
+
+h1 { margin: 0 0 16px; font-size: 1.4rem; }
+h2 { margin: 24px 0 10px; font-size: 1rem; }
+
+.panel {
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #e4e6df);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 1px 2px rgba(20, 32, 26, .04);
+}
+
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+.card {
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #e4e6df);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+.card__label { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--color-text-muted, #737b76); }
+.card__value { display: block; margin-top: 6px; font-size: 1.6rem; font-weight: 700; }
+.card__hint { display: block; margin-top: 2px; font-size: .8rem; color: var(--color-text-muted, #737b76); }
+
+.banner {
+  margin-bottom: 16px; padding: 10px 14px; border-radius: 10px;
+  background: var(--color-primary-soft, #eaf3ed); color: var(--color-success-strong, #176047); font-weight: 600;
+  &.banner--enforced { background: #fff4e5; color: #8a4b00; }
+}
+
+table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+th, td { padding: 8px 10px; border-bottom: 1px solid var(--color-border, #e4e6df); text-align: left; vertical-align: middle; }
+th { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--color-text-muted, #737b76); }
+.table-wrap { overflow-x: auto; }
+
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.stack { display: grid; gap: 12px; max-width: 520px; }
+label { display: grid; gap: 4px; font-size: .85rem; font-weight: 600; }
+input, select {
+  min-height: 38px; padding: 0 10px; border: 1px solid var(--color-border-strong, #cbd2ca);
+  border-radius: 8px; font: inherit; background: #fff;
+}
+
+button {
+  min-height: 38px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--color-border-strong, #cbd2ca);
+  background: #fff; color: var(--color-text, #202d29); font: inherit; cursor: pointer;
+  &.primary { background: var(--color-primary, #18755b); border-color: var(--color-primary, #18755b); color: #fff; font-weight: 600; }
+  &.danger { color: var(--color-danger, #ac3d39); border-color: currentColor; }
+  &:disabled { opacity: .5; cursor: default; }
+}
+
+.pill { padding: 2px 8px; border-radius: 999px; font-size: .75rem; font-weight: 600; background: #eef0ec; }
+.pill--pro { background: var(--color-primary-soft, #eaf3ed); color: var(--color-success-strong, #176047); }
+
+.error { color: var(--color-danger, #ac3d39); font-weight: 600; }
+.ok { color: var(--color-success-strong, #176047); font-weight: 600; }
+.muted { color: var(--color-text-muted, #737b76); }
+.empty { padding: 24px; text-align: center; color: var(--color-text-muted, #737b76); }
+
+.chart { width: 100%; height: 140px; }
+.chart rect { fill: var(--color-primary, #18755b); opacity: .8; }
+
+.pager { margin-top: 12px; }

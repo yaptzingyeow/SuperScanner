@@ -20,6 +20,7 @@ export const foundationRoutes: Routes = [
     children: [
       { path: '', component: NewDocumentComponent },
       { path: 'documents', component: DocumentListComponent },
+      { path: 'admin', canActivate: [signedInGuard], loadChildren: () => import('./admin/admin.routes').then((m) => m.adminRoutes) },
       { path: 'documents/:documentId', component: DocumentWorkspaceComponent,
         canDeactivate: [(component: DocumentWorkspaceComponent) => component.canLeave()] },
       { path: 'documents/:documentId/import', component: ImportReviewComponent },
