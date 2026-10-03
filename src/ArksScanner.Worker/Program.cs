@@ -21,6 +21,10 @@ if (builder.Environment.IsEnvironment("E2E"))
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("PostgreSql") ?? string.Empty));
 builder.Services.AddSingleton<IClock, ArksScanner.Infrastructure.Time.SystemClock>();
+builder.Services.AddSingleton<PlanSettingsCache>();
+builder.Services.AddSingleton(PlanSeed.FromConfiguration(builder.Configuration));
+builder.Services.AddScoped<ArksScanner.Application.Plans.IPlanRepository, EfPlanRepository>();
+builder.Services.AddScoped<ArksScanner.Application.Plans.PlanService>();
 builder.Services.AddScoped<IProcessingJobQueue, PostgresJobQueue>();
 builder.Services.AddScoped<IOcrRepository, EfOcrRepository>();
 builder.Services.AddOcrServices(builder.Configuration, builder.Environment);

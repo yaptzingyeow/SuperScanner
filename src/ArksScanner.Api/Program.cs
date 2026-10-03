@@ -66,6 +66,10 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<IDocumentRepository, EfDocumentRepository>();
 builder.Services.AddMemoryCache();
 builder.Services.AddScoped<ArksScanner.Application.Plans.IAccountDirectory, EfAccountDirectory>();
+builder.Services.AddSingleton<PlanSettingsCache>();
+builder.Services.AddSingleton(PlanSeed.FromConfiguration(builder.Configuration));
+builder.Services.AddScoped<ArksScanner.Application.Plans.IPlanRepository, EfPlanRepository>();
+builder.Services.AddScoped<ArksScanner.Application.Plans.PlanService>();
 builder.Services.AddScoped<IDocumentExportRepository, EfDocumentExportRepository>();
 builder.Services.AddScoped<IPageSignatureRepository, EfPageSignatureRepository>();
 builder.Services.AddScoped<IPageMarkRepository, EfPageMarkRepository>();
@@ -206,6 +210,7 @@ PageRepairEndpoints.Map(app);
 OcrEndpoints.Map(app);
 TextEditingEndpoints.Map(app);
 AdminEndpoints.Map(app);
+PlanEndpoints.Map(app);
 UploadsEndpoints.Map(app);
 app.MapHealthChecks("/health");
 if (e2eIdentityEnabled)
