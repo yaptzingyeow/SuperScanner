@@ -1,13 +1,16 @@
 using ArksScanner.Application.Abstractions;
+using ArksScanner.Application.Plans;
 using ArksScanner.Domain.Documents;
 using ArksScanner.Domain.Ocr;
+using ArksScanner.Domain.Plans;
 
 namespace ArksScanner.Application.Ocr;
 
 public sealed class RequestPageOcr(
     IOcrRepository repository,
     IProcessingJobQueue queue,
-    IClock clock)
+    IClock clock,
+    PlanService? plans = null)
 {
     public async Task<PageOcrDto> HandleAsync(
         string ownerUid,
@@ -29,6 +32,7 @@ public sealed class RequestPageOcr(
         var reactivatedFailedJob = false;
         if (result is null)
         {
+            if (plans is not null) await plans.ConsumeAsync(ownerUid, UsageKind.Ocr, 1, ct);
             result = PageOcrResult.Queue(Guid.NewGuid(), pageId, source.SourceObjectKey,
                 fingerprint, "en", clock.UtcNow);
             await repository.AddAsync(result, ct);
@@ -37,6 +41,7 @@ public sealed class RequestPageOcr(
         {
             if (!retryFailed || !result.CanRetry)
                 throw new OcrRetryNotAllowedException();
+            if (plans is not null) await plans.ConsumeAsync(ownerUid, UsageKind.Ocr, 1, ct);
             result.Retry(clock.UtcNow);
             await queue.RetryFailedAsync(JobKey(pageId, fingerprint), ct);
             reactivatedFailedJob = true;

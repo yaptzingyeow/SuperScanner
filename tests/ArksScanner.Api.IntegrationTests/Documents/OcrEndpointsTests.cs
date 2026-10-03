@@ -123,6 +123,8 @@ public sealed class OcrEndpointsTests
                 services.AddSingleton<IOcrRepository>(repository);
                 services.RemoveAll<IProcessingJobQueue>();
                 services.AddSingleton<IProcessingJobQueue>(repository.Queue);
+                services.RemoveAll<ArksScanner.Application.Plans.IPlanRepository>();
+                services.AddSingleton<ArksScanner.Application.Plans.IPlanRepository>(new Plans.MemoryPlanRepository());
             });
         });
 

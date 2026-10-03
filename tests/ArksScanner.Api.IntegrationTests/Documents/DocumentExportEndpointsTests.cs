@@ -22,6 +22,7 @@ public sealed class DocumentExportEndpointsTests : IDisposable
     private readonly DownloadStore store = new();
     private readonly NullAudit audit = new();
     private readonly TestOcrRepository ocr = new();
+    private readonly Plans.MemoryPlanRepository plans = new();
 
     public DocumentExportEndpointsTests()
     {
@@ -47,6 +48,8 @@ public sealed class DocumentExportEndpointsTests : IDisposable
             services.AddSingleton<IObjectStore>(store);
             services.RemoveAll<IProcessingJobQueue>();
             services.AddSingleton<IProcessingJobQueue, Queue>();
+            services.RemoveAll<ArksScanner.Application.Plans.IPlanRepository>();
+            services.AddSingleton<ArksScanner.Application.Plans.IPlanRepository>(plans);
         });
     }
 
@@ -156,6 +159,42 @@ public sealed class DocumentExportEndpointsTests : IDisposable
             entry.Watermark);
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("For government use only", body.GetProperty("watermark").GetProperty("text").GetString());
+    }
+
+    [Fact]
+    public async Task Watermarked_export_over_the_free_limit_returns_429_but_plain_export_still_works()
+    {
+        plans.Values = Plans.MemoryPlanRepository.Enforced(watermark: 1);
+        using var client = PageManagementHttp.Client(factory);
+        var url = $"/api/documents/{documents.Document.Id}/exports";
+        object Marked() => new { pageLayout = "Original", watermark = new { text = "COPY" } };
+
+        Assert.Equal(HttpStatusCode.Accepted, (await client.PostAsJsonAsync(url, Marked())).StatusCode);
+        var refused = await client.PostAsJsonAsync(url, Marked());
+        var plain = await client.PostAsJsonAsync(url, new { pageLayout = "Original" });
+
+        Assert.Equal(HttpStatusCode.TooManyRequests, refused.StatusCode);
+        var body = await refused.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("plan_limit_reached", body.GetProperty("code").GetString());
+        Assert.Equal("watermark", body.GetProperty("kind").GetString());
+        Assert.Equal(HttpStatusCode.Accepted, plain.StatusCode);
+        Assert.Equal(2, exports.Items.Count);
+    }
+
+    [Fact]
+    public async Task Pro_export_snapshot_has_no_brand_stamp_and_free_keeps_it()
+    {
+        plans.Values = Plans.MemoryPlanRepository.Enforced();
+        using var client = PageManagementHttp.Client(factory);
+        var url = $"/api/documents/{documents.Document.Id}/exports";
+        await client.PostAsJsonAsync(url, new { pageLayout = "Original" });
+        plans.Subscriptions.Add(ArksScanner.Domain.Plans.Subscription.GrantManual(
+            Guid.NewGuid(), "user-a", DateTimeOffset.UtcNow.AddMinutes(-1), null, "friend", "admin", DateTimeOffset.UtcNow));
+        await client.PostAsJsonAsync(url, new { pageLayout = "Original" });
+
+        var stamps = exports.Items.Select(e => Assert.Single(
+            JsonSerializer.Deserialize<DocumentExportSnapshotEntry[]>(e.SnapshotJson)!).BrandStamp).ToArray();
+        Assert.Equal([true, false], stamps);
     }
 
     [Fact]

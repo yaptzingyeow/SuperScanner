@@ -1,3 +1,4 @@
+using ArksScanner.Application.Plans;
 using Microsoft.Extensions.Options;
 using ArksScanner.Api.Auth;
 using ArksScanner.Application.Ocr;
@@ -62,6 +63,10 @@ public static class OcrEndpoints
         catch (OcrRetryNotAllowedException)
         {
             return Results.Conflict(new { code = "ocr_retry_not_allowed" });
+        }
+        catch (PlanLimitExceededException limit)
+        {
+            return PlanProblem.From(limit);
         }
     }
 

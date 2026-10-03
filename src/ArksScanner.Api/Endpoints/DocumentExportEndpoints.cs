@@ -1,3 +1,4 @@
+using ArksScanner.Application.Plans;
 using ArksScanner.Api.Auth;
 using ArksScanner.Application.Documents;
 using System.Text.Json;
@@ -55,6 +56,7 @@ public static class DocumentExportEndpoints
                 return Results.Accepted(result.StatusUrl, result);
             }
             catch (DocumentExportNotFoundException) { return Results.NotFound(); }
+            catch (PlanLimitExceededException limit) { return PlanProblem.From(limit); }
             catch (DocumentExportNoReadyPagesException)
             {
                 return Results.Problem(statusCode: StatusCodes.Status422UnprocessableEntity,

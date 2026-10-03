@@ -26,6 +26,19 @@ public sealed class DocumentExportTests
     }
 
     [Fact]
+    public void Create_snapshots_the_brand_stamp_choice_and_old_snapshots_default_to_stamped()
+    {
+        var document = Document.Create(Guid.NewGuid(), "owner", "Form", Now);
+        var page = document.AddPage(Guid.NewGuid(), 10, Now);
+        PrepareReadyPage(page, "page.jpg");
+        var pro = DocumentExport.Create(Guid.NewGuid(), document, "owner", Now, TimeSpan.FromDays(7), brandStamp: false);
+        Assert.False(Assert.Single(JsonSerializer.Deserialize<DocumentExportSnapshotEntry[]>(pro.SnapshotJson)!).BrandStamp);
+        var old = JsonSerializer.Deserialize<DocumentExportSnapshotEntry[]>(
+            $$"""[{"PageId":"{{page.Id}}","Position":1,"AppliedCropRevision":0,"AppliedFilter":"Original","ProcessedObjectKey":"page.jpg"}]""")!;
+        Assert.True(Assert.Single(old).BrandStamp);
+    }
+
+    [Fact]
     public void Create_FreezesMarkGeometryAndStyleAfterMutation()
     {
         var document = Document.Create(Guid.NewGuid(), "owner", "Form", Now);

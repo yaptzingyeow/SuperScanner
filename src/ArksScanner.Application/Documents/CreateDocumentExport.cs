@@ -1,6 +1,8 @@
 using System.Text.Json;
 using ArksScanner.Application.Abstractions;
+using ArksScanner.Application.Plans;
 using ArksScanner.Domain.Documents;
+using ArksScanner.Domain.Plans;
 
 namespace ArksScanner.Application.Documents;
 
@@ -21,7 +23,7 @@ public sealed class DocumentExportPolicy
 public sealed class CreateDocumentExport(IDocumentRepository documents, IDocumentExportRepository exports,
     IOcrRepository ocr,
     IClock clock, IAuditWriter audit, IProcessingJobQueue queue, DocumentExportPolicy policy,
-    IPageSignatureRepository signatures, IPageMarkRepository marks)
+    IPageSignatureRepository signatures, IPageMarkRepository marks, PlanService? plans = null)
 {
     public async Task<DocumentExportResult> HandleAsync(string ownerUid, Guid documentId, CancellationToken ct,
         string pageLayout = "Original", bool includeSearchableText = true, ExportWatermark? watermark = null)
@@ -33,6 +35,13 @@ public sealed class CreateDocumentExport(IDocumentRepository documents, IDocumen
             ?? throw new DocumentExportNotFoundException();
         if (!document.ActivePages.Any(page => page.State == PageState.Ready))
             throw new DocumentExportNoReadyPagesException();
+
+        var brandStamp = true;
+        if (plans is not null)
+        {
+            brandStamp = (await plans.GetEntitlementsAsync(ownerUid, ct)).BrandStamp;
+            if (watermark is not null) await plans.ConsumeAsync(ownerUid, UsageKind.Watermark, 1, ct);
+        }
 
         var now = clock.UtcNow;
         var readyPages = document.ActivePages.Where(page => page.State == PageState.Ready).ToArray();
@@ -53,7 +62,7 @@ public sealed class CreateDocumentExport(IDocumentRepository documents, IDocumen
             g => (IReadOnlyList<MarkOverlaySnapshot>)g.Select(m =>
                 new MarkOverlaySnapshot(m.Id, m.Kind, m.Box, m.Style.Color, m.Style.StrokeWidth)).ToArray());
         var export = DocumentExport.Create(Guid.NewGuid(), document, ownerUid, now, policy.Retention, matchingOcr,
-            signatureSnapshots, markSnapshots, pageLayout, watermark);
+            signatureSnapshots, markSnapshots, pageLayout, watermark, brandStamp);
         await exports.AddAsync(export, ct);
         await audit.AppendAsync(new AuditWriteRequest(ownerUid, "document.export_created", "document",
             document.Id, JsonSerializer.Serialize(new { exportId = export.Id }), now), ct);

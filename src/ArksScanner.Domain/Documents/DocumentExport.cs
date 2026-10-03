@@ -38,7 +38,8 @@ public sealed class DocumentExport
         IReadOnlyDictionary<Guid, IReadOnlyList<SignatureOverlaySnapshot>>? signaturesByPage = null,
         IReadOnlyDictionary<Guid, IReadOnlyList<MarkOverlaySnapshot>>? marksByPage = null,
         string pageLayout = "Original",
-        ExportWatermark? watermark = null)
+        ExportWatermark? watermark = null,
+        bool brandStamp = true)
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentException.ThrowIfNullOrWhiteSpace(ownerUid);
@@ -80,7 +81,8 @@ public sealed class DocumentExport
                 marksByPage is not null && marksByPage.TryGetValue(page.Id, out var marks)
                     ? marks.ToArray() : null,
                 pageLayout,
-                watermark);
+                watermark,
+                brandStamp);
         });
 
         return new DocumentExport
@@ -165,7 +167,8 @@ public sealed record DocumentExportSnapshotEntry(
     IReadOnlyList<SignatureOverlaySnapshot>? SignatureOverlays = null,
     IReadOnlyList<MarkOverlaySnapshot>? MarkOverlays = null,
     string PageLayout = "Original",
-    ExportWatermark? Watermark = null)
+    ExportWatermark? Watermark = null,
+    bool BrandStamp = true)
 {
     [System.Text.Json.Serialization.JsonIgnore]
     public IReadOnlyList<SignatureOverlaySnapshot> Signatures => SignatureOverlays ?? [];

@@ -1,3 +1,4 @@
+using ArksScanner.Application.Plans;
 using ArksScanner.Api.Auth;
 using ArksScanner.Application.Documents;
 using Microsoft.EntityFrameworkCore;
@@ -32,11 +33,18 @@ public static class DocumentsEndpoints
             });
         }
 
-        var document = await createDocument.HandleAsync(
-            currentUser.FirebaseUid,
-            title,
-            cancellationToken);
-        return Results.Created($"/api/documents/{document.Id}", document);
+        try
+        {
+            var document = await createDocument.HandleAsync(
+                currentUser.FirebaseUid,
+                title,
+                cancellationToken);
+            return Results.Created($"/api/documents/{document.Id}", document);
+        }
+        catch (PlanLimitExceededException limit)
+        {
+            return PlanProblem.From(limit);
+        }
     }
 
     private static async Task<IResult> ListAsync(

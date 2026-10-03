@@ -196,7 +196,7 @@ public sealed class DocumentPdfBuilder(
                 { throw new BuildFailure("export_build_failed"); }
             }
 
-            if (pdfExportOptions.BrandWatermark)
+            if (pdfExportOptions.BrandWatermark && entry.BrandStamp)
             {
                 try
                 {

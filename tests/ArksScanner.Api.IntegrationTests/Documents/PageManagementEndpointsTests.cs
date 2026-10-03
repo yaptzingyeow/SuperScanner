@@ -182,6 +182,8 @@ internal static class PageManagementHttp
             {
                 services.RemoveAll<IRequestIdentityVerifier>();
                 services.AddSingleton<IRequestIdentityVerifier, IdentityVerifier>();
+                services.RemoveAll<ArksScanner.Application.Plans.IPlanRepository>();
+                services.AddSingleton<ArksScanner.Application.Plans.IPlanRepository>(new Plans.MemoryPlanRepository());
                 configure(services);
             });
         });
