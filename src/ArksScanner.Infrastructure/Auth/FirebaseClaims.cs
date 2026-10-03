@@ -8,18 +8,17 @@ public static class FirebaseClaims
     /// True when the verified ID token was issued for an anonymous (guest) sign-in:
     /// its <c>firebase.sign_in_provider</c> claim is <c>anonymous</c>.
     /// </summary>
-    public static bool IsAnonymous(IReadOnlyDictionary<string, object> claims)
+    public static bool IsAnonymous(IReadOnlyDictionary<string, object> claims) =>
+        SignInProvider(claims) == "anonymous";
+
+    /// <summary>The token's <c>firebase.sign_in_provider</c> (google.com, password, anonymous…), or null.</summary>
+    public static string? SignInProvider(IReadOnlyDictionary<string, object> claims)
     {
         ArgumentNullException.ThrowIfNull(claims);
-        if (!claims.TryGetValue("firebase", out var firebase) || firebase is null)
-        {
-            return false;
-        }
+        if (!claims.TryGetValue("firebase", out var firebase) || firebase is null) return null;
 
         if (firebase is IDictionary<string, object> map)
-        {
-            return map.TryGetValue("sign_in_provider", out var provider) && provider?.ToString() == "anonymous";
-        }
+            return map.TryGetValue("sign_in_provider", out var provider) ? provider?.ToString() : null;
 
         // The Admin SDK hands nested claims over as a JSON object; read it as JSON.
         try
@@ -27,12 +26,13 @@ public static class FirebaseClaims
             using var json = JsonDocument.Parse(firebase.ToString() ?? string.Empty);
             return json.RootElement.ValueKind == JsonValueKind.Object &&
                 json.RootElement.TryGetProperty("sign_in_provider", out var provider) &&
-                provider.ValueKind == JsonValueKind.String &&
-                provider.GetString() == "anonymous";
+                provider.ValueKind == JsonValueKind.String
+                ? provider.GetString()
+                : null;
         }
         catch (JsonException)
         {
-            return false;
+            return null;
         }
     }
 }

@@ -64,6 +64,8 @@ builder.Services.AddHealthChecks();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("PostgreSql") ?? string.Empty));
 builder.Services.AddScoped<IDocumentRepository, EfDocumentRepository>();
+builder.Services.AddMemoryCache();
+builder.Services.AddScoped<ArksScanner.Application.Plans.IAccountDirectory, EfAccountDirectory>();
 builder.Services.AddScoped<IDocumentExportRepository, EfDocumentExportRepository>();
 builder.Services.AddScoped<IPageSignatureRepository, EfPageSignatureRepository>();
 builder.Services.AddScoped<IPageMarkRepository, EfPageMarkRepository>();
@@ -188,6 +190,7 @@ if (!app.Environment.IsEnvironment("E2E"))
 app.UseAuthentication();
 app.UseMiddleware<AppCheckMiddleware>();
 app.UseAuthorization();
+app.UseMiddleware<AccountTrackingMiddleware>();
 
 app.MapGet("/api/me", (ICurrentUser currentUser) =>
         Results.Ok(new { firebaseUid = currentUser.FirebaseUid }))
@@ -202,6 +205,7 @@ CropEndpoints.Map(app);
 PageRepairEndpoints.Map(app);
 OcrEndpoints.Map(app);
 TextEditingEndpoints.Map(app);
+AdminEndpoints.Map(app);
 UploadsEndpoints.Map(app);
 app.MapHealthChecks("/health");
 if (e2eIdentityEnabled)

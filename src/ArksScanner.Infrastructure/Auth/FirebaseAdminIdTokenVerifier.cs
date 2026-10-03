@@ -5,7 +5,7 @@ using Microsoft.Extensions.Options;
 
 namespace ArksScanner.Infrastructure.Auth;
 
-public sealed record VerifiedFirebaseIdToken(string Uid, string? Email, bool IsAnonymous = false);
+public sealed record VerifiedFirebaseIdToken(string Uid, string? Email, bool IsAnonymous = false, string? SignInProvider = null);
 
 public interface IFirebaseIdTokenVerifier
 {
@@ -37,7 +37,8 @@ public sealed class FirebaseAdminIdTokenVerifier : IFirebaseIdTokenVerifier
         var email = identity.Claims.TryGetValue("email", out var emailClaim)
             ? emailClaim as string
             : null;
-        return new VerifiedFirebaseIdToken(identity.Uid, email, FirebaseClaims.IsAnonymous(identity.Claims));
+        return new VerifiedFirebaseIdToken(identity.Uid, email, FirebaseClaims.IsAnonymous(identity.Claims),
+            FirebaseClaims.SignInProvider(identity.Claims));
     }
 
     private static FirebaseAuth CreateFirebaseAuth(string projectId)

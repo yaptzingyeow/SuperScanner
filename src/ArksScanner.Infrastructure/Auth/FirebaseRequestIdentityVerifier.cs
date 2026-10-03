@@ -21,7 +21,7 @@ public sealed class FirebaseRequestIdentityVerifier(
                 throw new UnauthorizedAccessException("Firebase identity token verification failed.");
             }
 
-            return new VerifiedRequestIdentity(identity.Uid, identity.Email, identity.IsAnonymous);
+            return new VerifiedRequestIdentity(identity.Uid, identity.Email, identity.IsAnonymous, identity.SignInProvider);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
