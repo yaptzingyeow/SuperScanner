@@ -17,6 +17,8 @@ public interface IPlanRepository
     Task<int?> TryConsumeAsync(string uid, DateOnly day, UsageKind kind, int amount, int? limit, CancellationToken ct);
     Task<PlanUsageCounts> GetUsageAsync(string uid, DateOnly day, CancellationToken ct);
     Task<int> CountActiveDocumentsAsync(string uid, CancellationToken ct);
+    /// <summary>The account's retention grace start and last recorded plan (both null for unknown accounts).</summary>
+    Task<(DateTimeOffset? GraceFrom, PlanKind? LastPlan)> GetRetentionStateAsync(string uid, CancellationToken ct);
 }
 
 /// <summary>A plan limit was reached. <see cref="KindCode"/> is ocr, watermark or documents.</summary>
@@ -74,4 +76,15 @@ public sealed class PlanService(IPlanRepository repository, IClock clock)
     }
 
     public Task<int> CountActiveDocumentsAsync(string uid, CancellationToken ct) => repository.CountActiveDocumentsAsync(uid, ct);
+
+    /// <summary>When each document will be removed by retention, or null when this account keeps documents.</summary>
+    public async Task<Func<DateTimeOffset, DateTimeOffset?>> GetExpiryRuleAsync(string uid, CancellationToken ct)
+    {
+        var entitlements = await GetEntitlementsAsync(uid, ct);
+        if (entitlements.RetentionDays is not { } days) return _ => null;
+        var (graceFrom, lastPlan) = await repository.GetRetentionStateAsync(uid, ct);
+        // Not yet recorded as Free: the next retention run starts a fresh window now.
+        var grace = lastPlan == PlanKind.Free ? graceFrom : clock.UtcNow;
+        return createdAt => (grace is { } g && g > createdAt ? g : createdAt).AddDays(days);
+    }
 }

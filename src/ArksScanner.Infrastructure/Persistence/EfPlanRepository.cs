@@ -112,4 +112,11 @@ public sealed class EfPlanRepository(AppDbContext db, PlanSettingsCache cache, I
 
     public Task<int> CountActiveDocumentsAsync(string uid, CancellationToken ct) =>
         db.Documents.CountAsync(d => d.OwnerFirebaseUid == uid && d.RemovedAt == null, ct);
+
+    public async Task<(DateTimeOffset? GraceFrom, PlanKind? LastPlan)> GetRetentionStateAsync(string uid, CancellationToken ct)
+    {
+        var account = await db.Accounts.AsNoTracking().Where(a => a.FirebaseUid == uid)
+            .Select(a => new { a.RetentionGraceFrom, a.LastPlan }).SingleOrDefaultAsync(ct);
+        return (account?.RetentionGraceFrom, account?.LastPlan);
+    }
 }

@@ -26,5 +26,7 @@ public sealed class DocumentConfiguration : IEntityTypeConfiguration<Document>
             .OnDelete(DeleteBehavior.Cascade);
         builder.Navigation(document => document.Pages).UsePropertyAccessMode(PropertyAccessMode.Field);
         builder.Ignore(document => document.ActivePages);
+        // Removed documents (Free-plan retention) vanish from every query; jobs that need them use IgnoreQueryFilters.
+        builder.HasQueryFilter(document => document.RemovedAt == null);
     }
 }

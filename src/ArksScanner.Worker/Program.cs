@@ -80,6 +80,8 @@ builder.Services.AddScoped<CropProcessor>();
 builder.Services.AddScoped<PageRepairProcessor>();
 builder.Services.AddScoped<PageRepairAssetCleanup>();
 builder.Services.AddHostedService<PageRepairCleanupWorker>();
+builder.Services.AddScoped<DocumentRetention>();
+builder.Services.AddHostedService<DocumentRetentionWorker>();
 ImageMagick.ResourceLimits.Memory = 256UL * 1024 * 1024;
 ImageMagick.ResourceLimits.Disk = 1024UL * 1024 * 1024;
 ImageMagick.ResourceLimits.Width = 20000;

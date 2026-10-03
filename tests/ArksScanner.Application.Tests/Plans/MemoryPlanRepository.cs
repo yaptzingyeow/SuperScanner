@@ -36,5 +36,8 @@ internal sealed class MemoryPlanRepository(PlanSettingsValues values) : IPlanRep
 
     public Task<int> CountActiveDocumentsAsync(string uid, CancellationToken ct) => Task.FromResult(ActiveDocuments);
 
+    public Task<(DateTimeOffset? GraceFrom, PlanKind? LastPlan)> GetRetentionStateAsync(string uid, CancellationToken ct) =>
+        Task.FromResult<(DateTimeOffset?, PlanKind?)>((null, null));
+
     public int Total(UsageKind kind) => Usage.Values.Sum(v => kind == UsageKind.Ocr ? v.Ocr : v.Watermark);
 }

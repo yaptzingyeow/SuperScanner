@@ -89,7 +89,7 @@ public sealed class PlansPersistenceTests : IAsyncLifetime
         }
 
         await using var verify = new AppDbContext(Options());
-        var stored = await verify.Documents.Include(d => d.Pages).SingleAsync();
+        var stored = await verify.Documents.IgnoreQueryFilters().Include(d => d.Pages).SingleAsync();
         Assert.Equal(Now.AddDays(8), stored.RemovedAt);
         Assert.Equal("retention", stored.RemovedReason);
         Assert.Empty(stored.ActivePages);

@@ -9,7 +9,8 @@ public sealed record DocumentSummary(
     string Title,
     string Status,
     int PageCount,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt,
+    DateTimeOffset? ExpiresAt = null);
 
 public sealed class CreateDocument(IDocumentRepository documents, IClock clock, IAuditWriter audit,
     PlanService? plans = null)

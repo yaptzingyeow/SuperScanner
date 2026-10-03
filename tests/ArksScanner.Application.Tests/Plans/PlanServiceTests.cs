@@ -101,5 +101,7 @@ public sealed class PlanServiceTests
             new PlanUsageCounts(used.GetValueOrDefault((uid, day, UsageKind.Ocr)), Bonus.GetValueOrDefault(uid),
                 used.GetValueOrDefault((uid, day, UsageKind.Watermark))));
         public Task<int> CountActiveDocumentsAsync(string uid, CancellationToken ct) => Task.FromResult(Documents.GetValueOrDefault(uid));
+        public Task<(DateTimeOffset? GraceFrom, PlanKind? LastPlan)> GetRetentionStateAsync(string uid, CancellationToken ct) =>
+            Task.FromResult<(DateTimeOffset?, PlanKind?)>((null, null));
     }
 }
