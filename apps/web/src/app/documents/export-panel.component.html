@@ -7,6 +7,7 @@
     <section class="panel" aria-labelledby="print-title">
       <h2 id="print-title">Print</h2>
       <p>Prints all {{ readyCount }} ready {{ readyCount === 1 ? 'page' : 'pages' }} at their original size.</p>
+      <app-watermark-panel />
       <button type="button" class="primary" [disabled]="busy() || !readyCount" (click)="print()">
         {{ busy() ? 'Preparing…' : 'Print' }}
       </button>

@@ -5,6 +5,7 @@ import { DocumentsApiService } from './documents-api.service';
 import { ExportPanelComponent } from './export-panel.component';
 
 describe('ExportPanelComponent', () => {
+  beforeEach(() => localStorage.clear());
   const page = (id: string): DocumentPage => ({
     id, position: 1, pageNumber: 1, sourceUploadId: 'u1', sourcePageIndex: 0, state: 'Ready',
     hasPreview: true, hasOriginal: true, canCrop: true, cropStatus: 'Ready', cropRevision: 1,
@@ -59,7 +60,7 @@ describe('ExportPanelComponent', () => {
     fixture.detectChanges();
     button(el, 'Generate PDF').click();
     await fixture.whenStable();
-    expect(api.createExport).toHaveBeenCalledWith('doc-1', 'A4', true);
+    expect(api.createExport).toHaveBeenCalledWith('doc-1', 'A4', true, null);
   });
 
   it('Print builds or reuses a Ready export and calls printPdf with its blob', async () => {
@@ -77,7 +78,7 @@ describe('ExportPanelComponent', () => {
     build.api.createExport.mockResolvedValue(exported('Ready'));
     button(build.el, 'Print').click();
     await build.fixture.whenStable();
-    expect(build.api.createExport).toHaveBeenCalledWith('doc-1', 'Original', false);
+    expect(build.api.createExport).toHaveBeenCalledWith('doc-1', 'Original', false, null);
     expect(build.api.downloadExport).toHaveBeenCalledWith('doc-1', 'e1');
     expect(build.print).toHaveBeenCalledTimes(1);
   });
@@ -89,7 +90,7 @@ describe('ExportPanelComponent', () => {
     button(el, 'Print').click();
     await fixture.whenStable();
     expect(api.getExport).toHaveBeenCalledWith('doc-1', 'e1');
-    expect(api.createExport).toHaveBeenCalledWith('doc-1', 'Original', false);
+    expect(api.createExport).toHaveBeenCalledWith('doc-1', 'Original', false, null);
     expect(api.downloadExport).toHaveBeenCalledWith('doc-1', 'e2');
     expect(print).toHaveBeenCalledTimes(1);
   });
@@ -100,7 +101,7 @@ describe('ExportPanelComponent', () => {
     api.createExport.mockResolvedValue({ ...exported('Ready'), id: 'e2' });
     button(el, 'Print').click();
     await fixture.whenStable();
-    expect(api.createExport).toHaveBeenCalledWith('doc-1', 'Original', false);
+    expect(api.createExport).toHaveBeenCalledWith('doc-1', 'Original', false, null);
     expect(api.downloadExport).toHaveBeenCalledWith('doc-1', 'e2');
     expect(api.downloadExport).not.toHaveBeenCalledWith('doc-1', 'e1');
     expect(print).toHaveBeenCalledTimes(1);

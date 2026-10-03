@@ -13,6 +13,7 @@ import {
   ReorderPagesRequest,
   ScanFilterId,
 } from './document.models';
+import { ExportWatermarkSettings } from './watermark';
 
 export type { DocumentDto } from './document.models';
 
@@ -91,11 +92,13 @@ export class DocumentsApiService {
     id: string,
     pageLayout: 'Original' | 'A4' = 'Original',
     includeSearchableText = false,
+    watermark: ExportWatermarkSettings | null = null,
   ): Promise<DocumentExport> {
     return firstValueFrom(
       this.http.post<DocumentExport>(`${this.baseUrl}/documents/${id}/exports`, {
         pageLayout,
         includeSearchableText,
+        ...(watermark ? { watermark } : {}),
       }),
     );
   }

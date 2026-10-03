@@ -35,6 +35,7 @@
       <small>Uses existing Google OCR results to add an invisible text layer. It does not change how the page looks.</small>
     </span>
   </label>
+  <app-watermark-panel />
   @if (current(); as item) {
     <div class="export-state">
       <span [attr.data-state]="item.state">{{ item.state }}</span>
@@ -75,14 +76,14 @@
           Download PDF
         </button>
       }
-      @if (item.state === 'Failed' || item.isOutdated || needsNewLayout(item)) {
+      @if (item.state === 'Failed' || item.isOutdated || needsNewLayout(item) || needsNewWatermark(item)) {
         <button
           class="primary"
           type="button"
           [disabled]="!readyCount || busy()"
           (click)="generate()"
         >
-          {{ needsNewLayout(item) ? 'Generate ' + pageLayout() + ' PDF' : item.isOutdated ? 'Generate updated PDF' : 'Retry export' }}
+          {{ needsNewLayout(item) ? 'Generate ' + pageLayout() + ' PDF' : needsNewWatermark(item) ? 'Generate PDF with this watermark' : item.isOutdated ? 'Generate updated PDF' : 'Retry export' }}
         </button>
       }
     </div>

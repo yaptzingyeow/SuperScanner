@@ -43,7 +43,7 @@ public sealed class DocumentPdfBuilderTests
         var page = pdf.Pages[0];
         Assert.InRange(page.Width.Point, 841.8, 842);
         Assert.InRange(page.Height.Point, 595.2, 595.4);
-        var content = System.Text.Encoding.ASCII.GetString(page.Contents.CreateSingleContent().Stream.Value);
+        var content = System.Text.Encoding.ASCII.GetString(page.Contents.CreateSingleContent().Stream.UnfilteredValue);
         Assert.Contains("0 0.667 0 RG", content);
         Assert.Contains(" cm", content);
         var word = Assert.Single(text.FirstPageWords!);
@@ -78,7 +78,7 @@ public sealed class DocumentPdfBuilderTests
         var page = pdf.Pages[0];
         var images = page.Resources.Elements.GetDictionary("/XObject")!;
         Assert.Single(images.Elements);
-        var content = System.Text.Encoding.ASCII.GetString(page.Contents.CreateSingleContent().Stream.Value);
+        var content = System.Text.Encoding.ASCII.GetString(page.Contents.CreateSingleContent().Stream.UnfilteredValue);
         Assert.Contains("0 0.667 0 RG", content);
         Assert.Contains("1 0 0 RG", content);
         // The preview uses top-down coordinates; PDF content uses bottom-up Y.
@@ -88,6 +88,38 @@ public sealed class DocumentPdfBuilderTests
         Assert.Contains("52.128 30.672 m\n55.872 26.928 l", content);
         Assert.Matches(@"(?m)^S$", content);
     }
+    [Theory]
+    [InlineData("Single")]
+    [InlineData("Tiled")]
+    public async Task Build_DrawsTheUsersWatermarkOnEveryPageAsAnImageNotText(string layout)
+    {
+        await using var f = await Fixture.CreateAsync();
+        var watermark = new ExportWatermark("FOR GOVERNMENT USE ONLY", layout, "liberation-serif", true, "#C62828", .3, 9, 35, 1.2);
+        var entries = JsonSerializer.Deserialize<DocumentExportSnapshotEntry[]>(f.Export.SnapshotJson)!
+            .Select(entry => entry with { Watermark = watermark }).ToArray();
+        f.Db.Entry(f.Export).Property(e => e.SnapshotJson).CurrentValue = JsonSerializer.Serialize(entries);
+        await f.Db.SaveChangesAsync();
+
+        await f.BuildAsync();
+
+        var export = await f.ReloadAsync();
+        Assert.Equal(DocumentExportState.Ready, export.State);
+        var bytes = f.Store.Objects[export.OutputObjectKey!];
+        var preview = Environment.GetEnvironmentVariable("ARKS_WATERMARK_PREVIEW");
+        if (!string.IsNullOrEmpty(preview)) File.WriteAllBytes(Path.Combine(preview, $"watermark-{layout}.pdf"), bytes);
+        using var pdf = PdfReader.Open(new MemoryStream(bytes), PdfDocumentOpenMode.Import);
+        foreach (var page in pdf.Pages.Cast<PdfPage>())
+        {
+            // the scan plus one shared watermark image, however many copies are drawn
+            Assert.Equal(2, page.Resources.Elements.GetDictionary("/XObject")!.Elements.Count);
+            Assert.DoesNotContain("/Font", page.Resources.Elements.Keys);
+            var content = System.Text.Encoding.ASCII.GetString(page.Contents.CreateSingleContent().Stream.UnfilteredValue);
+            var draws = System.Text.RegularExpressions.Regex.Matches(content, @"/I\d+ Do").Count;
+            if (layout == "Single") Assert.Equal(2, draws);
+            else Assert.InRange(draws, 4, PdfUserWatermark.MaximumTiles + 1);
+        }
+    }
+
     [Fact]
     public async Task Build_StampsEveryPageWithTheBrandWatermarkByDefault()
     {
@@ -147,7 +179,7 @@ public sealed class DocumentPdfBuilderTests
         Assert.Equal(2, images.Elements.Count);
         Assert.Contains(images.Elements.Values.OfType<PdfReference>(), reference =>
             ((PdfDictionary)reference.Value).Elements.ContainsKey("/SMask"));
-        var content = System.Text.Encoding.ASCII.GetString(page.Contents.CreateSingleContent().Stream.Value);
+        var content = System.Text.Encoding.ASCII.GetString(page.Contents.CreateSingleContent().Stream.UnfilteredValue);
         Assert.Contains("36 0 0 18 18 9 cm", content);
     }
     [Theory]

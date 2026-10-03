@@ -24,7 +24,7 @@ public sealed class CreateDocumentExport(IDocumentRepository documents, IDocumen
     IPageSignatureRepository signatures, IPageMarkRepository marks)
 {
     public async Task<DocumentExportResult> HandleAsync(string ownerUid, Guid documentId, CancellationToken ct,
-        string pageLayout = "Original", bool includeSearchableText = true)
+        string pageLayout = "Original", bool includeSearchableText = true, ExportWatermark? watermark = null)
     {
         if (pageLayout is not ("Original" or "A4"))
             throw new ArgumentException("Unsupported PDF page layout.", nameof(pageLayout));
@@ -53,7 +53,7 @@ public sealed class CreateDocumentExport(IDocumentRepository documents, IDocumen
             g => (IReadOnlyList<MarkOverlaySnapshot>)g.Select(m =>
                 new MarkOverlaySnapshot(m.Id, m.Kind, m.Box, m.Style.Color, m.Style.StrokeWidth)).ToArray());
         var export = DocumentExport.Create(Guid.NewGuid(), document, ownerUid, now, policy.Retention, matchingOcr,
-            signatureSnapshots, markSnapshots, pageLayout);
+            signatureSnapshots, markSnapshots, pageLayout, watermark);
         await exports.AddAsync(export, ct);
         await audit.AppendAsync(new AuditWriteRequest(ownerUid, "document.export_created", "document",
             document.Id, JsonSerializer.Serialize(new { exportId = export.Id }), now), ct);

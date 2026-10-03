@@ -32,10 +32,26 @@ public static class DocumentExportEndpoints
             { return Results.BadRequest(); }
             var layout = request?.PageLayout ?? "Original";
             if (layout is not ("Original" or "A4")) return Results.BadRequest();
+            ExportWatermark? watermark = null;
+            if (request?.Watermark is { } w)
+            {
+                try
+                {
+                    watermark = new ExportWatermark(w.Text ?? string.Empty, w.Layout ?? "Single", w.FontId ?? "noto-sans",
+                        w.Bold ?? true, w.Color ?? "#C62828", w.Opacity ?? .25, w.SizePercent ?? 8,
+                        w.AngleDegrees ?? 35, w.Spacing ?? 1.5, w.Position ?? "Center");
+                }
+                catch (ArgumentException)
+                {
+                    return Results.Problem(statusCode: StatusCodes.Status422UnprocessableEntity,
+                        title: "Invalid watermark.",
+                        extensions: new Dictionary<string, object?> { ["code"] = "export_watermark_invalid" });
+                }
+            }
             try
             {
                 var result = await create.HandleAsync(user.FirebaseUid, id, ct, layout,
-                    request?.IncludeSearchableText ?? false);
+                    request?.IncludeSearchableText ?? false, watermark);
                 return Results.Accepted(result.StatusUrl, result);
             }
             catch (DocumentExportNotFoundException) { return Results.NotFound(); }
@@ -88,5 +104,9 @@ public static class DocumentExportEndpoints
         return (name.Length == 0 ? "document" : name) + ".pdf";
     }
 
-    private sealed record CreateExportRequest(string? PageLayout, bool IncludeSearchableText = false);
+    private sealed record CreateExportRequest(string? PageLayout, bool IncludeSearchableText = false,
+        WatermarkRequest? Watermark = null);
+
+    private sealed record WatermarkRequest(string? Text, string? Layout, string? FontId, bool? Bold, string? Color,
+        double? Opacity, double? SizePercent, double? AngleDegrees, double? Spacing, string? Position);
 }

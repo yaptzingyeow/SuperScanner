@@ -186,6 +186,16 @@ public sealed class DocumentPdfBuilder(
                 { throw new BuildFailure("export_decode_failed"); }
             }
 
+            if (entry.Watermark is { } userWatermark)
+            {
+                try
+                {
+                    PdfUserWatermark.Draw(page, userWatermark, Path.Combine(AppContext.BaseDirectory, "assets", "fonts"));
+                }
+                catch (Exception exception) when (exception is not OperationCanceledException)
+                { throw new BuildFailure("export_build_failed"); }
+            }
+
             if (pdfExportOptions.BrandWatermark)
             {
                 try

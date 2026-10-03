@@ -8,7 +8,7 @@ public sealed record DocumentExportResult(Guid Id, string State, long DocumentRe
     int ReadyPageCount, int ExcludedPageCount, int SearchablePageCount, string Searchability,
     string StatusUrl, string? DownloadUrl,
     bool IsOutdated, string? FailureCode, DateTimeOffset CreatedAt, DateTimeOffset? CompletedAt,
-    DateTimeOffset ExpiresAt, string PageLayout)
+    DateTimeOffset ExpiresAt, string PageLayout, ExportWatermark? Watermark = null)
 {
     internal static DocumentExportResult From(DocumentExport export, long documentRevision, DateTimeOffset now)
     {
@@ -19,14 +19,14 @@ public sealed record DocumentExportResult(Guid Id, string State, long DocumentRe
             "export_asset_missing" or "export_decode_failed" or "export_size_limit" or "export_build_failed" => export.FailureCode,
             _ => "export_build_failed"
         };
+        var first = JsonSerializer.Deserialize<DocumentExportSnapshotEntry[]>(export.SnapshotJson)?.FirstOrDefault();
         return new(export.Id, export.State.ToString(), export.DocumentRevision,
             export.ReadyPageCount, export.ExcludedPageCount,
             export.SearchablePageCount, export.Searchability, statusUrl,
             export.State == DocumentExportState.Ready && export.ExpiresAt > now ? $"{statusUrl}/download" : null,
             export.DocumentRevision != documentRevision, failureCode,
             export.CreatedAt, export.CompletedAt, export.ExpiresAt,
-            JsonSerializer.Deserialize<DocumentExportSnapshotEntry[]>(export.SnapshotJson)?
-                .FirstOrDefault()?.PageLayout ?? "Original");
+            first?.PageLayout ?? "Original", first?.Watermark);
     }
 }
 

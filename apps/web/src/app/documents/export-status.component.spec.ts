@@ -64,7 +64,33 @@ describe('ExportStatusComponent', () => {
     return { fixture, component: fixture.componentInstance as any, api };
   }
 
+  beforeEach(() => localStorage.clear());
   afterEach(() => vi.restoreAllMocks());
+
+  it('sends the watermark typed in the Export tab with the PDF export', async () => {
+    const { fixture, api } = setup([page('p1', 'Ready')]);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const el = fixture.nativeElement as HTMLElement;
+    (el.querySelector('#watermark-enabled') as HTMLInputElement).click();
+    fixture.detectChanges();
+    const text = el.querySelector('#watermark-text') as HTMLInputElement;
+    text.value = 'For IC verification only';
+    text.dispatchEvent(new Event('input'));
+    [...el.querySelectorAll<HTMLButtonElement>('.segmented button')].find((b) => b.textContent!.trim() === 'Repeated')!.click();
+    fixture.detectChanges();
+
+    [...el.querySelectorAll<HTMLButtonElement>('button.primary')].find((b) => b.textContent!.includes('Generate PDF'))!.click();
+    await fixture.whenStable();
+
+    expect(api.createExport).toHaveBeenCalledWith('doc-1', 'Original', false,
+      expect.objectContaining({ text: 'For IC verification only', layout: 'Tiled', color: '#C62828' }));
+  });
+
+  it('offers a new PDF when the ready one has a different watermark', () => {
+    localStorage.setItem('arksscanner:export-watermark', JSON.stringify({ enabled: true, settings: { text: 'COPY' } }));
+    const { fixture } = setup([page('p1', 'Ready')], exported('Ready'));
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Generate PDF with this watermark');
+  });
 
   it('shows server-canonical searchable eligibility before export', async () => {
     const { fixture, component, api } = setup([
@@ -109,7 +135,7 @@ describe('ExportStatusComponent', () => {
     expect(window.confirm).toHaveBeenCalledWith(
       '3 ready pages will be included. 2 pages will be excluded. Generate the PDF?',
     );
-    expect(api.createExport).toHaveBeenCalledWith('doc-1', 'Original', false);
+    expect(api.createExport).toHaveBeenCalledWith('doc-1', 'Original', false, null);
   });
 
   it('adds the optional transparent OCR layer only when selected', async () => {
@@ -122,7 +148,7 @@ describe('ExportStatusComponent', () => {
 
     await component.generate();
 
-    expect(api.createExport).toHaveBeenCalledWith('doc-1', 'Original', true);
+    expect(api.createExport).toHaveBeenCalledWith('doc-1', 'Original', true, null);
     expect(fixture.nativeElement.textContent).toContain('does not change how the page looks');
   });
 
@@ -135,7 +161,7 @@ describe('ExportStatusComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('white margins');
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     await component.generate();
-    expect(api.createExport).toHaveBeenCalledWith('doc-1', 'A4', false);
+    expect(api.createExport).toHaveBeenCalledWith('doc-1', 'A4', false, null);
   });
 
   it('offers a new PDF when the selected page size differs from a ready export', () => {

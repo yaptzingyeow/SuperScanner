@@ -1,3 +1,4 @@
+import { ExportWatermarkSettings } from './watermark';
 export interface DocumentDto {
   id: string;
   title: string;
@@ -39,6 +40,8 @@ export interface DocumentImport {
 export interface DocumentExport {
   id: string;
   pageLayout: 'Original' | 'A4';
+  /** The user's own watermark on every page, if one was chosen. */
+  watermark?: ExportWatermarkSettings | null;
   state: string;
   documentRevision: number;
   readyPageCount: number;

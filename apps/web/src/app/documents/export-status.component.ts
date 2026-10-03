@@ -1,15 +1,20 @@
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject, signal } from '@angular/core';
 import { DocumentExport, DocumentExportPreview, DocumentPage } from './document.models';
 import { DocumentsApiService } from './documents-api.service';
+import { sameWatermark } from './watermark';
+import { WatermarkPanelComponent } from './watermark-panel.component';
+import { WatermarkStore } from './watermark.store';
 
 @Component({
   selector: 'app-export-status',
   standalone: true,
+  imports: [WatermarkPanelComponent],
   templateUrl: './export-status.component.html',
   styleUrl: './export-status.component.scss',
 })
 export class ExportStatusComponent implements OnInit, OnChanges, OnDestroy {
   private readonly api = inject(DocumentsApiService);
+  private readonly watermarks = inject(WatermarkStore);
   @Input({ required: true }) documentId = '';
   @Input({ required: true }) documentTitle = 'document';
   @Input() pages: DocumentPage[] = [];
@@ -30,6 +35,10 @@ export class ExportStatusComponent implements OnInit, OnChanges, OnDestroy {
   }
   protected needsNewLayout(item: DocumentExport): boolean {
     return item.state === 'Ready' && item.pageLayout !== this.pageLayout();
+  }
+  /** The ready PDF was made with a different watermark (or none) than the one chosen now. */
+  protected needsNewWatermark(item: DocumentExport): boolean {
+    return item.state === 'Ready' && !sameWatermark(item.watermark, this.watermarks.active());
   }
   private timer?: ReturnType<typeof setTimeout>;
   private destroyed = false;
@@ -72,6 +81,7 @@ export class ExportStatusComponent implements OnInit, OnChanges, OnDestroy {
         this.documentId,
         this.pageLayout(),
         this.includeSearchableText(),
+        this.watermarks.active(),
       );
       this.current.set(created);
       this.exportChange.emit(created);

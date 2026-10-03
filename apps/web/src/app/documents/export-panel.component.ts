@@ -2,6 +2,9 @@ import { Component, EventEmitter, Input, OnDestroy, Output, inject, signal } fro
 import { DocumentExport, DocumentPage } from './document.models';
 import { DocumentsApiService } from './documents-api.service';
 import { ExportStatusComponent } from './export-status.component';
+import { sameWatermark } from './watermark';
+import { WatermarkPanelComponent } from './watermark-panel.component';
+import { WatermarkStore } from './watermark.store';
 import { printPdf } from './print-pdf';
 
 export type ExportKind = 'pdf' | 'print' | 'original';
@@ -21,12 +24,13 @@ const EXTENSIONS: Record<string, string> = {
 @Component({
   selector: 'app-export-panel',
   standalone: true,
-  imports: [ExportStatusComponent],
+  imports: [ExportStatusComponent, WatermarkPanelComponent],
   templateUrl: './export-panel.component.html',
   styleUrl: './export-panel.component.scss',
 })
 export class ExportPanelComponent implements OnDestroy {
   private readonly api = inject(DocumentsApiService);
+  private readonly watermarks = inject(WatermarkStore);
   @Input({ required: true }) documentId = '';
   @Input() documentTitle = 'document';
   @Input() pages: DocumentPage[] = [];
@@ -66,8 +70,10 @@ export class ExportPanelComponent implements OnDestroy {
     this.busy.set(true);
     this.error.set('');
     try {
-      // Printing is at the original page size: an A4 export is never reused for it.
-      let item = this.latest()?.pageLayout === 'Original' ? this.latest() : null;
+      // Printing is at the original page size with the chosen watermark: anything else is rebuilt.
+      const watermark = this.watermarks.active();
+      const latest = this.latest();
+      let item = latest?.pageLayout === 'Original' && sameWatermark(latest.watermark, watermark) ? latest : null;
       if (item) {
         try {
           item = await this.api.getExport(this.documentId, item.id);
@@ -77,7 +83,7 @@ export class ExportPanelComponent implements OnDestroy {
         }
       }
       if (!item || item.isOutdated || item.state === 'Failed' || item.pageLayout !== 'Original') {
-        item = await this.api.createExport(this.documentId, 'Original', false);
+        item = await this.api.createExport(this.documentId, 'Original', false, watermark);
         this.onExportChange(item);
       }
       for (let i = 0; item.state !== 'Ready' && item.state !== 'Failed' && i < POLL_LIMIT; i++) {

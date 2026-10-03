@@ -138,6 +138,41 @@ public sealed class DocumentExportEndpointsTests : IDisposable
     }
 
     [Fact]
+    public async Task Create_WithAWatermark_SnapshotsItForEveryPageAndReturnsIt()
+    {
+        using var client = PageManagementHttp.Client(factory);
+
+        var response = await client.PostAsJsonAsync($"/api/documents/{documents.Document.Id}/exports", new
+        {
+            pageLayout = "Original",
+            watermark = new { text = " For government use only ", layout = "Tiled", fontId = "oswald", bold = true,
+                color = "#1a237e", opacity = .2, sizePercent = 5, angleDegrees = 30, spacing = 2 },
+        });
+
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+        var entry = Assert.Single(JsonSerializer.Deserialize<DocumentExportSnapshotEntry[]>(
+            Assert.Single(exports.Items).SnapshotJson)!);
+        Assert.Equal(new ExportWatermark("For government use only", "Tiled", "oswald", false, "#1A237E", .2, 5, 30, 2),
+            entry.Watermark);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("For government use only", body.GetProperty("watermark").GetProperty("text").GetString());
+    }
+
+    [Fact]
+    public async Task Create_WithAnInvalidWatermark_Returns422_WithoutCreatingExport()
+    {
+        using var client = PageManagementHttp.Client(factory);
+
+        var response = await client.PostAsJsonAsync($"/api/documents/{documents.Document.Id}/exports",
+            new { watermark = new { text = "COPY", color = "red" } });
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        Assert.Equal("export_watermark_invalid",
+            (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
+        Assert.Empty(exports.Items);
+    }
+
+    [Fact]
     public async Task Status_ReportsCompletedSearchabilityWithoutOcrDetails()
     {
         var export = DocumentExport.Create(Guid.NewGuid(), documents.Document, "user-a",
