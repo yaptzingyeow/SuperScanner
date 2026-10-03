@@ -20,6 +20,22 @@ public sealed class Document
         .ToArray();
     public long Revision { get; private set; }
     public long PageOrderRevision { get; private set; }
+    /// <summary>Set when the whole document is removed (e.g. Free-plan retention).</summary>
+    public DateTimeOffset? RemovedAt { get; private set; }
+    public string? RemovedReason { get; private set; }
+
+    /// <summary>Soft-removes the document and all of its active pages.</summary>
+    public void Remove(string reason, DateTimeOffset now)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(reason);
+        if (RemovedAt is not null) return;
+        foreach (var page in _pages.Where(page => page.RemovedAt is null).ToArray())
+            page.SoftRemove(OwnerFirebaseUid, now);
+        RemovedAt = now;
+        RemovedReason = reason.Length > 32 ? reason[..32] : reason;
+        UpdatedAt = now;
+        Revision++;
+    }
 
     public static Document Create(Guid id, string ownerFirebaseUid, string title, DateTimeOffset now)
     {

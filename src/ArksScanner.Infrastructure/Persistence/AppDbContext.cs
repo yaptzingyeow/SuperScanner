@@ -39,6 +39,13 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     public DbSet<FontCatalogueEntry> FontCatalogueEntries => Set<FontCatalogueEntry>();
 
+    public DbSet<ArksScanner.Domain.Plans.Account> Accounts => Set<ArksScanner.Domain.Plans.Account>();
+    public DbSet<ArksScanner.Domain.Plans.Subscription> Subscriptions => Set<ArksScanner.Domain.Plans.Subscription>();
+    public DbSet<ArksScanner.Domain.Plans.AdminMember> Admins => Set<ArksScanner.Domain.Plans.AdminMember>();
+    public DbSet<ArksScanner.Domain.Plans.PlanSettings> PlanSettings => Set<ArksScanner.Domain.Plans.PlanSettings>();
+    public DbSet<ArksScanner.Domain.Plans.UsageDay> UsageDays => Set<ArksScanner.Domain.Plans.UsageDay>();
+    public DbSet<ArksScanner.Domain.Plans.Payment> Payments => Set<ArksScanner.Domain.Plans.Payment>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
 }

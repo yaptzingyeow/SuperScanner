@@ -31,8 +31,14 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE
     page_signatures,
     signature_asset_write_intents,
     page_marks,
-    page_repair_operations
+    page_repair_operations,
+    accounts,
+    subscriptions,
+    admins,
+    plan_settings,
+    usage_days
 TO "$ApplicationRole";
+GRANT SELECT ON TABLE payments TO "$ApplicationRole";
 GRANT SELECT, INSERT ON TABLE audit_events TO "$ApplicationRole";
 REVOKE UPDATE, DELETE, TRUNCATE ON TABLE audit_events FROM "$ApplicationRole";
 "@

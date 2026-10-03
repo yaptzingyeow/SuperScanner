@@ -13,6 +13,7 @@ public sealed class DocumentConfiguration : IEntityTypeConfiguration<Document>
         builder.Property(document => document.OwnerFirebaseUid).HasMaxLength(128).IsRequired();
         builder.Property(document => document.Title).HasMaxLength(200).IsRequired();
         builder.Property(document => document.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
+        builder.Property(document => document.RemovedReason).HasMaxLength(32);
         builder.Property(document => document.Revision).IsConcurrencyToken().IsRequired();
         builder.Property(document => document.PageOrderRevision).IsConcurrencyToken().IsRequired();
         builder.Property(document => document.CreatedAt).IsRequired();
