@@ -229,8 +229,10 @@ public sealed class AdminService(AppDbContext db, IPlanRepository planRepository
     {
         var normalized = email?.Trim().ToLowerInvariant();
         if (string.IsNullOrWhiteSpace(normalized)) throw new AdminNotFoundException();
-        var account = await db.Accounts.AsNoTracking().FirstOrDefaultAsync(a => a.Email == normalized && !a.IsGuest, ct)
-            ?? throw new AdminNotFoundException();
+        var matches = await db.Accounts.AsNoTracking().Where(a => a.Email == normalized && !a.IsGuest).Take(2).ToListAsync(ct);
+        // Emails are only stored once verified; still refuse to guess between two accounts.
+        if (matches.Count != 1) throw new AdminNotFoundException();
+        var account = matches[0];
         var now = clock.UtcNow;
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         var existing = await db.Admins.AsNoTracking().SingleOrDefaultAsync(a => a.AccountUid == account.FirebaseUid, ct);

@@ -14,7 +14,10 @@ public sealed class AccountTrackingMiddleware(RequestDelegate next, ILogger<Acco
         {
             try
             {
-                await accounts.TouchAsync(uid, user.FindFirstValue(ClaimTypes.Email),
+                // Only a verified email is recorded: admin rights (owner seed, Add admin) match on it.
+                var email = user.HasClaim(FirebaseAuthenticationHandler.EmailVerifiedClaimType, "true")
+                    ? user.FindFirstValue(ClaimTypes.Email) : null;
+                await accounts.TouchAsync(uid, email,
                     user.FindFirstValue(FirebaseAuthenticationHandler.ProviderClaimType),
                     user.HasClaim(FirebaseAuthenticationHandler.GuestClaimType, "true"), context.RequestAborted);
             }

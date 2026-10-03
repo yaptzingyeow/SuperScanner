@@ -67,8 +67,9 @@ public sealed class PlansApiFixture : IAsyncDisposable
         public Task<VerifiedRequestIdentity> VerifyAsync(string idToken, string appCheckToken, CancellationToken ct) =>
             appCheckToken != "valid-app" ? Task.FromException<VerifiedRequestIdentity>(new UnauthorizedAccessException()) : idToken switch
             {
-                "owner" => Task.FromResult(new VerifiedRequestIdentity("owner-uid", OwnerEmail, SignInProvider: "google.com")),
-                "member" => Task.FromResult(new VerifiedRequestIdentity("member-uid", "member@example.test", SignInProvider: "password")),
+                "owner" => Task.FromResult(new VerifiedRequestIdentity("owner-uid", OwnerEmail, SignInProvider: "google.com", EmailVerified: true)),
+                "member" => Task.FromResult(new VerifiedRequestIdentity("member-uid", "member@example.test", SignInProvider: "password", EmailVerified: true)),
+                "impostor" => Task.FromResult(new VerifiedRequestIdentity("impostor-uid", OwnerEmail, SignInProvider: "password", EmailVerified: false)),
                 "guest" => Task.FromResult(new VerifiedRequestIdentity("guest-uid", null, IsGuest: true, SignInProvider: "anonymous")),
                 _ => Task.FromException<VerifiedRequestIdentity>(new UnauthorizedAccessException()),
             };

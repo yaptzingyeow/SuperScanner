@@ -1,7 +1,8 @@
 namespace ArksScanner.Application.Abstractions;
 
 /// <param name="IsGuest">Signed in anonymously (a Firebase guest), not with an account.</param>
-public sealed record VerifiedRequestIdentity(string FirebaseUid, string? Email, bool IsGuest = false, string? SignInProvider = null);
+public sealed record VerifiedRequestIdentity(string FirebaseUid, string? Email, bool IsGuest = false, string? SignInProvider = null,
+    bool EmailVerified = false);
 
 public interface IRequestIdentityVerifier
 {

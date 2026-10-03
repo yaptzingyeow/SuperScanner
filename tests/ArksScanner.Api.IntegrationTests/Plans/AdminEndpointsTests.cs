@@ -171,4 +171,17 @@ public sealed class AdminEndpointsTests : IAsyncLifetime
         Assert.Equal("member-uid", item.GetProperty("uid").GetString());
         Assert.Equal(50, found.GetProperty("pageSize").GetInt32());
     }
+
+    [Fact]
+    public async Task Unverified_email_never_gets_admin_rights()
+    {
+        using var impostor = await SignedInAsync("impostor");
+        Assert.Equal(HttpStatusCode.NotFound, (await impostor.GetAsync("/api/admin/dashboard")).StatusCode);
+
+        using var owner = await SignedInAsync("owner");
+        Assert.Equal(HttpStatusCode.OK, (await owner.GetAsync("/api/admin/dashboard")).StatusCode);
+        await owner.PostAsJsonAsync("/api/admin/admins", new { email = PlansApiFixture.OwnerEmail });
+        var admins = await Json(await owner.GetAsync("/api/admin/admins"));
+        Assert.DoesNotContain(admins.GetProperty("items").EnumerateArray(), a => a.GetProperty("uid").GetString() == "impostor-uid");
+    }
 }

@@ -19,6 +19,7 @@ public sealed class FirebaseAuthenticationHandler(
     /// <summary>Present (value "true") when the caller is a Firebase guest rather than a signed-in account.</summary>
     public const string GuestClaimType = "arksscanner:guest";
     /// <summary>The Firebase sign-in method (google.com, password, anonymous…).</summary>
+    public const string EmailVerifiedClaimType = "arksscanner:email_verified";
     public const string ProviderClaimType = "arksscanner:provider";
 
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
@@ -36,6 +37,7 @@ public sealed class FirebaseAuthenticationHandler(
             if (!string.IsNullOrWhiteSpace(identity.Email))
             {
                 claims.Add(new Claim(ClaimTypes.Email, identity.Email));
+                if (identity.EmailVerified) claims.Add(new Claim(EmailVerifiedClaimType, "true"));
             }
 
             if (identity.IsGuest)

@@ -11,6 +11,18 @@ public static class FirebaseClaims
     public static bool IsAnonymous(IReadOnlyDictionary<string, object> claims) =>
         SignInProvider(claims) == "anonymous";
 
+    /// <summary>True when the token's <c>email_verified</c> claim is true (Google sign-ins always are).</summary>
+    public static bool EmailVerified(IReadOnlyDictionary<string, object> claims)
+    {
+        ArgumentNullException.ThrowIfNull(claims);
+        return claims.TryGetValue("email_verified", out var value) && value switch
+        {
+            bool flag => flag,
+            JsonElement { ValueKind: JsonValueKind.True } => true,
+            _ => string.Equals(value?.ToString(), "true", StringComparison.OrdinalIgnoreCase),
+        };
+    }
+
     /// <summary>The token's <c>firebase.sign_in_provider</c> (google.com, password, anonymous…), or null.</summary>
     public static string? SignInProvider(IReadOnlyDictionary<string, object> claims)
     {
