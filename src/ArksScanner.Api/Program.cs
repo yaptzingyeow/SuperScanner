@@ -70,6 +70,7 @@ builder.Services.AddSingleton<PlanSettingsCache>();
 builder.Services.AddSingleton(PlanSeed.FromConfiguration(builder.Configuration));
 builder.Services.AddScoped<ArksScanner.Application.Plans.IPlanRepository, EfPlanRepository>();
 builder.Services.AddScoped<ArksScanner.Application.Plans.PlanService>();
+builder.Services.AddScoped<ArksScanner.Infrastructure.Admin.AdminService>();
 builder.Services.AddScoped<IDocumentExportRepository, EfDocumentExportRepository>();
 builder.Services.AddScoped<IPageSignatureRepository, EfPageSignatureRepository>();
 builder.Services.AddScoped<IPageMarkRepository, EfPageMarkRepository>();

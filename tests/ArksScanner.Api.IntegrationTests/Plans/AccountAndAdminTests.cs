@@ -56,7 +56,7 @@ public sealed class AccountAndAdminTests : IAsyncLifetime
         using var owner = fixture.Client("owner");
         await owner.GetAsync("/api/me");
         using var client = fixture.Client(user);
-        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/api/admin/ping")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/api/admin/dashboard")).StatusCode);
     }
 
     [Fact]
@@ -64,6 +64,6 @@ public sealed class AccountAndAdminTests : IAsyncLifetime
     {
         using var client = fixture.Client("owner");
         await client.GetAsync("/api/me");
-        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/admin/ping")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/admin/dashboard")).StatusCode);
     }
 }
