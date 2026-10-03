@@ -33,7 +33,7 @@ describe('printPdf', () => {
 
     expect(print).toHaveBeenCalledTimes(1);
     expect(window.document.body.contains(frame)).toBe(true);
-    expect(revoke).not.toHaveBeenCalled();
+    expect(revoke).not.toHaveBeenCalledWith('blob:pdf');
 
     target.dispatchEvent(new Event('afterprint'));
     expect(window.document.body.contains(frame)).toBe(false);
@@ -51,7 +51,8 @@ describe('printPdf', () => {
     target.dispatchEvent(new Event('afterprint'));
 
     expect(window.document.body.contains(frame)).toBe(false);
-    expect(revoke).toHaveBeenCalledTimes(1);
+    // Other specs may revoke their own URLs late; count only this print's URL.
+    expect(revoke.mock.calls.filter(([url]) => url === 'blob:pdf')).toHaveLength(1);
     restore();
   });
 
