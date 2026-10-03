@@ -22,7 +22,7 @@ Delivered in three pieces; this spec covers 1 and 2:
 - Free limits once enforced (all editable in the admin portal): **5 OCR pages per day**,
   **3 custom-watermark exports per day**, **30 documents maximum**, documents **deleted 7 days after
   creation**.
-- Pro: unlimited OCR (no cap; decided 2026-10-03), unlimited custom watermarks,
+- Pro: unlimited OCR (no cap; decided 2026-10-03), **no ads in the mobile app**, unlimited custom watermarks,
   **no brand stamp**, documents kept with no time limit.
 - Website Free users: daily limits, **no ads**. Mobile Free users (later): watch an ad to unlock OCR / PDF;
   the counters reserve a "bonus from ads" slot now, ads are not built now.
