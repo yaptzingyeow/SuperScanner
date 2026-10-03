@@ -185,3 +185,13 @@ PDF built later reflects the plan at request time.
 
 HitPay checkout and webhooks; mobile ads; App Store / Google Play billing; email notifications;
 proration, coupons, invoices.
+
+## 9. Future phase: ads (not in this build)
+
+- **Web**: Google AdSense **anchor ad** (slim bar at the bottom with Google's own close button) for Free users only;
+  never on login or inside the page editor (AdSense URL exclusions); the ad script loads only for Free accounts.
+  Turn on once traffic justifies it (guide: 1,000+ daily users). Needs a public domain, AdSense approval, a
+  privacy policy covering ads and cookies, a consent banner for EEA/UK visitors and CSP updates.
+- **Mobile**: Google AdMob **rewarded ads** — opt-in "watch a short ad" to unlock OCR pages or a PDF export for
+  Free users; rewards are in-app only; Pro has no ads. Credits land in `usage_days.BonusOcrPages`.
+- Each placement (web anchor on/off, mobile reward on/off, pages per ad) will be a switch in admin settings.
