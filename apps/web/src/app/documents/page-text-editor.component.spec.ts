@@ -1,4 +1,6 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { signal } from '@angular/core';
+import { PlanService } from '../plans/plan.service';
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
@@ -40,7 +42,8 @@ describe('PageTextEditorComponent', () => {
       ] }],
   };
 
-  function setup(initialOcr: PageOcr = notRequested, savedSignatures: object[] = [], savedMarks: object[] = [], tool: string | null = null) {
+  function setup(initialOcr: PageOcr = notRequested, savedSignatures: object[] = [], savedMarks: object[] = [], tool: string | null = null,
+    plans: object = { ocr: signal(null), refresh: vi.fn().mockResolvedValue(undefined) }) {
     Object.defineProperty(URL, 'createObjectURL', { configurable: true,
       value: vi.fn(() => 'blob:full-page') });
     Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
@@ -63,6 +66,7 @@ describe('PageTextEditorComponent', () => {
         { provide: HttpClient, useValue: http },
         { provide: PageSignatureService, useValue: signatures },
         { provide: PageMarkService, useValue: marks },
+        { provide: PlanService, useValue: plans },
         { provide: ActivatedRoute, useValue: { snapshot: { paramMap: {
           get: (name: string) => name === 'documentId' ? 'document-1' : 'page-1',
         }, queryParamMap: { get: (name: string) => name === 'tool' ? tool : null } } } },
@@ -339,6 +343,27 @@ describe('PageTextEditorComponent', () => {
     fixture.detectChanges();
     expect(api.requestPageOcr).toHaveBeenCalledWith('document-1', 'page-1', false);
     expect(fixture.nativeElement.textContent).toContain('Recognizing text');
+  });
+
+  it('shows OCR usage and the limit message after a 429', async () => {
+    const plans = { ocr: signal({ used: 5, limit: 5 }), refresh: vi.fn().mockResolvedValue(undefined) };
+    const { fixture, api } = setup(notRequested, [], [], null, plans);
+    api.requestPageOcr.mockRejectedValue(new HttpErrorResponse({ status: 429,
+      error: { code: 'plan_limit_reached', kind: 'ocr', limit: 5, used: 5, resetsAt: null } }));
+    await vi.waitFor(() => { fixture.detectChanges(); expect(fixture.nativeElement.querySelector('button[data-testid="recognize-text"]')).toBeTruthy(); });
+    expect(fixture.nativeElement.textContent).toContain('OCR today: 5 / 5');
+
+    (fixture.nativeElement.querySelector('button[data-testid="recognize-text"]') as HTMLButtonElement).click();
+
+    await vi.waitFor(() => { fixture.detectChanges(); expect(fixture.nativeElement.textContent)
+      .toContain("You've used today's 5 free OCR pages — upgrade to Pro or come back tomorrow."); });
+    expect(plans.refresh).toHaveBeenCalled();
+  });
+
+  it('hides usage lines when limits are unlimited', async () => {
+    const { fixture } = setup();
+    await vi.waitFor(() => { fixture.detectChanges(); expect(fixture.nativeElement.querySelector('button[data-testid="recognize-text"]')).toBeTruthy(); });
+    expect(fixture.nativeElement.textContent).not.toContain('OCR today');
   });
 
   it('shows instructions and the selectable overlay for an existing Ready OCR result', async () => {

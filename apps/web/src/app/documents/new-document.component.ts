@@ -121,7 +121,9 @@ export class NewDocumentComponent {
         error instanceof UploadFlowError
           ? error.code
           : ((error as { code?: string } | null)?.code ?? 'request_failed');
-      this.errorMessage.set(SAFE_ERRORS[code] ?? SAFE_ERRORS['request_failed']);
+      this.errorMessage.set(
+        (error instanceof UploadFlowError && error.userMessage) || (SAFE_ERRORS[code] ?? SAFE_ERRORS['request_failed']),
+      );
     } finally {
       this.active.set(false);
     }

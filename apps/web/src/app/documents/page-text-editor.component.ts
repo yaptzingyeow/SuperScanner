@@ -19,11 +19,14 @@ import { PageMarkToolsComponent } from './page-mark-tools.component';
 import { PageMarkService } from './page-mark.service';
 import { PageMarkDraft, PageMarkDto, PageMarkKind, markBoxAt, markSizeBox } from './page-mark.models';
 import { PageMarkHistory } from './page-mark-history';
+import { PlanService } from '../plans/plan.service';
+import { UsageLineComponent } from '../plans/usage-line.component';
+import { errorMessage } from '../plans/limit-message';
 
 @Component({
   selector: 'app-page-text-editor',
   standalone: true,
-  imports: [RouterLink, OcrTextOverlayComponent, TextReplacementEditorComponent, SignatureCreatorComponent, PageSignatureOverlayComponent, PageMarkOverlayComponent, PageMarkToolsComponent, CdkTrapFocus],
+  imports: [RouterLink, OcrTextOverlayComponent, TextReplacementEditorComponent, SignatureCreatorComponent, PageSignatureOverlayComponent, PageMarkOverlayComponent, PageMarkToolsComponent, CdkTrapFocus, UsageLineComponent],
   templateUrl: './page-text-editor.component.html',
   styleUrl: './page-text-editor.component.scss',
   host: { '[class.embedded]': 'embedded()' },
@@ -35,6 +38,7 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
   private readonly http = inject(HttpClient);
   private readonly signatureApi = inject(PageSignatureService);
   private readonly markApi = inject(PageMarkService);
+  protected readonly plans = inject(PlanService);
   private readonly base = inject(API_BASE_URL).replace(/\/+$/, '');
   /** Set when the editor is embedded in the workspace; otherwise the route supplies the page. */
   readonly documentIdInput = input<string | null>(null, { alias: 'documentId' });
@@ -98,6 +102,7 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
   private pendingTool = this.route.snapshot.queryParamMap?.get('tool') ?? null;
 
   ngOnInit(): void {
+    void this.plans.refresh();
     if (this.embedded()) {
       this.documentId = this.documentIdInput() ?? this.documentId;
       this.pageId = this.pageIdInput() ?? this.pageId;
@@ -178,10 +183,11 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
       if (this.destroyed) return;
       this.ocr.set(next);
       this.schedule(next);
-    } catch {
-      if (!this.destroyed) this.error.set('Text recognition could not start. Try again.');
+    } catch (error) {
+      if (!this.destroyed) this.error.set(errorMessage(error, 'Text recognition could not start. Try again.'));
     } finally {
       if (!this.destroyed) this.busy.set(false);
+      void this.plans.refresh();
     }
   }
 

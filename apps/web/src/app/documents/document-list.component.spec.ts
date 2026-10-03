@@ -64,6 +64,25 @@ describe('DocumentListComponent', () => {
     expect(title.querySelector('img')).toBeNull();
   });
 
+  it('document card shows days until deletion', () => {
+    const inDays = (days: number) => new Date(Date.now() + days * 86_400_000 - 60_000).toISOString();
+    httpTesting.expectOne('/api/documents').flush([
+      { id: 'a', title: 'Kept', status: 'Ready', pageCount: 1, updatedAt: '2026-10-01T00:00:00Z', expiresAt: null },
+      { id: 'b', title: 'Soon', status: 'Ready', pageCount: 1, updatedAt: '2026-10-01T00:00:00Z', expiresAt: inDays(3) },
+    ]);
+    fixture.detectChanges();
+    const text = (fixture.nativeElement as HTMLElement).textContent!;
+    expect(text).toContain('Deletes in 3 days');
+    expect(text).not.toContain('within a day');
+
+    fixture.componentInstance['documents'].set([
+      { id: 'c', title: 'Last', status: 'Ready', pageCount: 1, updatedAt: '2026-10-01T00:00:00Z', expiresAt: inDays(1) },
+    ]);
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Deletes in 1 day');
+    expect((fixture.nativeElement as HTMLElement).querySelector('[data-expiry-banner]')?.textContent).toContain('within a day');
+  });
+
   it('shows a safe error without exposing the provider response', () => {
     httpTesting
       .expectOne('/api/documents')

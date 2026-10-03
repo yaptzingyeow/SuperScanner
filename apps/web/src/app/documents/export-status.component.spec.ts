@@ -1,4 +1,7 @@
+import { HttpErrorResponse } from '@angular/common/http';
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { PlanService } from '../plans/plan.service';
 import { vi } from 'vitest';
 import { DocumentExport, DocumentPage } from './document.models';
 import { DocumentsApiService } from './documents-api.service';
@@ -39,7 +42,8 @@ describe('ExportStatusComponent', () => {
     isOutdated,
   });
 
-  function setup(pages: DocumentPage[], initialExport?: DocumentExport) {
+  function setup(pages: DocumentPage[], initialExport?: DocumentExport,
+    plans: object = { watermarks: signal(null), refresh: vi.fn().mockResolvedValue(undefined) }) {
     const api = {
       getExportPreview: vi.fn().mockResolvedValue({
         readyPageCount: pages.filter((item) => item.state === 'Ready').length,
@@ -53,7 +57,7 @@ describe('ExportStatusComponent', () => {
     };
     TestBed.configureTestingModule({
       imports: [ExportStatusComponent],
-      providers: [{ provide: DocumentsApiService, useValue: api }],
+      providers: [{ provide: DocumentsApiService, useValue: api }, { provide: PlanService, useValue: plans }],
     });
     const fixture = TestBed.createComponent(ExportStatusComponent);
     fixture.componentRef.setInput('documentId', 'doc-1');
@@ -84,6 +88,29 @@ describe('ExportStatusComponent', () => {
 
     expect(api.createExport).toHaveBeenCalledWith('doc-1', 'Original', false,
       expect.objectContaining({ text: 'For IC verification only', layout: 'Tiled', color: '#C62828' }));
+  });
+
+  it('export shows watermark usage and keeps plain export available at the limit', async () => {
+    const plans = { watermarks: signal({ used: 3, limit: 3 }), refresh: vi.fn().mockResolvedValue(undefined) };
+    const { fixture, api } = setup([page('p1', 'Ready')], undefined, plans);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    api.createExport.mockRejectedValueOnce(new HttpErrorResponse({ status: 429,
+      error: { code: 'plan_limit_reached', kind: 'watermark', limit: 3, used: 3, resetsAt: null } }));
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.textContent).toContain('Watermarks today: 3 / 3');
+    const generate = () => [...el.querySelectorAll<HTMLButtonElement>('button.primary')].find((b) => b.textContent!.includes('Generate PDF'))!;
+
+    generate().click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(el.querySelector('[role="alert"]')?.textContent)
+      .toContain("You've used today's 3 free watermark exports — upgrade to Pro or come back tomorrow.");
+    expect(generate().disabled).toBe(false);
+    generate().click();
+    await fixture.whenStable();
+    expect(api.createExport).toHaveBeenCalledTimes(2);
+    expect(plans.refresh).toHaveBeenCalled();
   });
 
   it('offers a new PDF when the ready one has a different watermark', () => {

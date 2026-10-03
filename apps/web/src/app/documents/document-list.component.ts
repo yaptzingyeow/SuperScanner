@@ -1,6 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { Component, inject, OnInit, OnDestroy, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, OnDestroy, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { API_BASE_URL } from '../core/api/security.interceptor';
 
@@ -10,6 +10,8 @@ export interface DocumentSummary {
   status: string;
   pageCount: number;
   updatedAt: string;
+  /** When Free-plan retention will delete it; null when the plan keeps documents. */
+  expiresAt?: string | null;
 }
 
 type LoadState = 'loading' | 'loaded' | 'error';
@@ -30,6 +32,16 @@ export class DocumentListComponent implements OnInit, OnDestroy {
 
   protected readonly documents = signal<readonly DocumentSummary[]>([]);
   protected readonly loadState = signal<LoadState>('loading');
+  /** True when any document will be deleted within a day. */
+  protected readonly expiringSoon = computed(() => this.documents().some((d) => {
+    const days = this.daysLeft(d);
+    return days !== null && days <= 1;
+  }));
+
+  protected daysLeft(document: DocumentSummary): number | null {
+    if (!document.expiresAt) return null;
+    return Math.max(0, Math.ceil((Date.parse(document.expiresAt) - Date.now()) / 86_400_000));
+  }
 
   ngOnInit(): void {
     this.http.get<readonly DocumentSummary[]>(`${this.apiBaseUrl}/documents`).subscribe({

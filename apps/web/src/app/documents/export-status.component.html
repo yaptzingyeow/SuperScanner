@@ -92,6 +92,7 @@
       {{ busy() ? 'Starting…' : 'Generate PDF' }}
     </button>
   }
+  <app-usage-line label="Watermarks today" [meter]="plans.watermarks()" />
   @if (!readyCount) {
     <p class="hint">At least one Ready page is required.</p>
   }

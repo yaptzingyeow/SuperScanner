@@ -1,3 +1,5 @@
+import { PlanService } from '../plans/plan.service';
+import { limitMessage, planLimitOf } from '../plans/limit-message';
 import { HttpClient } from '@angular/common/http';
 import {
   Component, ElementRef, effect, untracked, OnDestroy, OnInit, afterNextRender, computed, inject, Injector, signal, viewChild,
@@ -132,6 +134,7 @@ export class DocumentWorkspaceComponent implements OnInit, OnDestroy {
     return [...cache.values()].some((ocr) => !!ocr && OCR_PENDING.includes(ocr.state));
   });
   protected readonly recognizeError = signal('');
+  private readonly plans = inject(PlanService);
   private ocrTimer?: ReturnType<typeof setTimeout>;
   protected readonly unrecognizedLabel = computed(() => {
     const pages = this.document()?.pages ?? [];
@@ -323,16 +326,20 @@ export class DocumentWorkspaceComponent implements OnInit, OnDestroy {
     this.recognizeError.set('');
     const cache = this.ocrByPage();
     let failed = false;
+    let limit = '';
     await Promise.all(ids.map(async (id) => {
       try {
         const next = await this.api.requestPageOcr(this.id, id, cache.get(id)?.state === 'Failed');
         if (!this.destroyed) this.ocrByPage.update((current) => new Map(current).set(id, next));
-      } catch {
+      } catch (error) {
         failed = true;
+        const problem = planLimitOf(error);
+        if (problem) limit = limitMessage(problem);
       }
     }));
+    void this.plans.refresh();
     if (this.destroyed) return;
-    if (failed) this.recognizeError.set('Some pages could not start recognition. Try again.');
+    if (failed) this.recognizeError.set(limit || 'Some pages could not start recognition. Try again.');
     this.pollOcr();
   }
 

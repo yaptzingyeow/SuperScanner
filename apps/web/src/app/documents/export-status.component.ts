@@ -4,17 +4,21 @@ import { DocumentsApiService } from './documents-api.service';
 import { sameWatermark } from './watermark';
 import { WatermarkPanelComponent } from './watermark-panel.component';
 import { WatermarkStore } from './watermark.store';
+import { PlanService } from '../plans/plan.service';
+import { UsageLineComponent } from '../plans/usage-line.component';
+import { errorMessage } from '../plans/limit-message';
 
 @Component({
   selector: 'app-export-status',
   standalone: true,
-  imports: [WatermarkPanelComponent],
+  imports: [WatermarkPanelComponent, UsageLineComponent],
   templateUrl: './export-status.component.html',
   styleUrl: './export-status.component.scss',
 })
 export class ExportStatusComponent implements OnInit, OnChanges, OnDestroy {
   private readonly api = inject(DocumentsApiService);
   private readonly watermarks = inject(WatermarkStore);
+  protected readonly plans = inject(PlanService);
   @Input({ required: true }) documentId = '';
   @Input({ required: true }) documentTitle = 'document';
   @Input() pages: DocumentPage[] = [];
@@ -64,6 +68,7 @@ export class ExportStatusComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   ngOnInit(): void {
+    void this.plans.refresh();
     this.current.set(this.initialExport ?? null);
     if (this.initialExport) this.pageLayout.set(this.initialExport.pageLayout);
     if (this.initialExport && this.pending(this.initialExport))
@@ -87,10 +92,11 @@ export class ExportStatusComponent implements OnInit, OnChanges, OnDestroy {
       this.exportChange.emit(created);
       this.announcement.set('PDF generation started.');
       if (this.pending(created)) this.schedulePoll(created.id, 3000);
-    } catch {
-      this.error.set('We could not start the PDF export. Please try again.');
+    } catch (error) {
+      this.error.set(errorMessage(error, 'We could not start the PDF export. Please try again.'));
     } finally {
       this.busy.set(false);
+      void this.plans.refresh();
     }
   }
 

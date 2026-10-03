@@ -2,6 +2,7 @@ import { AsyncPipe } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../core/auth/auth.service';
+import { PlanService } from '../plans/plan.service';
 
 @Component({
   selector: 'app-shell',
@@ -12,7 +13,13 @@ import { AuthService } from '../core/auth/auth.service';
 export class AppShellComponent {
   protected readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  protected readonly plans = inject(PlanService);
   protected readonly menuOpen = signal(false);
+
+  protected toggleMenu(): void {
+    this.menuOpen.update((value) => !value);
+    if (this.menuOpen()) void this.plans.refresh();
+  }
 
   protected async signOut(): Promise<void> {
     await this.auth.signOut();

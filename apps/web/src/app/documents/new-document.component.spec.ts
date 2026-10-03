@@ -3,7 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { vi } from 'vitest';
 import { NewDocumentComponent } from './new-document.component';
-import { UploadService } from './upload.service';
+import { UploadFlowError, UploadService } from './upload.service';
 
 describe('NewDocumentComponent', () => {
   let fixture: ComponentFixture<NewDocumentComponent>;
@@ -81,6 +81,18 @@ describe('NewDocumentComponent', () => {
 
     expect(fixture.nativeElement.textContent).toContain('Choose a PDF, JPEG, PNG, or HEIC file');
     expect(fixture.nativeElement.textContent).not.toContain('provider secret');
+  });
+
+  it('shows the documents limit message from the plan', async () => {
+    const upload = TestBed.inject(UploadService) as unknown as { startDocument: () => Promise<never> };
+    upload.startDocument = () => Promise.reject(new UploadFlowError('plan_limit_reached',
+      'The Free plan keeps up to 30 documents. Delete some or upgrade to Pro.'));
+    fixture.componentInstance.selectFile(new File(['%PDF'], 'a.pdf', { type: 'application/pdf' }));
+
+    await fixture.componentInstance.submit();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('The Free plan keeps up to 30 documents. Delete some or upgrade to Pro.');
   });
 
   describe('multi-file', () => {

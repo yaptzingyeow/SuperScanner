@@ -1,4 +1,6 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { PlanService } from '../plans/plan.service';
 import { provideRouter, Router } from '@angular/router';
 import { of } from 'rxjs';
 import { AuthService } from '../core/auth/auth.service';
@@ -59,5 +61,34 @@ describe('AppShellComponent', () => {
     expect(auth.signOut).toHaveBeenCalledOnce();
     expect(auth.ensureGuest).toHaveBeenCalledOnce();
     expect(TestBed.inject(Router).url).toBe('/');
+  });
+
+  it('account menu shows plan and coming-soon upgrade', () => {
+    const plans = { label: signal('Free'), isAdmin: signal(false), refresh: vi.fn().mockResolvedValue(undefined) };
+    TestBed.configureTestingModule({
+      imports: [AppShellComponent],
+      providers: [
+        provideRouter([]),
+        { provide: PlanService, useValue: plans },
+        { provide: AuthService, useValue: { user$: of({ email: 'user@example.com', isAnonymous: false }), signOut: vi.fn(), ensureGuest: vi.fn() } },
+      ],
+    });
+    const fixture = TestBed.createComponent(AppShellComponent);
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+
+    (root.querySelector('button[aria-label="Open account menu"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    expect(root.querySelector('[data-plan-label]')?.textContent?.trim()).toBe('Free');
+    const upgrade = root.querySelector('[data-upgrade]') as HTMLButtonElement;
+    expect(upgrade.textContent?.trim()).toBe('Pro is coming soon');
+    expect(upgrade.disabled).toBe(true);
+    expect(plans.refresh).toHaveBeenCalled();
+
+    plans.label.set('Pro (forever)');
+    fixture.detectChanges();
+    expect(root.querySelector('[data-plan-label]')?.textContent?.trim()).toBe('Pro (forever)');
+    expect(root.querySelector('[data-upgrade]')).toBeNull();
   });
 });

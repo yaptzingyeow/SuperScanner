@@ -332,3 +332,18 @@ h1 {
     animation: none;
   }
 }
+
+.expiry-banner {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #fff4e5;
+  color: #8a4b00;
+  font-weight: 600;
+}
+
+.document-card__expiry {
+  display: block;
+  font-size: 0.8rem;
+  color: #b54708;
+}

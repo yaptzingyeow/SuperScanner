@@ -54,6 +54,7 @@
           <strong>Step 1: Recognize text</strong>
           <p>To replace scanned words, select Recognize text. Tick / Cross and Add signature work without it. Recognition may use the OCR service.</p>
           <button class="primary" type="button" data-testid="recognize-text" [disabled]="busy()" (click)="recognize()">Recognize text</button>
+          <app-usage-line label="OCR today" [meter]="plans.ocr()" />
         } @else if (ocr()!.state === 'Failed') {
           <strong>Text recognition failed</strong>
           <p>Try again before selecting words on this page.</p>

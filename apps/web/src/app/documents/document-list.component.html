@@ -66,6 +66,11 @@
         </div>
       </div>
     } @else {
+      @if (expiringSoon()) {
+        <p class="expiry-banner" role="status" data-expiry-banner>
+          A document will be deleted within a day. Download it now, or upgrade to Pro to keep your documents.
+        </p>
+      }
       <ul class="document-list">
         @for (document of documents(); track document.id) {
           <li class="document-card">
@@ -76,6 +81,11 @@
                 >{{ document.pageCount }} {{ document.pageCount === 1 ? 'page' : 'pages' }} ·
                 Updated {{ document.updatedAt | date: 'mediumDate' }}</span
               >
+              @if (daysLeft(document); as days) {
+                <span class="document-card__expiry">Deletes in {{ days }} {{ days === 1 ? 'day' : 'days' }}</span>
+              } @else if (daysLeft(document) === 0) {
+                <span class="document-card__expiry">Deletes today</span>
+              }
             </div>
             <span class="document-card__status">{{ document.status }}</span>
           </li>

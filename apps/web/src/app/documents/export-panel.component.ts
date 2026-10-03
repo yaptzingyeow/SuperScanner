@@ -1,3 +1,4 @@
+import { errorMessage } from '../plans/limit-message';
 import { Component, EventEmitter, Input, OnDestroy, Output, inject, signal } from '@angular/core';
 import { DocumentExport, DocumentPage } from './document.models';
 import { DocumentsApiService } from './documents-api.service';
@@ -96,8 +97,8 @@ export class ExportPanelComponent implements OnDestroy {
       const blob = await this.api.downloadExport(this.documentId, item.id);
       await this.printFn(blob);
       this.announcement.set('Print dialog opened.');
-    } catch {
-      this.error.set('We could not prepare the document for printing. Please try again.');
+    } catch (error) {
+      this.error.set(errorMessage(error, 'We could not prepare the document for printing. Please try again.'));
     } finally {
       this.busy.set(false);
     }

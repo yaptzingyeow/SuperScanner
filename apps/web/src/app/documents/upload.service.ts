@@ -1,3 +1,4 @@
+import { limitMessage, planLimitOf } from '../plans/limit-message';
 import { HttpClient, HttpEventType, HttpHeaders } from '@angular/common/http';
 import { Inject, Injectable, InjectionToken, Optional, signal } from '@angular/core';
 import { lastValueFrom, tap } from 'rxjs';
@@ -26,7 +27,8 @@ export interface UploadResult {
 }
 
 export class UploadFlowError extends Error {
-  constructor(readonly code: string) {
+  /** userMessage, when set, is safe copy to show as is (e.g. a plan limit). */
+  constructor(readonly code: string, readonly userMessage?: string) {
     super(code);
     this.name = 'UploadFlowError';
   }
@@ -76,6 +78,15 @@ export class HttpSignedUploadClient implements SignedUploadClient {
 
 @Injectable({ providedIn: 'root' })
 export class UploadService {
+  private async createDocument(title: string): Promise<{ id: string }> {
+    try {
+      return await this.api.createDocument(title.trim());
+    } catch (error) {
+      const limit = planLimitOf(error);
+      throw limit ? new UploadFlowError(limit.code, limitMessage(limit)) : error;
+    }
+  }
+
   private active = false;
   readonly progress = signal<UploadProgress>({ stage: 'idle', percent: 0 });
   readonly items = signal<UploadItemProgress[]>([]);
@@ -96,7 +107,7 @@ export class UploadService {
 
     try {
       this.validate(file);
-      const document = await this.api.createDocument(title.trim());
+      const document = await this.createDocument(title);
       const [item] = await this.addFilesInternal(document.id, [file]);
       if (item.stage === 'error' || !item.uploadId) {
         throw new UploadFlowError(item.errorCode ?? 'request_failed');
@@ -136,7 +147,7 @@ export class UploadService {
         );
         throw new UploadFlowError(codes[0]!);
       }
-      const document = await this.api.createDocument(title.trim());
+      const document = await this.createDocument(title);
       const items = await this.addFilesInternal(document.id, files, false);
       const uploadIds = items.flatMap((item) => (item.uploadId ? [item.uploadId] : []));
       return { documentId: document.id, uploadIds };

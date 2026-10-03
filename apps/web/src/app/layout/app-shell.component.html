@@ -34,13 +34,19 @@
             type="button"
             class="account"
             aria-label="Open account menu"
-            (click)="menuOpen.update((value) => !value)"
+            (click)="toggleMenu()"
           >
             {{ (auth.user$ | async)?.email?.slice(0, 2)?.toUpperCase() || 'ME' }}
           </button>
           @if (menuOpen()) {
             <div class="account-menu">
               <span>{{ (auth.user$ | async)?.email }}</span>
+              @if (plans.label()) {
+                <span class="account-menu__plan" data-plan-label>{{ plans.label() }}</span>
+                @if (!plans.label().startsWith('Pro')) {
+                  <button type="button" class="account-menu__upgrade" data-upgrade disabled>Pro is coming soon</button>
+                }
+              }
               <button type="button" data-sign-out (click)="signOut()">Sign out</button>
             </div>
           }
