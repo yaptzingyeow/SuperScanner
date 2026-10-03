@@ -6,7 +6,7 @@ import { WatermarkPanelComponent } from './watermark-panel.component';
 import { WatermarkStore } from './watermark.store';
 import { PlanService } from '../plans/plan.service';
 import { UsageLineComponent } from '../plans/usage-line.component';
-import { errorMessage } from '../plans/limit-message';
+import { errorMessage, watermarksUsedUp } from '../plans/limit-message';
 
 @Component({
   selector: 'app-export-status',
@@ -86,7 +86,7 @@ export class ExportStatusComponent implements OnInit, OnChanges, OnDestroy {
         this.documentId,
         this.pageLayout(),
         this.includeSearchableText(),
-        this.watermarks.active(),
+        watermarksUsedUp(this.plans.watermarks()) ? null : this.watermarks.active(),
       );
       this.current.set(created);
       this.exportChange.emit(created);

@@ -3,6 +3,8 @@ import {
   ExportWatermarkSettings, WATERMARK_COLORS, WATERMARK_FONTS, WATERMARK_PRESETS, watermarkFont,
 } from './watermark';
 import { WatermarkStore } from './watermark.store';
+import { PlanService } from '../plans/plan.service';
+import { limitMessage, watermarksUsedUp } from '../plans/limit-message';
 
 /** Export-tab controls for the user's own watermark, with a live page preview. */
 @Component({
@@ -13,6 +15,14 @@ import { WatermarkStore } from './watermark.store';
 })
 export class WatermarkPanelComponent {
   protected readonly store = inject(WatermarkStore);
+  private readonly plans = inject(PlanService);
+  /** At the daily limit the switch is off and explains why; plain export still works. */
+  protected readonly limitNote = computed(() => {
+    const meter = this.plans.watermarks();
+    return meter && watermarksUsedUp(meter)
+      ? limitMessage({ code: 'plan_limit_reached', kind: 'watermark', limit: meter.limit, used: meter.used, resetsAt: null })
+      : '';
+  });
   protected readonly fonts = WATERMARK_FONTS;
   protected readonly presets = WATERMARK_PRESETS;
   protected readonly colors = WATERMARK_COLORS;

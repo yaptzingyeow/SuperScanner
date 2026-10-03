@@ -4,10 +4,11 @@
       <strong id="watermark-title">Add your watermark</strong>
       <small>Stamp every page, e.g. “For government use only”.</small>
     </span>
-    <input id="watermark-enabled" type="checkbox" role="switch" [checked]="store.enabled()" (change)="toggle($event)" />
+    <input id="watermark-enabled" type="checkbox" role="switch" [checked]="store.enabled() && !limitNote()" [disabled]="!!limitNote()" (change)="toggle($event)" />
   </label>
+  @if (limitNote()) { <p class="limit-note" role="status" data-watermark-limit>{{ limitNote() }}</p> }
 
-  @if (store.enabled()) {
+  @if (store.enabled() && !limitNote()) {
     <div class="editor" data-slot="watermark-editor">
       <div class="preview" aria-hidden="true" data-slot="watermark-preview">
         <div class="lines"><i class="title"></i>@for (n of [1,2,3,4,5,6,7,8,9,10,11,12]; track n) { <i></i> }</div>

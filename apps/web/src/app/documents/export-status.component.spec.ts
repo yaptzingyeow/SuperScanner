@@ -113,6 +113,22 @@ describe('ExportStatusComponent', () => {
     expect(plans.refresh).toHaveBeenCalled();
   });
 
+  it('at the watermark limit the switch shows the upgrade note and Generate exports plainly', async () => {
+    localStorage.setItem('arksscanner:export-watermark', JSON.stringify({ enabled: true, settings: { text: 'COPY' } }));
+    const plans = { watermarks: signal({ used: 3, limit: 3 }), refresh: vi.fn().mockResolvedValue(undefined) };
+    const { fixture, api } = setup([page('p1', 'Ready')], undefined, plans);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const el = fixture.nativeElement as HTMLElement;
+
+    expect(el.querySelector('[data-watermark-limit]')?.textContent)
+      .toContain("You've used today's 3 free watermark exports — upgrade to Pro or come back tomorrow.");
+    expect((el.querySelector('#watermark-enabled') as HTMLInputElement).disabled).toBe(true);
+    [...el.querySelectorAll<HTMLButtonElement>('button.primary')].find((b) => b.textContent!.includes('Generate PDF'))!.click();
+    await fixture.whenStable();
+
+    expect(api.createExport).toHaveBeenCalledWith('doc-1', 'Original', false, null);
+  });
+
   it('offers a new PDF when the ready one has a different watermark', () => {
     localStorage.setItem('arksscanner:export-watermark', JSON.stringify({ enabled: true, settings: { text: 'COPY' } }));
     const { fixture } = setup([page('p1', 'Ready')], exported('Ready'));

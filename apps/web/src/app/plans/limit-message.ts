@@ -19,6 +19,11 @@ export function limitMessage(problem: PlanLimitProblem): string {
   }
 }
 
+/** True when today's watermark exports are used up (only on plans with a limit). */
+export function watermarksUsedUp(meter: { used: number; limit: number } | null): boolean {
+  return !!meter && meter.used >= meter.limit;
+}
+
 /** The limit message for a plan-limit failure, otherwise the fallback. */
 export function errorMessage(error: unknown, fallback: string): string {
   const problem = planLimitOf(error);
