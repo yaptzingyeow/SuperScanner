@@ -103,9 +103,11 @@ export class EditToolbarComponent implements OnChanges {
       .filter((e) => e.state === 'Succeeded' && e.resultRevisionId)
       .map((e) => ({
         revisionId: e.resultRevisionId!,
-        label: e.replacementText?.trim()
-          ? `Replaced ${quote(e.originalText)} with ${quote(e.replacementText)}`
-          : `Deleted ${quote(e.originalText)}`,
+        label: !e.originalText?.trim()
+          ? `Added ${quote(e.replacementText)}`
+          : e.replacementText?.trim()
+            ? `Replaced ${quote(e.originalText)} with ${quote(e.replacementText)}`
+            : `Deleted ${quote(e.originalText)}`,
         at: e.completedAt ?? e.queuedAt ?? null,
       }))
       .reverse();

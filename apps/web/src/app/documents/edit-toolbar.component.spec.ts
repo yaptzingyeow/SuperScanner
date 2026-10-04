@@ -74,6 +74,7 @@ describe('EditToolbarComponent', () => {
         { id: 'e1', sourceRevisionId: 'r0', state: 'Succeeded', resultRevisionId: 'r1', originalText: 'Yap', replacementText: 'Tan', completedAt: '2026-10-05T01:00:00Z' },
         { id: 'e2', sourceRevisionId: 'r1', state: 'Succeeded', resultRevisionId: 'r2', originalText: 'Ali', replacementText: '', completedAt: '2026-10-05T02:00:00Z' },
         { id: 'e3', sourceRevisionId: 'r2', state: 'Failed', resultRevisionId: null, originalText: 'x', replacementText: 'y' },
+        { id: 'e4', sourceRevisionId: 'r2', state: 'Succeeded', resultRevisionId: 'r3', originalText: '', replacementText: 'heloo' },
       ],
     });
     button('History').click();
@@ -82,12 +83,12 @@ describe('EditToolbarComponent', () => {
 
     const items = [...el.querySelectorAll<HTMLButtonElement>('[data-history-version]')];
     expect(items.map((b) => b.textContent!.replace(/\s+/g, ' ').trim().split(' · ')[0])).toEqual([
-      'Deleted “Ali”', 'Replaced “Yap” with “Tan”', 'Original page',
+      'Added “heloo”', 'Deleted “Ali”', 'Replaced “Yap” with “Tan”', 'Original page',
     ]);
-    expect(items[0].getAttribute('aria-current')).toBe('true');
-    expect(items[0].disabled).toBe(true);
+    expect(items[1].getAttribute('aria-current')).toBe('true');
+    expect(items[1].disabled).toBe(true);
 
-    items[2].click();
+    items[3].click();
     await fixture.whenStable();
     expect(service.jumpTo).toHaveBeenCalledWith('doc-1', 'p1', 'r0', 'r2');
   });
