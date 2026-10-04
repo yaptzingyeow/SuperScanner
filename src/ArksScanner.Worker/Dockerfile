@@ -20,5 +20,6 @@ ENV ASPNETCORE_URLS=http://+:8080 \
     TMPDIR=/app/tmp
 USER $APP_UID
 COPY --from=build --chown=$APP_UID:$APP_UID /app/publish ./
+COPY --chown=$APP_UID:$APP_UID assets/fonts/ ./assets/fonts/
 EXPOSE 8080
 ENTRYPOINT ["dotnet", "ArksScanner.Worker.dll"]
