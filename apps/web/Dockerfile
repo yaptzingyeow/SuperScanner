@@ -8,6 +8,7 @@ RUN npm run build
 
 FROM nginxinc/nginx-unprivileged:1.28-alpine AS final
 ENV API_UPSTREAM=http://api:8080 \
+    DNS_RESOLVER=127.0.0.11 \
     R2_CONNECT_SOURCE=https://*.r2.cloudflarestorage.com
 COPY apps/web/nginx.conf /etc/nginx/templates/default.conf.template
 COPY --from=build --chown=101:101 /source/dist/web/browser /usr/share/nginx/html
