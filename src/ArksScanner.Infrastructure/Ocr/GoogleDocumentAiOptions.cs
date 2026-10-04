@@ -16,6 +16,7 @@ public sealed partial class GoogleDocumentAiOptions
     public string Location { get; init; } = string.Empty;
     public string ProcessorId { get; init; } = string.Empty;
     public string? Endpoint { get; init; }
+    public string? ServiceAccountJson { get; init; }
     public long MaxInputBytes { get; init; } = 25 * 1024 * 1024;
     public bool EnableStyleInfo { get; init; }
 

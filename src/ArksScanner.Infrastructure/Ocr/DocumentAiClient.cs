@@ -1,4 +1,5 @@
 using Google.Api.Gax;
+using Google.Apis.Auth.OAuth2;
 using Google.Api.Gax.Grpc;
 using Google.Cloud.DocumentAI.V1;
 using Google.Protobuf;
@@ -36,7 +37,11 @@ public sealed class DocumentAiClient : IDocumentAiClient
             var client = new DocumentProcessorServiceClientBuilder
             {
                 Endpoint = endpoint,
-                Settings = settings
+                Settings = settings,
+                GoogleCredential = string.IsNullOrWhiteSpace(options.ServiceAccountJson)
+                    ? null
+                    : GoogleCredential.FromServiceAccountCredential(
+                        CredentialFactory.FromJson<ServiceAccountCredential>(options.ServiceAccountJson))
             }.Build();
 
             return (request, cancellationToken) =>
