@@ -92,6 +92,16 @@ describe('EditToolbarComponent', () => {
     expect(service.jumpTo).toHaveBeenCalledWith('doc-1', 'p1', 'r0', 'r2');
   });
 
+  it('history says so when a page has no saved changes', async () => {
+    const { fixture, el, button } = await setup({ canUndo: false, canRedo: false, activeRevisionId: null, entries: [] });
+    button('History').click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(el.querySelector('.history-panel')?.textContent).toContain('No saved changes on this page yet.');
+    expect(el.querySelectorAll('[data-history-version]').length).toBe(0);
+  });
+
   it('history load failure shows the safe message', async () => {
     const { fixture, el, button } = await setup(new Error('500'));
     button('History').click();

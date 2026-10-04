@@ -26,8 +26,11 @@
 </div>
 @if (historyOpen() && history(); as h) {
   <div class="history-panel">
+    @if (versions().length < 2) {
+      <p class="history-note" role="status">No saved changes on this page yet.</p>
+    } @else {
     <p class="history-note" role="status">
-      {{ versions().length }} {{ versions().length === 1 ? 'version' : 'versions' }} of this page. Choose one to go back to it.
+      {{ versions().length }} versions of this page. Choose one to go back to it.
     </p>
     <ol class="history-list">
       @for (v of versions(); track v.revisionId) {
@@ -41,6 +44,7 @@
         </li>
       }
     </ol>
+    }
   </div>
 }
 @if (historyError()) { <p class="history-error" role="alert">{{ historyError() }}</p> }
