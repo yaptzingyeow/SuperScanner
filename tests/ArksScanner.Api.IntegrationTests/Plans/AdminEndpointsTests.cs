@@ -184,4 +184,17 @@ public sealed class AdminEndpointsTests : IAsyncLifetime
         var admins = await Json(await owner.GetAsync("/api/admin/admins"));
         Assert.DoesNotContain(admins.GetProperty("items").EnumerateArray(), a => a.GetProperty("uid").GetString() == "impostor-uid");
     }
+
+    [Fact]
+    public async Task Owner_seen_recently_before_owner_was_configured_still_becomes_admin()
+    {
+        await using (var db = fixture.Db())
+        {
+            db.Accounts.Add(ArksScanner.Domain.Plans.Account.Create("owner-uid", PlansApiFixture.OwnerEmail, "google.com", false, DateTimeOffset.UtcNow));
+            await db.SaveChangesAsync();
+        }
+        using var owner = fixture.Client("owner");
+
+        Assert.Equal(HttpStatusCode.OK, (await owner.GetAsync("/api/admin/dashboard")).StatusCode);
+    }
 }

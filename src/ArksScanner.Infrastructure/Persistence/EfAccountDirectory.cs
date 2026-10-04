@@ -24,14 +24,14 @@ public sealed class EfAccountDirectory(AppDbContext db, IMemoryCache cache, IClo
             account = Account.Create(uid, email, provider ?? "unknown", isGuest, now);
             db.Accounts.Add(account);
         }
-        else if (!account.Touch(email, provider ?? account.SignInProvider, isGuest, now))
+        else
         {
-            cache.Set(key, true, Account.TouchInterval);
-            return;
+            account.Touch(email, provider ?? account.SignInProvider, isGuest, now);
         }
 
+        // Seed even when the visit itself is not worth saving (seen < 10 minutes ago).
         await SeedOwnerAdminAsync(account, now, ct);
-        await db.SaveChangesAsync(ct);
+        if (db.ChangeTracker.HasChanges()) await db.SaveChangesAsync(ct);
         cache.Set(key, true, Account.TouchInterval);
     }
 
