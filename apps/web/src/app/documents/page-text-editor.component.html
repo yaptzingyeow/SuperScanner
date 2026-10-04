@@ -16,9 +16,11 @@
   @if (loading()) { <p role="status">Opening page…</p> }
   @if (error()) { <p class="error" role="alert">{{ error() }}</p><button type="button" (click)="load()">Retry</button> }
   @if (page() && imageUrl()) {
+    @if (!embedded()) {
     <div class="page-actions"><button type="button" class="primary add-text" data-testid="add-text" [disabled]="signatureBusy()" (click)="addText()">+ Add text</button>
       <button type="button" class="primary" data-testid="add-signature" [disabled]="signatureBusy()" (click)="openSignatureCreator()">+ Add signature</button>
       <button type="button" class="primary" data-testid="add-mark" [disabled]="markBusy()" (click)="beginMarkPlacement()">✓ Tick / × Cross</button></div>
+    }
     @if (markError()) { <p role="alert" class="error">{{ markError() }}</p><button type="button" [disabled]="markBusy()" (click)="refreshMarks()">Reload saved marks</button> }
     @if (markNotice()) { <p role="status">{{ markNotice() }}</p> }
     @if (placingMark() || markDraft() || selectedMarkId() || marks().length || markCanUndo() || markCanRedo()) {

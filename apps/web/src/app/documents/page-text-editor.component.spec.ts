@@ -360,6 +360,15 @@ describe('PageTextEditorComponent', () => {
     expect(plans.refresh).toHaveBeenCalled();
   });
 
+  it('leaves the add buttons to the workspace toolbar when embedded', async () => {
+    const { fixture } = setup();
+    fixture.componentRef.setInput('embedded', true);
+    await vi.waitFor(() => { fixture.detectChanges(); expect(fixture.nativeElement.querySelector('.full-page-image > img')).toBeTruthy(); });
+    expect(fixture.nativeElement.querySelector('[data-testid="add-text"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid="add-signature"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid="add-mark"]')).toBeNull();
+  });
+
   it('hides usage lines when limits are unlimited', async () => {
     const { fixture } = setup();
     await vi.waitFor(() => { fixture.detectChanges(); expect(fixture.nativeElement.querySelector('button[data-testid="recognize-text"]')).toBeTruthy(); });
