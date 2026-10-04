@@ -22,7 +22,7 @@ public sealed class FirebaseAdminIdTokenVerifier : IFirebaseIdTokenVerifier
         ArgumentException.ThrowIfNullOrWhiteSpace(options.Value.ProjectId);
         var projectId = options.Value.ProjectId;
         _firebaseAuth = new Lazy<FirebaseAuth>(
-            () => CreateFirebaseAuth(projectId),
+            () => CreateFirebaseAuth(projectId, options.Value.ServiceAccountJson),
             LazyThreadSafetyMode.ExecutionAndPublication);
     }
 
@@ -41,12 +41,15 @@ public sealed class FirebaseAdminIdTokenVerifier : IFirebaseIdTokenVerifier
             FirebaseClaims.SignInProvider(identity.Claims), FirebaseClaims.EmailVerified(identity.Claims));
     }
 
-    private static FirebaseAuth CreateFirebaseAuth(string projectId)
+    private static FirebaseAuth CreateFirebaseAuth(string projectId, string? serviceAccountJson)
     {
         var app = FirebaseApp.Create(
             new AppOptions
             {
-                Credential = GoogleCredential.GetApplicationDefault(),
+                Credential = string.IsNullOrWhiteSpace(serviceAccountJson)
+                    ? GoogleCredential.GetApplicationDefault()
+                    : GoogleCredential.FromServiceAccountCredential(
+                        CredentialFactory.FromJson<ServiceAccountCredential>(serviceAccountJson)),
                 ProjectId = projectId
             },
             $"ArksScanner-{Guid.NewGuid():N}");
