@@ -43,4 +43,11 @@ export class TextEditService {
     return firstValueFrom(this.http.post<PageEditHistory>(
       `${this.url(documentId, pageId)}/${direction}`, { expectedRevisionId }));
   }
+
+  /** Makes any saved version of the page the current one. */
+  jumpTo(documentId: string, pageId: string, targetRevisionId: string,
+    expectedRevisionId: string | null): Promise<PageEditHistory> {
+    return firstValueFrom(this.http.post<PageEditHistory>(
+      `${this.url(documentId, pageId)}/revision`, { expectedRevisionId, targetRevisionId }));
+  }
 }

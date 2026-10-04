@@ -5,10 +5,12 @@ using ArksScanner.Domain.TextEditing;
 
 namespace ArksScanner.Application.TextEditing;
 
-public enum RevisionSwitchDirection { Undo, Redo }
+/// <summary>Undo/Redo step one version; To jumps to <see cref="SwitchPageRevisionRequest.TargetRevisionId"/>.</summary>
+public enum RevisionSwitchDirection { Undo, Redo, To }
 
 public sealed record SwitchPageRevisionRequest(string OwnerUid, Guid DocumentId,
-    Guid PageId, Guid? ExpectedRevisionId, RevisionSwitchDirection Direction);
+    Guid PageId, Guid? ExpectedRevisionId, RevisionSwitchDirection Direction,
+    Guid? TargetRevisionId = null);
 
 public sealed record LockedRevisionSwitchPage(Page Page, Document Document);
 
@@ -59,6 +61,16 @@ public sealed class SwitchPageRevision(
             target = parentId is null ? null : revisions.SingleOrDefault(revision =>
                 revision.Id == parentId);
         }
+        else if (request.Direction == RevisionSwitchDirection.To)
+        {
+            // Any saved version of this page: the original, or the result of a successful edit or cleanup.
+            var saved = edits.Where(edit => edit.State == TextEditState.Succeeded && edit.ResultRevisionId is not null)
+                .Select(edit => edit.ResultRevisionId!.Value).ToHashSet();
+            saved.UnionWith(repairRevisionIds);
+            target = revisions.SingleOrDefault(revision => revision.Id == request.TargetRevisionId &&
+                revision.Id != page.ActiveRevisionId &&
+                (revision.ParentRevisionId is null || saved.Contains(revision.Id)));
+        }
         else
         {
             var successful = edits.Where(edit => edit.State == TextEditState.Succeeded &&
@@ -75,8 +87,12 @@ public sealed class SwitchPageRevision(
         page.ActivateRevision(target);
         owned.Document.MarkContentChanged(clock.UtcNow);
         await audit.AppendAsync(new AuditWriteRequest(request.OwnerUid,
-            request.Direction == RevisionSwitchDirection.Undo
-                ? "text_edit.undo" : "text_edit.redo",
+            request.Direction switch
+            {
+                RevisionSwitchDirection.Undo => "text_edit.undo",
+                RevisionSwitchDirection.Redo => "text_edit.redo",
+                _ => "text_edit.jump",
+            },
             "page", page.Id,
             JsonSerializer.Serialize(new { pageId = page.Id,
                 fromRevisionId = request.ExpectedRevisionId,

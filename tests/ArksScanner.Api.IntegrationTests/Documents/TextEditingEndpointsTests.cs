@@ -271,6 +271,28 @@ public sealed class TextEditingEndpointsTests
     }
 
     [Fact]
+    public async Task History_names_the_original_and_jump_goes_straight_to_it_and_back()
+    {
+        await using var factory = Factory(enabled: true, seededHistory: true);
+        using var client = Client(factory);
+        var before = await client.GetFromJsonAsync<PageEditHistoryDto>($"{ApplyUrl()}/history");
+        Assert.NotNull(before!.OriginalRevisionId);
+
+        var jump = await client.PostAsJsonAsync($"{ApplyUrl()}/revision",
+            new { expectedRevisionId = before.ActiveRevisionId, targetRevisionId = before.OriginalRevisionId });
+        Assert.Equal(HttpStatusCode.OK, jump.StatusCode);
+        var atOriginal = await jump.Content.ReadFromJsonAsync<PageEditHistoryDto>();
+        Assert.Equal(before.OriginalRevisionId, atOriginal!.ActiveRevisionId);
+
+        var back = await client.PostAsJsonAsync($"{ApplyUrl()}/revision",
+            new { expectedRevisionId = atOriginal.ActiveRevisionId, targetRevisionId = before.ActiveRevisionId });
+        Assert.Equal(before.ActiveRevisionId, (await back.Content.ReadFromJsonAsync<PageEditHistoryDto>())!.ActiveRevisionId);
+        var unknown = await client.PostAsJsonAsync($"{ApplyUrl()}/revision",
+            new { expectedRevisionId = before.ActiveRevisionId, targetRevisionId = Guid.NewGuid() });
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, unknown.StatusCode);
+    }
+
+    [Fact]
     public async Task Disabled_and_unowned_revision_switches_are_not_exposed()
     {
         await using var disabled = Factory(enabled: false, seededHistory: true);

@@ -17,7 +17,7 @@ public sealed record PageEditRevision(Guid Id, Guid? ParentRevisionId);
 public sealed record PageEditRevisionState(Guid? ActiveRevisionId,
     IReadOnlyList<PageEditRevision> Revisions);
 public sealed record PageEditHistoryDto(bool CanUndo, bool CanRedo,
-    Guid? ActiveRevisionId, IReadOnlyList<TextEditDto> Entries);
+    Guid? ActiveRevisionId, IReadOnlyList<TextEditDto> Entries, Guid? OriginalRevisionId = null);
 
 public sealed record TextEditDto(
     Guid Id,

@@ -22,6 +22,8 @@ public sealed class GetPageEditHistory(ITextEditReadRepository repository)
             !busy && state.Revisions.Any(revision =>
                 revision.ParentRevisionId == state.ActiveRevisionId &&
                 successfulRevisionIds.Contains(revision.Id)),
-            state.ActiveRevisionId, edits.Select(TextEditDto.From).ToArray());
+            state.ActiveRevisionId, edits.Select(TextEditDto.From).ToArray(),
+            state.Revisions.Where(revision => revision.ParentRevisionId is null)
+                .Select(revision => (Guid?)revision.Id).FirstOrDefault());
     }
 }

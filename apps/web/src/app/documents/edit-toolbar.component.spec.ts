@@ -6,12 +6,13 @@ import { TextEditService } from './text-edit.service';
 
 describe('EditToolbarComponent', () => {
   const history = (canUndo: boolean, canRedo = false) => ({ canUndo, canRedo, activeRevisionId: 'r1', entries: [] });
-  let service: { history: ReturnType<typeof vi.fn>; switchRevision: ReturnType<typeof vi.fn> };
+  let service: { history: ReturnType<typeof vi.fn>; switchRevision: ReturnType<typeof vi.fn>; jumpTo: ReturnType<typeof vi.fn> };
 
   async function setup(historyResult: unknown = history(false)) {
     service = {
       history: vi.fn(),
       switchRevision: vi.fn().mockResolvedValue(history(false, true)),
+      jumpTo: vi.fn().mockResolvedValue(history(false, true)),
     };
     if (historyResult instanceof Error) service.history.mockRejectedValue(historyResult);
     else service.history.mockResolvedValue(historyResult);
@@ -64,6 +65,31 @@ describe('EditToolbarComponent', () => {
     await fixture.whenStable();
     expect(service.switchRevision).toHaveBeenCalledWith('doc-1', 'p1', 'undo', 'r1');
     expect(changed).toHaveBeenCalled();
+  });
+
+  it('history lists every saved version and jumps to the one clicked', async () => {
+    const { fixture, el, button } = await setup({
+      canUndo: true, canRedo: false, activeRevisionId: 'r2', originalRevisionId: 'r0',
+      entries: [
+        { id: 'e1', sourceRevisionId: 'r0', state: 'Succeeded', resultRevisionId: 'r1', originalText: 'Yap', replacementText: 'Tan', completedAt: '2026-10-05T01:00:00Z' },
+        { id: 'e2', sourceRevisionId: 'r1', state: 'Succeeded', resultRevisionId: 'r2', originalText: 'Ali', replacementText: '', completedAt: '2026-10-05T02:00:00Z' },
+        { id: 'e3', sourceRevisionId: 'r2', state: 'Failed', resultRevisionId: null, originalText: 'x', replacementText: 'y' },
+      ],
+    });
+    button('History').click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const items = [...el.querySelectorAll<HTMLButtonElement>('[data-history-version]')];
+    expect(items.map((b) => b.textContent!.replace(/\s+/g, ' ').trim().split(' · ')[0])).toEqual([
+      'Deleted “Ali”', 'Replaced “Yap” with “Tan”', 'Original page',
+    ]);
+    expect(items[0].getAttribute('aria-current')).toBe('true');
+    expect(items[0].disabled).toBe(true);
+
+    items[2].click();
+    await fixture.whenStable();
+    expect(service.jumpTo).toHaveBeenCalledWith('doc-1', 'p1', 'r0', 'r2');
   });
 
   it('history load failure shows the safe message', async () => {

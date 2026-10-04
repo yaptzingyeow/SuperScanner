@@ -47,12 +47,18 @@ export interface TextEditStatus {
   state: 'Queued' | 'Processing' | 'Succeeded' | 'Failed';
   failureCode?: string | null;
   resultRevisionId?: string | null;
+  originalText?: string;
+  replacementText?: string;
+  queuedAt?: string;
+  completedAt?: string | null;
 }
 export interface PageEditHistory {
   canUndo: boolean;
   canRedo: boolean;
   activeRevisionId: string | null;
   entries: TextEditStatus[];
+  /** The page as first imported (before any edit). */
+  originalRevisionId?: string | null;
 }
 export interface TextEditSelection {
   pageId: string;

@@ -25,9 +25,23 @@
   </div>
 </div>
 @if (historyOpen() && history(); as h) {
-  <p class="history-note" role="status">
-    {{ h.entries.length }} {{ h.entries.length === 1 ? 'saved change' : 'saved changes' }} on this page.
-  </p>
+  <div class="history-panel">
+    <p class="history-note" role="status">
+      {{ versions().length }} {{ versions().length === 1 ? 'version' : 'versions' }} of this page. Choose one to go back to it.
+    </p>
+    <ol class="history-list">
+      @for (v of versions(); track v.revisionId) {
+        <li>
+          <button type="button" data-history-version [class.current]="v.current" [attr.aria-current]="v.current ? 'true' : null"
+            [disabled]="v.current || historyBusy()" (click)="jumpTo(v.revisionId)">
+            <span>{{ v.label }}</span>
+            @if (v.at) { <span class="history-time"> · {{ v.at | date: 'MMM d, h:mm a' }}</span> }
+            @if (v.current) { <span class="history-time"> · current</span> }
+          </button>
+        </li>
+      }
+    </ol>
+  </div>
 }
 @if (historyError()) { <p class="history-error" role="alert">{{ historyError() }}</p> }
 <span class="sr-only" role="status" aria-live="polite">{{ announcement() }}</span>

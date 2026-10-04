@@ -44,6 +44,12 @@ public static class TextEditingEndpoints
             IOptions<TextEditingOptions> options, HttpContext context, CancellationToken ct) =>
             SwitchAsync(documentId, pageId, request, RevisionSwitchDirection.Redo,
                 user, command, history, options, context, ct));
+        group.MapPost("/revision", (Guid documentId, Guid pageId,
+            SwitchRevisionRequest request, ICurrentUser user, SwitchPageRevision command,
+            GetPageEditHistory history,
+            IOptions<TextEditingOptions> options, HttpContext context, CancellationToken ct) =>
+            SwitchAsync(documentId, pageId, request, RevisionSwitchDirection.To,
+                user, command, history, options, context, ct));
         group.MapGet("/{editId:guid}", GetAsync);
     }
 
@@ -93,7 +99,7 @@ public static class TextEditingEndpoints
     }
 
     public sealed record StyleProposalRequest(Guid OcrResultId, Guid[]? WordIds);
-    public sealed record SwitchRevisionRequest(Guid? ExpectedRevisionId);
+    public sealed record SwitchRevisionRequest(Guid? ExpectedRevisionId, Guid? TargetRevisionId = null);
 
     private static async Task<IResult> SwitchAsync(Guid documentId, Guid pageId,
         SwitchRevisionRequest request, RevisionSwitchDirection direction,
@@ -108,7 +114,7 @@ public static class TextEditingEndpoints
         {
             await command.HandleAsync(new SwitchPageRevisionRequest(
                 user.FirebaseUid, documentId, pageId, request.ExpectedRevisionId,
-                direction), ct);
+                direction, request.TargetRevisionId), ct);
             return Results.Ok(await history.HandleAsync(user.FirebaseUid,
                 documentId, pageId, ct));
         }

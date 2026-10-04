@@ -50,6 +50,37 @@ public sealed class SwitchPageRevisionTests
     }
 
     [Fact]
+    public async Task Jump_goes_straight_to_any_saved_version_and_back()
+    {
+        var fixture = new Fixture();
+        fixture.AddSucceededEdit("A");
+        fixture.AddSucceededEdit("B");
+        var latest = fixture.Page.ActiveRevisionId;
+        var original = fixture.Revisions[0].Id;
+
+        await fixture.Switch.HandleAsync(new SwitchPageRevisionRequest("owner",
+            fixture.Document.Id, fixture.Page.Id, latest, RevisionSwitchDirection.To, original), default);
+        Assert.Equal(original, fixture.Page.ActiveRevisionId);
+        await fixture.Switch.HandleAsync(new SwitchPageRevisionRequest("owner",
+            fixture.Document.Id, fixture.Page.Id, original, RevisionSwitchDirection.To, latest), default);
+        Assert.Equal(latest, fixture.Page.ActiveRevisionId);
+        Assert.Equal("text_edit.jump", fixture.Audit.Events[^1].Action);
+    }
+
+    [Fact]
+    public async Task Jump_to_an_unknown_or_current_version_is_rejected()
+    {
+        var fixture = new Fixture();
+        fixture.AddSucceededEdit("A");
+        var current = fixture.Page.ActiveRevisionId;
+
+        await Assert.ThrowsAsync<TextRevisionBoundaryException>(() => fixture.Switch.HandleAsync(new SwitchPageRevisionRequest("owner",
+            fixture.Document.Id, fixture.Page.Id, current, RevisionSwitchDirection.To, Guid.NewGuid()), default));
+        await Assert.ThrowsAsync<TextRevisionBoundaryException>(() => fixture.Switch.HandleAsync(new SwitchPageRevisionRequest("owner",
+            fixture.Document.Id, fixture.Page.Id, current, RevisionSwitchDirection.To, current), default));
+    }
+
+    [Fact]
     public async Task New_edit_after_undo_supersedes_old_redo_branch()
     {
         var fixture = new Fixture();

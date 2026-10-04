@@ -1,3 +1,4 @@
+import { DatePipe } from '@angular/common';
 import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, computed, inject, input, output, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { EDIT_TOOLS, EditTool, EditToolId, opensInWorkspace } from './edit-tools';
@@ -26,7 +27,7 @@ export function openEditTool(router: Router, documentId: string, pageId: string,
 @Component({
   selector: 'app-edit-toolbar',
   standalone: true,
-  imports: [IconComponent],
+  imports: [IconComponent, DatePipe],
   templateUrl: './edit-toolbar.component.html',
   styleUrl: './edit-toolbar.component.scss',
 })
@@ -90,6 +91,42 @@ export class EditToolbarComponent implements OnChanges {
       if (run === this.generation) this.history.set(history);
     } catch {
       if (run === this.generation && report) this.historyError.set('Edit history is not available right now.');
+    }
+  }
+
+  /** Every saved version, newest first, ending with the original page. */
+  protected readonly versions = computed(() => {
+    const h = this.history();
+    if (!h) return [];
+    const quote = (text?: string) => `“${(text ?? '').trim()}”`;
+    const edits = h.entries
+      .filter((e) => e.state === 'Succeeded' && e.resultRevisionId)
+      .map((e) => ({
+        revisionId: e.resultRevisionId!,
+        label: e.replacementText?.trim()
+          ? `Replaced ${quote(e.originalText)} with ${quote(e.replacementText)}`
+          : `Deleted ${quote(e.originalText)}`,
+        at: e.completedAt ?? e.queuedAt ?? null,
+      }))
+      .reverse();
+    const original = h.originalRevisionId ? [{ revisionId: h.originalRevisionId, label: 'Original page', at: null }] : [];
+    return [...edits, ...original].map((v) => ({ ...v, current: v.revisionId === h.activeRevisionId }));
+  });
+
+  protected async jumpTo(revisionId: string): Promise<void> {
+    const history = this.history();
+    const pageId = this.pageId;
+    if (!history || !pageId || this.historyBusy() || revisionId === history.activeRevisionId) return;
+    this.historyBusy.set(true);
+    this.historyError.set('');
+    try {
+      this.history.set(await this.textEdits.jumpTo(this.documentId, pageId, revisionId, history.activeRevisionId));
+      this.announcement.set('Page version restored.');
+      this.pageChanged.emit();
+    } catch {
+      this.historyError.set('The page changed or the action failed. Reload history and try again.');
+    } finally {
+      this.historyBusy.set(false);
     }
   }
 
