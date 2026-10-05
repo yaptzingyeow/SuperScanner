@@ -25,7 +25,8 @@ import { AdminPage, AdminUser } from './admin.models';
           <tbody>
             @for (user of r.items; track user.uid) {
               <tr>
-                <td><a [routerLink]="['/admin/users', user.uid]">{{ user.email ?? (user.isGuest ? i18n.t('admin.guest') : user.uid) }}</a></td>
+                <td><a [routerLink]="['/admin/users', user.uid]">{{ user.email ?? (user.isGuest ? i18n.t('admin.guest') : i18n.t('admin.noEmail')) }}</a>
+                  @if (!user.email) { <small class="uid" [title]="user.uid">{{ user.uid.slice(0, 8) }}…</small> }</td>
                 <td>{{ user.provider }}</td>
                 <td><span class="pill" [class.pill--pro]="user.plan === 'Pro'">{{ user.plan }}</span></td>
                 <td>{{ user.createdAt | date: 'mediumDate' }}</td>

@@ -22,6 +22,34 @@ public static class PageSignatureEndpoints
         group.MapGet("/{signatureId:guid}/image", Image);
         group.MapPut("/{signatureId:guid}", Update);
         group.MapDelete("/{signatureId:guid}", Delete);
+        endpoints.MapPost("/api/signatures/prepare", Prepare)
+            .RequireAuthorization(AuthPolicies.SignedInAccount)
+            .WithMetadata(new Microsoft.AspNetCore.Mvc.RequestSizeLimitAttribute(6 * 1024 * 1024));
+    }
+
+    /// <summary>Turns an uploaded signature photo into a transparent PNG (nothing is stored).</summary>
+    private static async Task<IResult> Prepare(HttpRequest request, CancellationToken ct)
+    {
+        if (!request.HasFormContentType) return Results.BadRequest();
+        var form = await request.ReadFormAsync(ct);
+        var file = form.Files.GetFile("image");
+        if (file is null || file.Length is 0 or > 5 * 1024 * 1024)
+            return Results.Problem(statusCode: 422, extensions: new Dictionary<string, object?> { ["code"] = "signature_invalid_image" });
+        var strength = double.TryParse(form["strength"], System.Globalization.NumberStyles.Float,
+            System.Globalization.CultureInfo.InvariantCulture, out var value) ? value : 0.5;
+        var keepOriginal = string.Equals(form["keepOriginal"], "true", StringComparison.OrdinalIgnoreCase);
+        using var buffer = new MemoryStream();
+        await file.CopyToAsync(buffer, ct);
+        try
+        {
+            var png = SignatureBackground.Remove(buffer.ToArray(), strength, keepOriginal);
+            request.HttpContext.Response.Headers.CacheControl = "private, no-store";
+            return Results.File(png, "image/png");
+        }
+        catch (SignatureBackgroundException error)
+        {
+            return Results.Problem(statusCode: 422, extensions: new Dictionary<string, object?> { ["code"] = error.Code });
+        }
     }
 
     private static async Task<Document?> Owned(AppDbContext db, ICurrentUser user, Guid documentId, Guid pageId, bool locked, CancellationToken ct)

@@ -1,16 +1,26 @@
 import { TestBed } from '@angular/core/testing';
 import { beforeEach, afterEach, vi } from 'vitest';
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { API_BASE_URL } from '../core/api/security.interceptor';
 import { SignatureCreatorComponent } from './signature-creator.component';
 
 describe('SignatureCreatorComponent', () => {
   // jsdom has no raster canvas; these cases verify pointer/stroke state.
-  // Pixel transformation is exercised directly in signature-image.spec.ts.
+  // Background removal runs on the server (SignatureBackgroundTests); here only the request is checked.
   beforeEach(() => { vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null); });
   afterEach(() => vi.restoreAllMocks());
-  async function create() {
-    await TestBed.configureTestingModule({ imports: [SignatureCreatorComponent] }).compileComponents();
+  async function setup() {
+    await TestBed.configureTestingModule({
+      imports: [SignatureCreatorComponent],
+      providers: [provideHttpClient(), provideHttpClientTesting(), { provide: API_BASE_URL, useValue: '/api' }],
+    }).compileComponents();
     const fixture = TestBed.createComponent(SignatureCreatorComponent);
     fixture.detectChanges();
+    return fixture;
+  }
+  async function create() {
+    const fixture = await setup();
     (fixture.nativeElement.querySelector('[data-testid="draw-mode"]') as HTMLButtonElement).click();
     fixture.detectChanges();
     return fixture;
@@ -20,6 +30,28 @@ describe('SignatureCreatorComponent', () => {
     Object.defineProperty(event, 'pointerId', { value: 1 });
     canvas.dispatchEvent(event);
   }
+  it('sends an uploaded photo to the server and explains when no signature is found', async () => {
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:preview');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    const fixture = await setup();
+    const http = TestBed.inject(HttpTestingController);
+    const input = fixture.nativeElement.querySelector('input[type="file"]') as HTMLInputElement;
+    const photo = new File([new Uint8Array([1, 2, 3])], 'sign.jpg', { type: 'image/jpeg' });
+    Object.defineProperty(input, 'files', { value: [photo] });
+    input.dispatchEvent(new Event('change'));
+
+    const request = http.expectOne({ method: 'POST', url: '/api/signatures/prepare' });
+    const form = request.request.body as FormData;
+    expect(form.get('strength')).toBe('0.5');
+    expect(form.get('keepOriginal')).toBe('false');
+    request.flush(new Blob([JSON.stringify({ code: 'signature_no_ink' })], { type: 'application/json' }),
+      { status: 422, statusText: 'Unprocessable Entity' });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('No signature found');
+    expect(fixture.nativeElement.querySelector('[data-testid="use-signature"]').disabled).toBe(true);
+    http.verify();
+  });
   it('blank drawing cannot be accepted; cancel leaves no stroke', async () => {
     const fixture = await create();
     const canvas = fixture.nativeElement.querySelector('canvas');

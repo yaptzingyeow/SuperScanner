@@ -62,3 +62,10 @@ button {
 .chart rect { fill: var(--color-primary, #18755b); opacity: .8; }
 
 .pager { margin-top: 12px; }
+
+.uid {
+  display: block;
+  font-size: 0.75rem;
+  opacity: 0.6;
+  font-family: ui-monospace, monospace;
+}

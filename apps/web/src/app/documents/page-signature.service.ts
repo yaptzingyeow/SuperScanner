@@ -15,6 +15,15 @@ export class PageSignatureService {
     return { id: dto.id, pageId, box: dto.box, imageAspectRatio: dto.imageAspectRatio, revision: dto.revision,
       imageUrl: `${this.route(documentId, pageId)}/${encodeURIComponent(dto.id)}/image` };
   }
+  /** The server removes the paper from a signature photo and returns a transparent PNG (nothing is saved). */
+  async prepare(image: File, strength: number, keepOriginal: boolean): Promise<Blob> {
+    const form = new FormData();
+    form.append('image', image, image.name);
+    form.append('strength', String(strength));
+    form.append('keepOriginal', String(keepOriginal));
+    return firstValueFrom(this.http.post(`${this.base}/signatures/prepare`, form, { responseType: 'blob' }));
+  }
+
   async list(documentId: string, pageId: string): Promise<PageSignatureDto[]> {
     const dtos = await firstValueFrom(this.http.get<PageSignatureDto[]>(this.route(documentId, pageId)));
     return dtos.map(dto => this.canonical(dto, documentId, pageId));

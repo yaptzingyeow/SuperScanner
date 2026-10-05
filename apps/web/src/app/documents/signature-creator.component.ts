@@ -1,6 +1,7 @@
 import { I18nService } from '../core/i18n/i18n.service';
 import { Component, ElementRef, OnDestroy, ViewChild, output, signal, inject } from '@angular/core';
-import { canvasPng, prepareSignature } from './signature-image';
+import { canvasPng } from './signature-image';
+import { PageSignatureService } from './page-signature.service';
 
 interface Point { x: number; y: number }
 
@@ -10,6 +11,8 @@ interface Point { x: number; y: number }
 })
 export class SignatureCreatorComponent implements OnDestroy {
   protected readonly i18n = inject(I18nService);
+  private readonly signatures = inject(PageSignatureService);
+  private strengthTimer?: ReturnType<typeof setTimeout>;
   private drawing?: ElementRef<HTMLCanvasElement>;
   @ViewChild('drawing') set drawingElement(element: ElementRef<HTMLCanvasElement> | undefined) {
     this.drawing = element;
@@ -46,7 +49,10 @@ export class SignatureCreatorComponent implements OnDestroy {
     await this.process();
   }
   protected async changeStrength(event: Event): Promise<void> {
-    this.strength.set(Number((event.target as HTMLInputElement).value)); await this.process();
+    this.strength.set(Number((event.target as HTMLInputElement).value));
+    // The slider fires on every step; ask the server once the person pauses.
+    clearTimeout(this.strengthTimer);
+    this.strengthTimer = setTimeout(() => void this.process(), 250);
   }
   protected async changeOriginal(event: Event): Promise<void> {
     this.keepOriginal.set((event.target as HTMLInputElement).checked); await this.process();
@@ -56,12 +62,12 @@ export class SignatureCreatorComponent implements OnDestroy {
     const generation = ++this.generation;
     this.busy.set(true); this.error.set(''); this.preview = undefined;
     try {
-      const blob = await prepareSignature(this.source, this.strength(), this.keepOriginal());
+      const blob = await this.signatures.prepare(this.source, this.strength(), this.keepOriginal());
       if (generation !== this.generation || this.destroyed) return;
       if (this.previewUrl()) URL.revokeObjectURL(this.previewUrl());
       this.preview = blob; this.previewUrl.set(URL.createObjectURL(blob));
     } catch (error) {
-      if (generation === this.generation && !this.destroyed) this.error.set(error instanceof Error ? error.message : this.i18n.t('editor.errPrepareSig'));
+      if (generation === this.generation && !this.destroyed) this.error.set(this.i18n.t(await prepareErrorKey(error)));
     } finally { if (generation === this.generation && !this.destroyed) this.busy.set(false); }
   }
   protected canConfirm(): boolean {
@@ -127,8 +133,20 @@ export class SignatureCreatorComponent implements OnDestroy {
     } catch { this.error.set(this.i18n.t('editor.errPrepareDrawing')); }
     finally { if (!this.destroyed) this.busy.set(false); }
   }
-  ngOnDestroy(): void {
+  ngOnDestroy(): void { clearTimeout(this.strengthTimer);
     this.destroyed = true; this.generation++;
     for (const url of [this.originalUrl(), this.previewUrl()]) if (url) URL.revokeObjectURL(url);
   }
+}
+
+/** Message key for a failed server-side preparation (the problem body is a Blob for blob requests). */
+async function prepareErrorKey(error: unknown): Promise<string> {
+  const body = (error as { error?: unknown }).error;
+  let code = '';
+  try { code = body instanceof Blob ? JSON.parse(await body.text()).code ?? '' : (body as { code?: string })?.code ?? ''; } catch { /* not JSON */ }
+  return {
+    signature_no_ink: 'editor.errSigNoInk',
+    signature_too_large: 'editor.errSigTooLarge',
+    signature_invalid_image: 'editor.errChooseImage',
+  }[code] ?? 'editor.errPrepareSig';
 }

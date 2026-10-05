@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using ImageMagick;
+using ImageMagick.Drawing;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -56,6 +57,35 @@ public sealed class PageSignatureEndpointsTests : IAsyncLifetime
     }
 
     public async Task DisposeAsync() { await factory.DisposeAsync(); await postgres.DisposeAsync(); }
+    [Fact]
+    public async Task Prepare_returns_a_transparent_png_and_explains_unusable_images()
+    {
+        using var photo = new MagickImage(new MagickColor("#BDBDB4"), 200, 100);
+        new Drawables().FillColor(new MagickColor("#202030")).Rectangle(40, 45, 160, 52).Draw(photo);
+        using var owner = Client();
+        using var noAuth = Client(null);
+
+        async Task<HttpResponseMessage> Prepare(HttpClient client, byte[] bytes)
+        {
+            using var form = new MultipartFormDataContent();
+            form.Add(new ByteArrayContent(bytes), "image", "photo.jpg");
+            form.Add(new StringContent("0.5"), "strength");
+            return await client.PostAsync("/api/signatures/prepare", form);
+        }
+
+        Assert.Equal(HttpStatusCode.Unauthorized, (await Prepare(noAuth, photo.ToByteArray(MagickFormat.Jpeg))).StatusCode);
+        var response = await Prepare(owner, photo.ToByteArray(MagickFormat.Jpeg));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("image/png", response.Content.Headers.ContentType?.MediaType);
+        using var result = new MagickImage(await response.Content.ReadAsByteArrayAsync());
+        Assert.True(result.HasAlpha);
+        Assert.Equal(0, result.GetPixels().GetPixel(1, 1).ToColor()!.A);
+
+        var blank = await Prepare(owner, new MagickImage(MagickColors.White, 50, 50).ToByteArray(MagickFormat.Png));
+        Assert.Equal((HttpStatusCode)422, blank.StatusCode);
+        Assert.Contains("signature_no_ink", await blank.Content.ReadAsStringAsync());
+    }
+
     private HttpClient Client(string? user = "owner", bool appCheck = true)
     {
         var client = factory.CreateClient();
