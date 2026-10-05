@@ -43,3 +43,10 @@ app-ocr-text-overlay { position: absolute; inset: 0; }
   .page-scroll { padding: 8px; min-height: 360px; max-height: calc(100vh - 290px); }
   .zoom-controls { justify-content: center; }
 }
+
+// Mark controls stay reachable while the page scrolls under them.
+.mark-dock {
+  position: sticky; top: 0; z-index: 5;
+  background: var(--color-background, #f6f5f1);
+  &:empty { display: none; }
+}

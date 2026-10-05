@@ -22,6 +22,7 @@
       <button type="button" class="primary" data-testid="add-mark" [disabled]="markBusy()" (click)="beginMarkPlacement()">✓ Tick / × Cross</button></div>
     }
     @if (markError()) { <p role="alert" class="error">{{ markError() }}</p><button type="button" [disabled]="markBusy()" (click)="refreshMarks()">Reload saved marks</button> }
+    <div class="mark-dock">
     @if (markNotice()) { <p role="status">{{ markNotice() }}</p> }
     @if (placingMark() || markDraft() || selectedMarkId() || marks().length || markCanUndo() || markCanRedo()) {
       <app-page-mark-tools [draft]="markDraft()" [selected]="!!selectedMark()" [placing]="placingMark()" [busy]="markBusy()"
@@ -30,6 +31,7 @@
         (strokeWidth)="changeMarkStroke($event)" (sizePercent)="changeMarkSize($event)"
         (save)="saveMark()" (cancel)="cancelMark()" (edit)="editMark()" (duplicate)="duplicateMark()" (remove)="deleteMark()" />
     }
+    </div>
     @if (signatureError()) { <p role="alert" class="error">{{ signatureError() }}</p><button type="button" [disabled]="signatureBusy()" (click)="refreshSignatures()">Reload saved signatures</button> }
     <p role="status" aria-live="polite">{{ signatureNotice() }}</p>
     @if (signatureDraft(); as draft) {
@@ -49,6 +51,7 @@
         <button type="button" data-testid="delete-signature" [disabled]="signatureBusy()" (click)="deleteSignature()">Delete signature</button></section>
     }
     <section class="workspace" aria-label="Full-page text editing workspace">
+      @if (!placingMark() && !markDraft()) {
       <div class="instructions" aria-live="polite">
         @if (!ocr()) {
           <p>Checking text recognition status…</p>
@@ -69,6 +72,7 @@
           <p>Drag across words on the large image, then choose Replace or Delete. Use the zoom controls for smaller print.</p>
         }
       </div>
+      }
 
       <div class="zoom-controls" aria-label="Image zoom controls">
         <button type="button" [disabled]="zoom() === 1" (click)="setZoom(zoom() - .5)">− Zoom out</button>

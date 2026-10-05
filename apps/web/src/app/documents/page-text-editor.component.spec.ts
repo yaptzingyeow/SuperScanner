@@ -95,6 +95,27 @@ describe('PageTextEditorComponent', () => {
     await vi.waitFor(() => expect(marks.delete).toHaveBeenCalledOnce());
   });
 
+  it('keeps a placed tick in view with its controls docked and hides the text-edit steps', async () => {
+    const scroll = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', { configurable: true, value: scroll });
+    const { fixture } = setup();
+    await vi.waitFor(() => { fixture.detectChanges(); expect(fixture.nativeElement.querySelector('[data-testid="add-mark"]')).toBeTruthy(); });
+    const image = fixture.nativeElement.querySelector('.full-page-image > img') as HTMLImageElement;
+    Object.defineProperty(image, 'naturalWidth', { value: 1000 });
+    Object.defineProperty(image, 'naturalHeight', { value: 2000 });
+    expect(fixture.nativeElement.textContent).toContain('Step 1: Recognize text');
+
+    fixture.nativeElement.querySelector('[data-testid="add-mark"]').click(); fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).not.toContain('Step 1: Recognize text');
+    (fixture.componentInstance as unknown as { placeMark(point: { x: number; y: number }): void }).placeMark({ x: .5, y: .5 });
+    fixture.detectChanges();
+    await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+
+    expect(fixture.nativeElement.querySelector('.mark-dock app-page-mark-tools')).toBeTruthy();
+    expect(scroll).toHaveBeenCalledWith(expect.objectContaining({ block: 'center' }));
+    expect((scroll.mock.contexts[0] as HTMLElement).closest('app-page-mark-overlay')).toBeTruthy();
+  });
+
   it('duplicates a selected mark with the same style, then saves its moved copy without changing the original', async () => {
     const original = { id: 'mark-original', pageId: 'page-1', kind: 'Cross',
       box: { x: .1, y: .2, width: .03, height: .04 }, color: '#DC2626', strokeWidth: .12, revision: 2 };

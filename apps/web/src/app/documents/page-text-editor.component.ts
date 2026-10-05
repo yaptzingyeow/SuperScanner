@@ -413,6 +413,9 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
         color: prior?.color ?? '#000000', strokeWidth: prior?.strokeWidth ?? .08 });
       this.selectedMarkId.set('draft'); this.placingMark.set(false);
       this.markNotice.set('Drag to position your mark, adjust color or size, then Save.');
+      // The mark controls appear above the page; bring the new mark back into view.
+      requestAnimationFrame(() => document.querySelector<HTMLElement>('app-page-mark-overlay .mark.editable')
+        ?.scrollIntoView?.({ block: 'center', behavior: 'smooth' }));
     } catch { this.markError.set('This mark cannot fit at that position.'); }
   }
   protected selectedMark(): PageMarkDto | undefined { return this.marks().find(mark => mark.id === this.selectedMarkId()); }
