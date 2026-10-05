@@ -51,6 +51,9 @@ export const WATERMARK_PRESETS: readonly string[] = [
   'SAMPLE',
 ];
 
+/** Translation ids for WATERMARK_PRESETS, same order (ws.wm.preset.<id>). */
+export const WATERMARK_PRESET_IDS: readonly string[] = ['government', 'ic', 'confidential', 'copy', 'draft', 'sample'];
+
 export const WATERMARK_COLORS: readonly { value: string; label: string }[] = [
   { value: '#C62828', label: 'Red' },
   { value: '#1A237E', label: 'Navy' },

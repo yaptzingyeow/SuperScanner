@@ -1,6 +1,7 @@
 import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, OnInit, signal } from '@angular/core';
+import { I18nService } from '../core/i18n/i18n.service';
 import { AdminApiService } from './admin-api.service';
 import { AdminMember } from './admin.models';
 
@@ -9,24 +10,24 @@ import { AdminMember } from './admin.models';
   imports: [DatePipe],
   styleUrl: './admin.scss',
   template: `
-    <h1>Admins</h1>
+    <h1>{{ i18n.t('admin.admins.title') }}</h1>
     <form class="row panel" (submit)="$event.preventDefault(); add()">
-      <label>Add an admin by email
+      <label>{{ i18n.t('admin.admins.addLabel') }}
         <input data-admin-email type="email" placeholder="name@example.com" [value]="email()" (input)="email.set($any($event.target).value)" />
       </label>
-      <button class="primary" type="submit" data-add-admin [disabled]="busy() || !email().trim()">Add admin</button>
+      <button class="primary" type="submit" data-add-admin [disabled]="busy() || !email().trim()">{{ i18n.t('admin.admins.add') }}</button>
     </form>
-    <p class="muted">The person must have signed in to Arks Scanner at least once.</p>
+    <p class="muted">{{ i18n.t('admin.admins.hint') }}</p>
     @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
     <div class="table-wrap panel">
       <table>
-        <thead><tr><th>Email</th><th>Added</th><th></th></tr></thead>
+        <thead><tr><th>{{ i18n.t('admin.col.email') }}</th><th>{{ i18n.t('admin.admins.added') }}</th><th></th></tr></thead>
         <tbody>
           @for (admin of admins(); track admin.uid) {
             <tr>
               <td>{{ admin.email ?? admin.uid }}</td>
               <td>{{ admin.addedAt | date: 'mediumDate' }}</td>
-              <td><button type="button" class="danger" data-remove-admin [disabled]="busy()" (click)="remove(admin)">Remove</button></td>
+              <td><button type="button" class="danger" data-remove-admin [disabled]="busy()" (click)="remove(admin)">{{ i18n.t('admin.admins.remove') }}</button></td>
             </tr>
           }
         </tbody>
@@ -35,6 +36,7 @@ import { AdminMember } from './admin.models';
   `,
 })
 export class AdminsComponent implements OnInit {
+  protected readonly i18n = inject(I18nService);
   private readonly api = inject(AdminApiService);
   protected readonly admins = signal<AdminMember[]>([]);
   protected readonly email = signal('');
@@ -48,15 +50,15 @@ export class AdminsComponent implements OnInit {
       await this.api.addAdmin(this.email());
       this.email.set('');
     }, (status) => status === 404
-      ? 'No signed-in account uses that email yet. Ask them to sign in first.'
-      : 'Could not add that admin.');
+      ? this.i18n.t('admin.admins.notFound')
+      : this.i18n.t('admin.admins.addFailed'));
   }
 
   protected async remove(admin: AdminMember): Promise<void> {
-    if (!window.confirm(`Remove ${admin.email ?? admin.uid} as an admin?`)) return;
+    if (!window.confirm(this.i18n.t('admin.admins.removeConfirm', { name: admin.email ?? admin.uid }))) return;
     await this.run(() => this.api.removeAdmin(admin.uid), (status) => status === 409
-      ? 'At least one admin must remain.'
-      : 'Could not remove that admin.');
+      ? this.i18n.t('admin.admins.lastOne')
+      : this.i18n.t('admin.admins.removeFailed'));
   }
 
   private async run(action: () => Promise<unknown>, failure: (status: number) => string): Promise<void> {
@@ -76,7 +78,7 @@ export class AdminsComponent implements OnInit {
     try {
       this.admins.set((await this.api.admins()).items);
     } catch {
-      this.error.set('Could not load admins.');
+      this.error.set(this.i18n.t('admin.admins.loadFailed'));
     }
   }
 }

@@ -1,5 +1,6 @@
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { Component, inject, OnInit, signal } from '@angular/core';
+import { I18nService } from '../core/i18n/i18n.service';
 import { AdminApiService } from './admin-api.service';
 import { AdminPage, AdminPayment } from './admin.models';
 
@@ -9,15 +10,15 @@ import { AdminPage, AdminPayment } from './admin.models';
   imports: [CurrencyPipe, DatePipe],
   styleUrl: './admin.scss',
   template: `
-    <h1>Payments</h1>
+    <h1>{{ i18n.t('admin.pay.title') }}</h1>
     @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
     @if (result(); as r) {
       @if (r.total === 0) {
-        <p class="panel empty">Payments appear here once HitPay is connected.</p>
+        <p class="panel empty">{{ i18n.t('admin.pay.empty') }}</p>
       } @else {
         <div class="table-wrap panel">
           <table>
-            <thead><tr><th>Date</th><th>Account</th><th>Provider</th><th>Reference</th><th>Amount</th><th>Status</th></tr></thead>
+            <thead><tr><th>{{ i18n.t('admin.pay.date') }}</th><th>{{ i18n.t('admin.pay.account') }}</th><th>{{ i18n.t('admin.pay.provider') }}</th><th>{{ i18n.t('admin.pay.reference') }}</th><th>{{ i18n.t('admin.pay.amount') }}</th><th>{{ i18n.t('admin.col.status') }}</th></tr></thead>
             <tbody>
               @for (p of r.items; track p.id) {
                 <tr>
@@ -33,15 +34,16 @@ import { AdminPage, AdminPayment } from './admin.models';
           </table>
         </div>
         <div class="row pager">
-          <button type="button" [disabled]="page() <= 1" (click)="go(page() - 1)">Previous</button>
-          <span class="muted">Page {{ page() }}</span>
-          <button type="button" [disabled]="page() * r.pageSize >= r.total" (click)="go(page() + 1)">Next</button>
+          <button type="button" [disabled]="page() <= 1" (click)="go(page() - 1)">{{ i18n.t('admin.prev') }}</button>
+          <span class="muted">{{ i18n.t('admin.page', { page: page() }) }}</span>
+          <button type="button" [disabled]="page() * r.pageSize >= r.total" (click)="go(page() + 1)">{{ i18n.t('admin.next') }}</button>
         </div>
       }
     }
   `,
 })
 export class PaymentsComponent implements OnInit {
+  protected readonly i18n = inject(I18nService);
   private readonly api = inject(AdminApiService);
   protected readonly result = signal<AdminPage<AdminPayment> | null>(null);
   protected readonly page = signal(1);
@@ -55,7 +57,7 @@ export class PaymentsComponent implements OnInit {
     try {
       this.result.set(await this.api.payments(this.page()));
     } catch {
-      this.error.set('Could not load payments.');
+      this.error.set(this.i18n.t('admin.pay.loadFailed'));
     }
   }
 }

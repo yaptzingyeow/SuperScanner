@@ -1,4 +1,5 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
+import { I18nService } from '../core/i18n/i18n.service';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 
 /** The admin portal frame: a left menu and the selected page. */
@@ -7,10 +8,10 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
   imports: [RouterLink, RouterLinkActive, RouterOutlet],
   template: `
     <div class="admin">
-      <nav class="admin__menu" aria-label="Admin">
-        <strong class="admin__title">Admin</strong>
+      <nav class="admin__menu" [attr.aria-label]="i18n.t('admin.nav.label')">
+        <strong class="admin__title">{{ i18n.t('admin.nav.title') }}</strong>
         @for (link of links; track link.path) {
-          <a [routerLink]="link.path" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: link.path === '/admin' }">{{ link.label }}</a>
+          <a [routerLink]="link.path" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: link.path === '/admin' }">{{ i18n.t(link.label) }}</a>
         }
       </nav>
       <section class="admin__page"><router-outlet /></section>
@@ -32,12 +33,13 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
   `],
 })
 export class AdminShellComponent {
+  protected readonly i18n = inject(I18nService);
   protected readonly links = [
-    { path: '/admin', label: 'Dashboard' },
-    { path: '/admin/users', label: 'Users' },
-    { path: '/admin/subscribers', label: 'Subscribers' },
-    { path: '/admin/payments', label: 'Payments' },
-    { path: '/admin/settings', label: 'Settings' },
-    { path: '/admin/admins', label: 'Admins' },
+    { path: '/admin', label: 'admin.nav.dashboard' },
+    { path: '/admin/users', label: 'admin.nav.users' },
+    { path: '/admin/subscribers', label: 'admin.nav.subscribers' },
+    { path: '/admin/payments', label: 'admin.nav.payments' },
+    { path: '/admin/settings', label: 'admin.nav.settings' },
+    { path: '/admin/admins', label: 'admin.nav.admins' },
   ];
 }

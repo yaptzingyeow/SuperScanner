@@ -1,5 +1,6 @@
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { I18nService } from '../core/i18n/i18n.service';
 import { AdminApiService } from './admin-api.service';
 import { AdminDashboard } from './admin.models';
 
@@ -8,67 +9,68 @@ import { AdminDashboard } from './admin.models';
   imports: [DatePipe, DecimalPipe],
   styleUrl: './admin.scss',
   template: `
-    <h1>Dashboard</h1>
+    <h1>{{ i18n.t('admin.dash.title') }}</h1>
     @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
     @if (data(); as d) {
       @if (d.effectivePhase === 'Test') {
         <p class="banner" data-phase-banner>
-          Test phase — everyone gets Pro features (the Arks Scanner stamp stays).
-          @if (d.enforceFromUtc) { Plans are enforced from {{ d.enforceFromUtc | date: 'mediumDate' }}. }
+          {{ i18n.t('admin.dash.testBanner') }}
+          @if (d.enforceFromUtc) { {{ i18n.t('admin.dash.enforcedFrom', { date: (d.enforceFromUtc | date: 'mediumDate') ?? '' }) }} }
         </p>
       } @else {
-        <p class="banner banner--enforced" data-phase-banner>Plans are enforced — Free limits apply.</p>
+        <p class="banner banner--enforced" data-phase-banner>{{ i18n.t('admin.dash.enforced') }}</p>
       }
       <div class="cards">
         <div class="card" data-metric="users">
-          <span class="card__label">Users</span><span class="card__value">{{ d.users.total | number }}</span>
-          <span class="card__hint">{{ d.users.signedIn }} signed in · {{ d.users.guests }} guests</span>
+          <span class="card__label">{{ i18n.t('admin.dash.users') }}</span><span class="card__value">{{ d.users.total | number }}</span>
+          <span class="card__hint">{{ i18n.t('admin.dash.usersHint', { signedIn: d.users.signedIn, guests: d.users.guests }) }}</span>
         </div>
         <div class="card" data-metric="new-users">
-          <span class="card__label">New users</span><span class="card__value">{{ d.users.new.today }}</span>
-          <span class="card__hint">today · {{ d.users.new.d7 }} in 7 days · {{ d.users.new.d30 }} in 30</span>
+          <span class="card__label">{{ i18n.t('admin.dash.newUsers') }}</span><span class="card__value">{{ d.users.new.today }}</span>
+          <span class="card__hint">{{ i18n.t('admin.dash.newHint', { d7: d.users.new.d7, d30: d.users.new.d30 }) }}</span>
         </div>
         <div class="card" data-metric="active">
-          <span class="card__label">Active (7 days)</span><span class="card__value">{{ d.users.active7d | number }}</span>
+          <span class="card__label">{{ i18n.t('admin.dash.active7') }}</span><span class="card__value">{{ d.users.active7d | number }}</span>
         </div>
         <div class="card" data-metric="subscribers">
-          <span class="card__label">Pro subscribers</span><span class="card__value">{{ d.subscribers.total }}</span>
-          <span class="card__hint">{{ d.subscribers.manual }} given · {{ d.subscribers.paid }} paid</span>
+          <span class="card__label">{{ i18n.t('admin.dash.pro') }}</span><span class="card__value">{{ d.subscribers.total }}</span>
+          <span class="card__hint">{{ i18n.t('admin.dash.proHint', { manual: d.subscribers.manual, paid: d.subscribers.paid }) }}</span>
         </div>
         <div class="card" data-metric="documents">
-          <span class="card__label">Documents</span><span class="card__value">{{ d.documents.total | number }}</span>
-          <span class="card__hint">{{ d.documents.today }} today</span>
+          <span class="card__label">{{ i18n.t('admin.dash.documents') }}</span><span class="card__value">{{ d.documents.total | number }}</span>
+          <span class="card__hint">{{ i18n.t('admin.dash.documentsHint', { today: d.documents.today }) }}</span>
         </div>
         <div class="card" data-metric="ocr">
-          <span class="card__label">OCR pages</span><span class="card__value">{{ d.ocr.today | number }}</span>
-          <span class="card__hint">today · {{ d.ocr.month | number }} this month</span>
+          <span class="card__label">{{ i18n.t('admin.dash.ocrPages') }}</span><span class="card__value">{{ d.ocr.today | number }}</span>
+          <span class="card__hint">{{ i18n.t('admin.dash.todayMonth', { month: (d.ocr.month | number) ?? '' }) }}</span>
         </div>
         <div class="card" data-metric="ocr-cost">
-          <span class="card__label">OCR cost (month)</span><span class="card__value">US$ {{ d.ocr.estimatedCostMonth | number: '1.2-2' }}</span>
-          <span class="card__hint">estimate</span>
+          <span class="card__label">{{ i18n.t('admin.dash.ocrCost') }}</span><span class="card__value">US$ {{ d.ocr.estimatedCostMonth | number: '1.2-2' }}</span>
+          <span class="card__hint">{{ i18n.t('admin.dash.estimate') }}</span>
         </div>
         <div class="card" data-metric="watermarks">
-          <span class="card__label">Watermark exports</span><span class="card__value">{{ d.watermarkExports.today }}</span>
-          <span class="card__hint">today · {{ d.watermarkExports.month }} this month</span>
+          <span class="card__label">{{ i18n.t('admin.dash.watermarks') }}</span><span class="card__value">{{ d.watermarkExports.today }}</span>
+          <span class="card__hint">{{ i18n.t('admin.dash.todayMonth', { month: d.watermarkExports.month }) }}</span>
         </div>
       </div>
 
-      <h2>OCR pages — last 30 days</h2>
+      <h2>{{ i18n.t('admin.dash.chartTitle') }}</h2>
       <div class="panel">
-        <svg class="chart" viewBox="0 0 300 100" preserveAspectRatio="none" role="img" aria-label="OCR pages per day for the last 30 days">
+        <svg class="chart" viewBox="0 0 300 100" preserveAspectRatio="none" role="img" [attr.aria-label]="i18n.t('admin.dash.chartLabel')">
           @for (bar of bars(); track bar.day) {
             <rect data-bar [attr.x]="bar.x" [attr.y]="100 - bar.height" width="8" [attr.height]="bar.height">
-              <title>{{ bar.day }}: {{ bar.value }} pages, {{ bar.newUsers }} new users</title>
+              <title>{{ i18n.t('admin.dash.barTitle', { day: bar.day, value: bar.value, newUsers: bar.newUsers }) }}</title>
             </rect>
           }
         </svg>
       </div>
     } @else if (!error()) {
-      <p class="muted" aria-live="polite">Loading…</p>
+      <p class="muted" aria-live="polite">{{ i18n.t('admin.loading') }}</p>
     }
   `,
 })
 export class DashboardComponent implements OnInit {
+  protected readonly i18n = inject(I18nService);
   private readonly api = inject(AdminApiService);
   protected readonly data = signal<AdminDashboard | null>(null);
   protected readonly error = signal('');
@@ -84,7 +86,7 @@ export class DashboardComponent implements OnInit {
     try {
       this.data.set(await this.api.dashboard());
     } catch {
-      this.error.set('Could not load the dashboard. Reload to try again.');
+      this.error.set(this.i18n.t('admin.dash.loadFailed'));
     }
   }
 }

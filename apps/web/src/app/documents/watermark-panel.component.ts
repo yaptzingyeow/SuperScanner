@@ -1,6 +1,6 @@
 import { Component, computed, inject } from '@angular/core';
 import {
-  ExportWatermarkSettings, WATERMARK_COLORS, WATERMARK_FONTS, WATERMARK_PRESETS, watermarkFont,
+  ExportWatermarkSettings, WATERMARK_COLORS, WATERMARK_FONTS, WATERMARK_PRESETS, WATERMARK_PRESET_IDS, watermarkFont,
 } from './watermark';
 import { WatermarkStore } from './watermark.store';
 import { PlanService } from '../plans/plan.service';
@@ -26,7 +26,22 @@ export class WatermarkPanelComponent {
       : '';
   });
   protected readonly fonts = WATERMARK_FONTS;
-  protected readonly presets = WATERMARK_PRESETS;
+  /** Quick texts in the app language first, then the English originals (often required on official copies). */
+  protected readonly presets = [...new Set([
+    ...WATERMARK_PRESET_IDS.map((id) => this.i18n.t(`ws.wm.preset.${id}`)),
+    ...WATERMARK_PRESETS,
+  ])];
+
+  /** Descriptive font names ("Handwriting") are translated; brand names ("Lato") are not. */
+  protected fontLabel(font: { id: string; label: string }): string {
+    const key = `ws.wm.font.${font.id}`;
+    const text = this.i18n.t(key);
+    return text === key ? font.label : text;
+  }
+
+  protected colorLabel(color: { label: string }): string {
+    return this.i18n.t(`ws.wm.color.${color.label.toLowerCase()}`);
+  }
   protected readonly colors = WATERMARK_COLORS;
   protected readonly angles = [0, 35, 45, -45, 90];
   protected readonly s = this.store.settings;

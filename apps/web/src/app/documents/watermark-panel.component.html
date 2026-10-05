@@ -65,7 +65,7 @@
         <label class="field" for="watermark-font">{{ i18n.t('ws.wm.font') }}</label>
         <div class="font-row">
           <select id="watermark-font" [value]="s().fontId" (change)="chooseFont($event)">
-            @for (f of fonts; track f.id) { <option [value]="f.id">{{ f.label }}</option> }
+            @for (f of fonts; track f.id) { <option [value]="f.id">{{ fontLabel(f) }}</option> }
           </select>
           <button type="button" class="bold" [attr.aria-label]="i18n.t('ws.wm.bold')" [attr.title]="i18n.t('ws.wm.bold')" [class.on]="s().bold && font().hasBold"
             [attr.aria-pressed]="s().bold && font().hasBold" [disabled]="!font().hasBold"
@@ -75,7 +75,7 @@
         <span class="field">{{ i18n.t('ws.wm.colour') }}</span>
         <div class="colors" role="group" [attr.aria-label]="i18n.t('ws.wm.colour')">
           @for (c of colors; track c.value) {
-            <button type="button" class="swatch" [style.background]="c.value" [attr.aria-label]="c.label" [title]="c.label"
+            <button type="button" class="swatch" [style.background]="c.value" [attr.aria-label]="colorLabel(c)" [title]="colorLabel(c)"
               [class.on]="s().color === c.value" [attr.aria-pressed]="s().color === c.value"
               (click)="set('color', c.value)"></button>
           }

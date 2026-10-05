@@ -38,7 +38,7 @@
           <button type="button" data-history-version [class.current]="v.current" [attr.aria-current]="v.current ? 'true' : null"
             [disabled]="v.current || historyBusy()" (click)="jumpTo(v.revisionId)">
             <span>{{ v.label }}</span>
-            @if (v.at) { <span class="history-time"> · {{ v.at | date: 'MMM d, h:mm a' }}</span> }
+            @if (v.at) { <span class="history-time"> · {{ v.at | date: 'short' }}</span> }
             @if (v.current) { <span class="history-time"> · {{ i18n.t('ws.current') }}</span> }
           </button>
         </li>
