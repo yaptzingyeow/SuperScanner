@@ -128,6 +128,19 @@ describe('DocumentWorkspaceComponent', () => {
     expect(navigate).toHaveBeenCalledWith(['/login'], { queryParams: { returnUrl: '/documents/doc-1?tab=edit&page=p2' } });
   });
 
+  it('highlights an edit tool only while it is open', async () => {
+    const { harness, el } = await open('/documents/doc-1?tab=edit&page=p1');
+    const lit = () => [...el.querySelectorAll('[data-slot="edit-toolbar"] button.on')].map((b) => b.textContent!.trim());
+    expect(lit()).toEqual([]);
+    button(el, 'Add text')!.click();
+    await harness.fixture.whenStable();
+    harness.detectChanges();
+    expect(lit()).toEqual(['Add text']);
+    button(el, 'Done')!.click();
+    harness.detectChanges();
+    expect(lit()).toEqual([]);
+  });
+
   it('Done closes the page editor and shows the pages again', async () => {
     const { harness, el } = await open('/documents/doc-1?tab=edit&page=p1');
     button(el, 'Add text')!.click();

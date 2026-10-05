@@ -61,7 +61,7 @@
     }
     @case ('edit') {
       <div class="toolbar" role="toolbar" aria-label="Edit tools" data-slot="edit-toolbar">
-        <app-edit-toolbar [documentId]="id" [pageId]="selectedPageId()" [tool]="editTool()" [searchOpen]="searchOpen()"
+        <app-edit-toolbar [documentId]="id" [pageId]="selectedPageId()" [tool]="activeEditTool()" [searchOpen]="searchOpen()"
           (toolChange)="editTool.set($event)" (startTool)="startEditTool($event)" (searchToggle)="toggleSearch()"
           (pageChanged)="load()" />
       </div>

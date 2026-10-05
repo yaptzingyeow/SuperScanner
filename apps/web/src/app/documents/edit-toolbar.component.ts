@@ -37,7 +37,8 @@ export class EditToolbarComponent implements OnChanges {
 
   @Input({ required: true }) documentId = '';
   @Input() pageId: string | null = null;
-  @Input() tool: EditToolId = 'crop';
+  /** The tool open in the page editor, if any (highlighted). */
+  @Input() tool: EditToolId | null = null;
   /** Whether the search bar is open (Search text lives in the Text group). */
   @Input() searchOpen = false;
   @Output() readonly searchToggle = new EventEmitter<void>();

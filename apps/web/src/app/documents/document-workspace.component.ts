@@ -98,6 +98,9 @@ export class DocumentWorkspaceComponent implements OnInit, OnDestroy {
     const editor = this.inlineEditor();
     return editor && editor.pageId === this.selectedPageId() ? editor.tool.query ?? null : null;
   });
+  /** The tool to highlight: only one actually open in the page editor (not just the help topic). */
+  protected readonly activeEditTool = computed(() =>
+    this.inlineEditor()?.pageId === this.selectedPageId() ? this.editTool() : null);
   protected readonly searchQuery = signal('');
   protected readonly searchIndex = signal(0);
   private readonly ocrByPage = signal<ReadonlyMap<string, PageOcr | null>>(new Map());
