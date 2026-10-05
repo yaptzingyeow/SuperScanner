@@ -63,6 +63,7 @@ export function cropGuidance(state: CropState): 'accurate' | 'verify' | 'manual'
   if (server === 'accurate' || server === 'verify' || server === 'manual') return server;
   if (state.source === 'FullImage' || state.confidence === 0) return 'manual';
   if (state.source === 'Ai' && state.confidence !== null && state.confidence >= .78) return 'accurate';
+  if (state.source === 'Automatic' && state.confidence !== null && state.confidence >= .85) return 'accurate';
   return 'verify';
 }
 
