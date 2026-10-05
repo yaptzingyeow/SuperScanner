@@ -1,13 +1,13 @@
 <section class="documents" aria-labelledby="documents-heading">
   <header class="documents__header">
     <div>
-      <p class="eyebrow">Your private workspace</p>
-      <h1 id="documents-heading">Your documents</h1>
-      <p class="subtitle">A little less paperwork. A little more peace of mind.</p>
+      <p class="eyebrow">{{ i18n.t('list.eyebrow') }}</p>
+      <h1 id="documents-heading">{{ i18n.t('list.title') }}</h1>
+      <p class="subtitle">{{ i18n.t('list.subtitle') }}</p>
     </div>
     <button type="button" class="new-scan" (click)="startNewScan()">
       <span aria-hidden="true">＋</span>
-      New Scan
+      {{ i18n.t('list.newScan') }}
     </button>
   </header>
 
@@ -37,9 +37,9 @@
   </div>
 
   <div class="recent-heading">
-    <h2>Recent documents</h2>
+    <h2>{{ i18n.t('list.recent') }}</h2>
     @if (loadState() === 'loaded' && documents().length > 0) {
-      <span>{{ documents().length }} total</span>
+      <span>{{ i18n.t('list.total', { count: documents().length }) }}</span>
     }
   </div>
 
@@ -47,28 +47,28 @@
     @if (loadState() === 'loading') {
       <div class="state-card state-card--loading">
         <span class="spinner" aria-hidden="true"></span>
-        <p>Loading documents…</p>
+        <p>{{ i18n.t('list.loading') }}</p>
       </div>
     } @else if (loadState() === 'error') {
       <div class="state-card state-card--error">
         <span class="state-card__icon" aria-hidden="true">!</span>
         <div>
-          <strong>We couldn't load your documents</strong>
-          <p>Please try again in a moment.</p>
+          <strong>{{ i18n.t('list.loadFailed') }}</strong>
+          <p>{{ i18n.t('list.tryAgain') }}</p>
         </div>
       </div>
     } @else if (documents().length === 0) {
       <div class="state-card state-card--empty">
         <span class="empty-sheet" aria-hidden="true"></span>
         <div>
-          <strong>No scans yet</strong>
-          <p>Your next chapter starts with one document.</p>
+          <strong>{{ i18n.t('list.empty') }}</strong>
+          <p>{{ i18n.t('list.emptyBody') }}</p>
         </div>
       </div>
     } @else {
       @if (expiringSoon()) {
         <p class="expiry-banner" role="status" data-expiry-banner>
-          A document will be deleted within a day. Download it now, or upgrade to Pro to keep your documents.
+          {{ i18n.t('list.expiringBanner') }}
         </p>
       }
       @if (actionError()) { <p class="action-error" role="alert">{{ actionError() }}</p> }
@@ -79,21 +79,21 @@
             <div class="document-card__body">
               <a [routerLink]="['/documents', document.id]"><strong data-document-title>{{ document.title }}</strong></a>
               <span
-                >{{ document.pageCount }} {{ document.pageCount === 1 ? 'page' : 'pages' }} ·
-                Updated {{ document.updatedAt | date: 'mediumDate' }}</span
+                >{{ document.pageCount === 1 ? i18n.t('list.page') : i18n.t('list.pages', { count: document.pageCount }) }} ·
+                {{ i18n.t('list.updated', { date: (document.updatedAt | date: 'mediumDate') ?? '' }) }}</span
               >
               @if (daysLeft(document); as days) {
-                <span class="document-card__expiry">Deletes in {{ days }} {{ days === 1 ? 'day' : 'days' }}</span>
+                <span class="document-card__expiry">{{ days === 1 ? i18n.t('list.deletesInOne') : i18n.t('list.deletesIn', { count: days }) }}</span>
               } @else if (daysLeft(document) === 0) {
-                <span class="document-card__expiry">Deletes today</span>
+                <span class="document-card__expiry">{{ i18n.t('list.deletesToday') }}</span>
               }
             </div>
             <span class="document-card__status">{{ document.status }}</span>
             <span class="document-card__actions">
-              <button type="button" class="card-action" data-rename-document [attr.aria-label]="'Rename ' + document.title"
-                (click)="renameDocument(document)">Rename</button>
+              <button type="button" class="card-action" data-rename-document [attr.aria-label]="i18n.t('list.rename') + ' ' + document.title"
+                (click)="renameDocument(document)">{{ i18n.t('list.rename') }}</button>
               <button type="button" class="card-action card-action--danger" data-delete-document
-                [attr.aria-label]="'Delete ' + document.title" (click)="deleteDocument(document)">Delete</button>
+                [attr.aria-label]="i18n.t('list.delete') + ' ' + document.title" (click)="deleteDocument(document)">{{ i18n.t('list.delete') }}</button>
             </span>
           </li>
         }

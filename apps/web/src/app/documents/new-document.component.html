@@ -1,16 +1,15 @@
 <section class="scan-page" aria-labelledby="scan-heading">
   <div class="scan-grid">
     <header>
-      <p class="eyebrow">New scan</p>
-      <h1 id="scan-heading">Upload your document</h1>
-      <p>PDF, JPEG, PNG, or HEIC · Maximum 25 MB · Private by default</p>
+      <p class="eyebrow">{{ i18n.t('scan.eyebrow') }}</p>
+      <h1 id="scan-heading">{{ i18n.t('scan.title') }}</h1>
+      <p>{{ i18n.t('scan.formats') }}</p>
     </header>
 
     <form (submit)="$event.preventDefault(); submit()">
-      <label for="document-title">Document title <span class="optional">(optional)</span></label>
+      <label for="document-title">{{ i18n.t('scan.documentTitle') }} <span class="optional">{{ i18n.t('scan.optional') }}</span></label>
       <p id="document-title-hint" class="field-hint">
-        Uploading starts as soon as you choose files, and the file name is used as the title.
-        Type a name before choosing files, or rename it later from My documents.
+        {{ i18n.t('scan.titleHint') }}
       </p>
       <input
         id="document-title"
@@ -30,8 +29,8 @@
         (drop)="onDrop($event)"
       >
         <span class="file-picker__icon" aria-hidden="true">＋</span>
-        <strong>Choose files</strong>
-        <span>Browse files on your device</span>
+        <strong>{{ i18n.t('scan.chooseFiles') }}</strong>
+        <span>{{ i18n.t('scan.browse') }}</span>
       </label>
       <input
         id="document-file"

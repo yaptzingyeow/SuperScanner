@@ -4,11 +4,11 @@
     <div class="group-buttons">
       @for (t of group.tools; track t.id) {
         <button type="button" [class.on]="tool === t.id" [attr.aria-pressed]="tool === t.id"
-          [disabled]="!pageId" (click)="choose(t)"><app-icon [name]="icons[t.id]" /><span>{{ t.label }}</span></button>
+          [disabled]="!pageId" (click)="choose(t)" [attr.aria-label]="i18n.t('tool.' + t.id)"><app-icon [name]="icons[t.id]" /><span>{{ i18n.t('tool.' + t.id) }}</span></button>
       }
       @if (group.label === 'Text') {
         <button type="button" [class.on]="searchOpen" [attr.aria-expanded]="searchOpen"
-          (click)="searchToggle.emit()"><app-icon name="search" /><span>Search text</span></button>
+          (click)="searchToggle.emit()" [attr.aria-label]="i18n.t('tool.search')"><app-icon name="search" /><span>{{ i18n.t('tool.search') }}</span></button>
       }
     </div>
   </div>
@@ -21,7 +21,7 @@
     <button type="button" class="icon-only" data-testid="redo-edit" title="Redo" aria-label="Redo"
       [disabled]="!history()?.canRedo || historyBusy()" (click)="switchRevision('redo')"><app-icon name="redo" /></button>
     <button type="button" [class.on]="historyOpen()" [attr.aria-expanded]="historyOpen()" [disabled]="!pageId"
-      (click)="toggleHistory()"><app-icon name="history" /><span>History</span></button>
+      (click)="toggleHistory()" [attr.aria-label]="i18n.t('tool.history')"><app-icon name="history" /><span>{{ i18n.t('tool.history') }}</span></button>
   </div>
 </div>
 @if (historyOpen() && history(); as h) {

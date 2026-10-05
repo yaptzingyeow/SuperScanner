@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { EDIT_TOOLS, EditTool, EditToolId, opensInWorkspace } from './edit-tools';
 import { PageEditHistory } from './text-edit.models';
 import { TextEditService } from './text-edit.service';
+import { I18nService } from '../core/i18n/i18n.service';
 import { IconComponent, IconName } from './ui-icon.component';
 
 const TOOL_ICONS: Record<EditToolId, IconName> = {
@@ -54,6 +55,7 @@ export class EditToolbarComponent implements OnChanges {
     label: group.label,
     tools: group.ids.map((id) => EDIT_TOOLS.find((tool) => tool.id === id)!),
   }));
+  protected readonly i18n = inject(I18nService);
   protected readonly history = signal<PageEditHistory | null>(null);
   protected readonly historyOpen = signal(false);
   protected readonly historyBusy = signal(false);

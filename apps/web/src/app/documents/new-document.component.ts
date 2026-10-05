@@ -1,6 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { UploadFlowError, UploadService } from './upload.service';
+import { I18nService } from '../core/i18n/i18n.service';
 
 const SAFE_ERRORS: Record<string, string> = {
   unsupported_type: 'Choose a PDF, JPEG, PNG, or HEIC file.',
@@ -18,6 +19,7 @@ const SAFE_ERRORS: Record<string, string> = {
 })
 export class NewDocumentComponent {
   private readonly uploadService = inject(UploadService);
+  protected readonly i18n = inject(I18nService);
   private readonly router = inject(Router);
   protected readonly title = signal('');
   protected readonly selectedFiles = signal<File[]>([]);
@@ -81,10 +83,15 @@ export class NewDocumentComponent {
     this.fileErrors.set(
       rejected.map((item) => ({
         fileName: item.fileName,
-        message: SAFE_ERRORS[item.errorCode!] ?? SAFE_ERRORS['request_failed'],
+        message: this.safeError(item.errorCode!),
       })),
     );
     return new Set(rejected.flatMap((item) => (item.uploadId ? [item.uploadId] : [])));
+  }
+
+  /** A translated, provider-free message for an upload error code. */
+  private safeError(code: string): string {
+    return code in SAFE_ERRORS ? this.i18n.t(`scan.error.${code}`) : this.i18n.t('scan.error.request_failed');
   }
 
   async submit(): Promise<void> {
@@ -122,7 +129,7 @@ export class NewDocumentComponent {
           ? error.code
           : ((error as { code?: string } | null)?.code ?? 'request_failed');
       this.errorMessage.set(
-        (error instanceof UploadFlowError && error.userMessage) || (SAFE_ERRORS[code] ?? SAFE_ERRORS['request_failed']),
+        (error instanceof UploadFlowError && error.userMessage) || this.safeError(code),
       );
     } finally {
       this.active.set(false);

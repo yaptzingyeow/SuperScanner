@@ -4,6 +4,7 @@ import { Component, computed, inject, OnInit, OnDestroy, signal } from '@angular
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { API_BASE_URL } from '../core/api/security.interceptor';
+import { I18nService } from '../core/i18n/i18n.service';
 
 export interface DocumentSummary {
   id: string;
@@ -28,6 +29,7 @@ export class DocumentListComponent implements OnInit, OnDestroy {
   private destroyed = false;
   ngOnDestroy(): void { this.destroyed = true; clearTimeout(this.refreshTimer); }
   private readonly http = inject(HttpClient);
+  protected readonly i18n = inject(I18nService);
   private readonly router = inject(Router);
   private readonly apiBaseUrl = inject(API_BASE_URL).replace(/\/+$/, '');
 
@@ -60,27 +62,27 @@ export class DocumentListComponent implements OnInit, OnDestroy {
   protected readonly actionError = signal('');
 
   protected async deleteDocument(document: DocumentSummary): Promise<void> {
-    if (!window.confirm(`Delete “${document.title}”? This cannot be undone from the app.`)) return;
+    if (!window.confirm(this.i18n.t('list.deleteConfirm', { title: document.title }))) return;
     this.actionError.set('');
     try {
       await firstValueFrom(this.http.delete(`${this.apiBaseUrl}/documents/${document.id}`));
       this.documents.update((all) => all.filter((item) => item.id !== document.id));
     } catch {
-      this.actionError.set('That document could not be deleted. Please try again.');
+      this.actionError.set(this.i18n.t('list.deleteFailed'));
     }
   }
 
   protected async renameDocument(document: DocumentSummary): Promise<void> {
-    const title = window.prompt('Rename document', document.title)?.trim();
+    const title = window.prompt(this.i18n.t('list.renamePrompt'), document.title)?.trim();
     if (!title || title === document.title) return;
-    if (title.length > 200) { this.actionError.set('A title can have at most 200 characters.'); return; }
+    if (title.length > 200) { this.actionError.set(this.i18n.t('list.titleTooLong')); return; }
     this.actionError.set('');
     try {
       const renamed = await firstValueFrom(
         this.http.patch<DocumentSummary>(`${this.apiBaseUrl}/documents/${document.id}`, { title }));
       this.documents.update((all) => all.map((item) => item.id === document.id ? { ...item, title: renamed.title } : item));
     } catch {
-      this.actionError.set('That document could not be renamed. Please try again.');
+      this.actionError.set(this.i18n.t('list.renameFailed'));
     }
   }
 

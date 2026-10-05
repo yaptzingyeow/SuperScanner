@@ -16,13 +16,13 @@
       @for (t of tabs; track t.id) {
         <button type="button" role="tab" [id]="'workspace-tab-' + t.id"
           [attr.aria-selected]="tab() === t.id" [attr.aria-controls]="'workspace-panel'"
-          [class.active]="tab() === t.id" (click)="selectTab(t.id)"><app-icon [name]="t.icon" /><span>{{ t.label }}</span></button>
+          [class.active]="tab() === t.id" (click)="selectTab(t.id)"><app-icon [name]="t.icon" /><span>{{ i18n.t('workspace.' + t.id) }}</span></button>
       }
     </div>
     <div class="header-actions">
       <button type="button" class="primary" (click)="selectTab('export')">
         <app-icon name="export" />
-        Export PDF
+        {{ i18n.t('workspace.exportPdf') }}
       </button>
     </div>
   </header>

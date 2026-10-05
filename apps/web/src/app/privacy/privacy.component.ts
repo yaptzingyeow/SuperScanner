@@ -4,29 +4,30 @@ import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { API_BASE_URL } from '../core/api/security.interceptor';
 import { AuthService } from '../core/auth/auth.service';
+import { I18nService } from '../core/i18n/i18n.service';
 
 /** The person's own data: download everything, or delete the account. */
 @Component({
   selector: 'app-privacy',
   template: `
     <section class="privacy">
-      <h1>Privacy &amp; your data</h1>
-      <p class="lead">Your documents are private to you. You can take a copy of your data or delete your account at any time.</p>
+      <h1>{{ i18n.t('privacy.title') }}</h1>
+      <p class="lead">{{ i18n.t('privacy.lead') }}</p>
 
       <article class="card">
-        <h2>Download my data</h2>
-        <p>A file with your account details, documents and their recognized text, plan usage and activity.</p>
-        <button type="button" class="primary" data-download-data [disabled]="busy()" (click)="download()">Download my data</button>
+        <h2>{{ i18n.t('privacy.downloadTitle') }}</h2>
+        <p>{{ i18n.t('privacy.downloadBody') }}</p>
+        <button type="button" class="primary" data-download-data [disabled]="busy()" (click)="download()">{{ i18n.t('privacy.downloadButton') }}</button>
       </article>
 
       <article class="card card--danger">
-        <h2>Delete my account</h2>
-        <p>This removes your documents and your sign-in. It cannot be undone from the app.</p>
-        <label>Type <strong>DELETE</strong> to confirm
+        <h2>{{ i18n.t('privacy.deleteTitle') }}</h2>
+        <p>{{ i18n.t('privacy.deleteBody') }}</p>
+        <label>{{ i18n.t('privacy.deleteConfirm') }}
           <input data-delete-confirm autocomplete="off" [value]="confirmText()" (input)="confirmText.set($any($event.target).value)" />
         </label>
         <button type="button" class="danger" data-delete-account [disabled]="busy() || confirmText() !== 'DELETE'"
-          (click)="deleteAccount()">Delete my account</button>
+          (click)="deleteAccount()">{{ i18n.t('privacy.deleteButton') }}</button>
       </article>
 
       @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
@@ -53,6 +54,7 @@ import { AuthService } from '../core/auth/auth.service';
 })
 export class PrivacyComponent {
   private readonly http = inject(HttpClient);
+  protected readonly i18n = inject(I18nService);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly base = inject(API_BASE_URL).replace(/\/+$/, '');
@@ -77,9 +79,9 @@ export class PrivacyComponent {
     try {
       const data = await firstValueFrom(this.http.get(`${this.base}/me/export`));
       this.saveFile(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }), 'arks-scanner-my-data.json');
-      this.notice.set('Your data file has been downloaded.');
+      this.notice.set(this.i18n.t('privacy.downloaded'));
     } catch {
-      this.error.set('We could not prepare your data. Please try again.');
+      this.error.set(this.i18n.t('privacy.downloadFailed'));
     } finally {
       this.busy.set(false);
     }
@@ -96,8 +98,8 @@ export class PrivacyComponent {
       await this.router.navigateByUrl('/');
     } catch (error) {
       this.error.set(error instanceof HttpErrorResponse && error.status === 409
-        ? 'You are the only admin. Add another admin before deleting your account.'
-        : 'Your account could not be deleted. Please try again.');
+        ? this.i18n.t('privacy.lastAdmin')
+        : this.i18n.t('privacy.deleteFailed'));
     } finally {
       this.busy.set(false);
     }

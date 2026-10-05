@@ -3,6 +3,7 @@ import { Component, inject, signal } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../core/auth/auth.service';
 import { PlanService } from '../plans/plan.service';
+import { I18nService, LanguageCode } from '../core/i18n/i18n.service';
 
 @Component({
   selector: 'app-shell',
@@ -14,6 +15,11 @@ export class AppShellComponent {
   protected readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   protected readonly plans = inject(PlanService);
+  protected readonly i18n = inject(I18nService);
+
+  protected chooseLanguage(code: string): void {
+    this.i18n.use(code as LanguageCode);
+  }
   protected readonly menuOpen = signal(false);
 
   constructor() {

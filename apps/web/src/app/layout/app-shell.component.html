@@ -13,33 +13,42 @@
         routerLink="/"
         routerLinkActive="active"
         [routerLinkActiveOptions]="{ exact: true }"
-        aria-label="Scan"
+        [attr.aria-label]="i18n.t('nav.scan')"
       >
         <span class="nav-icon nav-icon--scan" aria-hidden="true">＋</span>
-        <span class="nav-label">Scan</span>
+        <span class="nav-label">{{ i18n.t('nav.scan') }}</span>
       </a>
-      <a routerLink="/documents" routerLinkActive="active" aria-label="My documents">
+      <a routerLink="/documents" routerLinkActive="active" [attr.aria-label]="i18n.t('nav.documents')">
         <span class="nav-icon" aria-hidden="true">▤</span>
-        <span class="nav-label">My documents</span>
+        <span class="nav-label">{{ i18n.t('nav.documents') }}</span>
       </a>
       @if (plans.isAdmin()) {
-        <a routerLink="/admin" routerLinkActive="active" aria-label="Admin" data-admin-link>
+        <a routerLink="/admin" routerLinkActive="active" [attr.aria-label]="i18n.t('nav.admin')" data-admin-link>
           <span class="nav-icon" aria-hidden="true">⚙</span>
-          <span class="nav-label">Admin</span>
+          <span class="nav-label">{{ i18n.t('nav.admin') }}</span>
         </a>
       }
     </nav>
 
     <div class="topbar__actions">
-      <span class="private-state"><span aria-hidden="true">●</span> Private</span>
+      <label class="language">
+        <span class="visually-hidden">{{ i18n.t('nav.language') }}</span>
+        <select data-language [attr.aria-label]="i18n.t('nav.language')" [value]="i18n.language()"
+          (change)="chooseLanguage($any($event.target).value)">
+          @for (language of i18n.languages; track language.code) {
+            <option [value]="language.code" [selected]="language.code === i18n.language()">{{ language.name }}</option>
+          }
+        </select>
+      </label>
+      <span class="private-state"><span aria-hidden="true">●</span> {{ i18n.t('nav.private') }}</span>
       <div class="account-wrap">
         @if ((auth.user$ | async)?.isAnonymous) {
-          <a class="sign-in" routerLink="/login">Sign in</a>
+          <a class="sign-in" routerLink="/login">{{ i18n.t('nav.signIn') }}</a>
         } @else {
           <button
             type="button"
             class="account"
-            aria-label="Open account menu"
+            [attr.aria-label]="i18n.t('nav.openAccount')"
             (click)="toggleMenu()"
           >
             {{ (auth.user$ | async)?.email?.slice(0, 2)?.toUpperCase() || 'ME' }}
@@ -50,11 +59,11 @@
               @if (plans.label()) {
                 <span class="account-menu__plan" data-plan-label>{{ plans.label() }}</span>
                 @if (!plans.label().startsWith('Pro')) {
-                  <button type="button" class="account-menu__upgrade" data-upgrade disabled>Pro is coming soon</button>
+                  <button type="button" class="account-menu__upgrade" data-upgrade disabled>{{ i18n.t('menu.proSoon') }}</button>
                 }
               }
-              <a routerLink="/privacy" (click)="menuOpen.set(false)">Privacy &amp; your data</a>
-              <button type="button" data-sign-out (click)="signOut()">Sign out</button>
+              <a routerLink="/privacy" (click)="menuOpen.set(false)">{{ i18n.t('menu.privacy') }}</a>
+              <button type="button" data-sign-out (click)="signOut()">{{ i18n.t('menu.signOut') }}</button>
             </div>
           }
         }
@@ -65,11 +74,10 @@
   @if (!(auth.user$ | async)?.isAnonymous && plans.needsPrivacyConsent()) {
     <aside class="consent" data-privacy-consent role="region" aria-label="Privacy notice">
       <p>
-        <strong>Your documents are private to you.</strong> We store your scans and their recognized text to run Arks Scanner,
-        use Google services for sign-in and text recognition, and never sell your data. You can download or delete your data at any time.
-        <a routerLink="/privacy">Privacy &amp; your data</a>
+        <strong>{{ i18n.t('consent.title') }}</strong> {{ i18n.t('consent.body') }}
+        <a routerLink="/privacy">{{ i18n.t('menu.privacy') }}</a>
       </p>
-      <button type="button" data-accept-privacy (click)="acceptPrivacy()">I understand</button>
+      <button type="button" data-accept-privacy (click)="acceptPrivacy()">{{ i18n.t('consent.accept') }}</button>
     </aside>
   }
   <main id="main-content">

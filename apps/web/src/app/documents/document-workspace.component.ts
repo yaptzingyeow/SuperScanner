@@ -1,3 +1,4 @@
+import { I18nService } from '../core/i18n/i18n.service';
 import { PlanService } from '../plans/plan.service';
 import { limitMessage, planLimitOf } from '../plans/limit-message';
 import { HttpClient } from '@angular/common/http';
@@ -48,6 +49,7 @@ function asTab(value: string | null): WorkspaceTab {
   styleUrl: './document-workspace.component.scss',
 })
 export class DocumentWorkspaceComponent implements OnInit, OnDestroy {
+  protected readonly i18n = inject(I18nService);
   private readonly http = inject(HttpClient);
   private readonly api = inject(DocumentsApiService);
   private readonly route = inject(ActivatedRoute);
