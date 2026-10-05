@@ -16,9 +16,10 @@ internal static class MagickTextLayout
             style.LetterSpacing > .1 ? style.LetterSpacing : options.MinimumLetterSpacing,
             options.MinimumFontScale), (value, pixels) =>
         {
-            var metrics = new Drawables().Font(fontPath).FontPointSize(pixels)
-                .FontTypeMetrics(value) ?? throw new InvalidDataException("Font metrics are unavailable.");
-            return new TextMeasurement(metrics.TextWidth, metrics.TextHeight);
+            // The box is the OCR ink box, so compare ink with ink: the font's full line height
+            // (ascent + descent) is taller than the printed letters and would shrink every edit.
+            using var ink = DrawInk(value, fontPath, pixels, 0, MagickColors.Black);
+            return new TextMeasurement(ink.Width, ink.Height);
         });
         if (!fit.Fits) return fit;
         var bounds = PixelBounds(box, width, height);
@@ -48,8 +49,16 @@ internal static class MagickTextLayout
         TextLayoutResult fit, int height)
     {
         var pixels = fit.FontSize * height;
+        return DrawInk(text, fontPath, pixels, fit.LetterSpacing * pixels, new MagickColor(style.ColorHex),
+            style.AngleDegrees);
+    }
+
+    /// <summary>The text's actual ink, trimmed of transparent padding (optionally rotated).</summary>
+    private static MagickImage DrawInk(string text, string fontPath, double pixels, double kerning, MagickColor color,
+        double angleDegrees = 0)
+    {
         var metrics = new Drawables().Font(fontPath).FontPointSize(pixels)
-            .TextKerning(fit.LetterSpacing * pixels).FontTypeMetrics(text)
+            .TextKerning(kerning).FontTypeMetrics(text)
             ?? throw new InvalidDataException("Text metrics are unavailable.");
         var padding = (int)Math.Ceiling(pixels) + 8;
         var tile = new MagickImage(MagickColors.Transparent,
@@ -58,10 +67,10 @@ internal static class MagickTextLayout
         try
         {
             new Drawables().Font(fontPath).FontPointSize(pixels)
-                .TextKerning(fit.LetterSpacing * pixels).FillColor(new MagickColor(style.ColorHex))
+                .TextKerning(kerning).FillColor(color)
                 .Text(padding, padding + metrics.Ascent, text).Draw(tile);
             tile.BackgroundColor = MagickColors.Transparent;
-            if (Math.Abs(style.AngleDegrees) > .001) tile.Rotate(style.AngleDegrees);
+            if (Math.Abs(angleDegrees) > .001) tile.Rotate(angleDegrees);
             tile.Trim();
             return tile;
         }

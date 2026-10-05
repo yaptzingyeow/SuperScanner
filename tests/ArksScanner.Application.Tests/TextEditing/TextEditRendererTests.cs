@@ -70,6 +70,56 @@ public sealed class TextEditRendererTests
     }
 
     [Fact]
+    public async Task Replacement_keeps_the_original_letter_height_in_a_tight_ocr_box()
+    {
+        var root = RootDirectory();
+        var font = Path.Combine(root, "assets", "fonts", "LiberationSans-Regular.ttf");
+        using var source = new MagickImage(MagickColors.White, 1000, 300);
+        new Drawables().Font(font).FontPointSize(53).FillColor(MagickColors.Black).Text(100, 160, "RM 1,500").Draw(source);
+        var before = InkBox(source, 0, 0, 1000, 300);
+        static double nx(int x) => x / 1000.0;
+        static double ny(int y) => y / 300.0;
+        var request = new TextEditRenderRequest(source.ToByteArray(MagickFormat.Png),
+            [new OcrPoint[] { new(nx(before.Left - 3), ny(before.Top - 3)), new(nx(before.Right + 3), ny(before.Top - 3)),
+                new(nx(before.Right + 3), ny(before.Bottom + 3)), new(nx(before.Left - 3), ny(before.Bottom + 3)) }],
+            [], new NormalizedBox(nx(before.Left - 6), ny(before.Top - 6), nx(before.Right - before.Left + 12),
+                ny(before.Bottom - before.Top + 12)),
+            "RM 1,800", new TextEditStyle("liberation-sans", "liberation-2-1-5-regular", 53 / 300.0, 400,
+                "#000000", 0, .75, 0, TextAlignment.Left),
+            TextEditRenderer.RendererVersion, TextLayoutEngine.LayoutVersion);
+
+        var result = await CreateRenderer().RenderAsync(request, default);
+
+        Assert.Null(result.FailureCode);
+        using var output = new MagickImage(result.Output!);
+        var after = InkBox(output, before.Left - 8, before.Top - 8, before.Right + 8, before.Bottom + 8);
+        Assert.InRange(after.Bottom - after.Top, (before.Bottom - before.Top) * .93, (before.Bottom - before.Top) * 1.07);
+        Assert.InRange(after.Top, before.Top - 3, before.Top + 3);
+    }
+
+    private static (int Left, int Top, int Right, int Bottom) InkBox(MagickImage image, int x0, int y0, int x1, int y1)
+    {
+        var width = (int)image.Width;
+        var rgb = image.GetPixels().ToByteArray(PixelMapping.RGB)!;
+        int left = int.MaxValue, top = int.MaxValue, right = -1, bottom = -1;
+        for (var y = Math.Max(0, y0); y < Math.Min((int)image.Height, y1); y++)
+        for (var x = Math.Max(0, x0); x < Math.Min(width, x1); x++)
+        {
+            if (rgb[(y * width + x) * 3] > 128) continue;
+            left = Math.Min(left, x); right = Math.Max(right, x); top = Math.Min(top, y); bottom = Math.Max(bottom, y);
+        }
+        return (left, top, right, bottom);
+    }
+
+    private static string RootDirectory()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "ArksScanner.slnx")))
+            directory = directory.Parent;
+        return directory?.FullName ?? throw new DirectoryNotFoundException();
+    }
+
+    [Fact]
     public async Task Same_source_and_edit_produce_byte_identical_png()
     {
         var renderer = CreateRenderer();
