@@ -1,4 +1,5 @@
 import {
+  afterNextRender,
   Component, DestroyRef, ElementRef, afterRenderEffect, effect, inject, input, linkedSignal, output, signal,
   computed, untracked, viewChild,
 } from '@angular/core';
@@ -89,6 +90,11 @@ export class PageViewerComponent {
   private destroyed = false;
 
   constructor() {
+    // On a narrow screen, start with the whole page width visible instead of cutting it off.
+    afterNextRender(() => {
+      const width = this.canvas()?.nativeElement.clientWidth ?? 0;
+      if (width > 0 && width < BASE_PAGE_WIDTH * this.effectiveZoom() / 100) this.fitWidth();
+    });
     inject(DestroyRef).onDestroy(() => {
       this.destroyed = true;
       for (const url of Object.values(this.urls())) URL.revokeObjectURL(url);

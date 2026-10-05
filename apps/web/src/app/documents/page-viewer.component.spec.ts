@@ -99,6 +99,28 @@ describe('PageViewerComponent', () => {
     expect(fixture.componentInstance.effectiveZoom()).toBe(25);
   });
 
+  it('starts at fit width when the page would be wider than a narrow screen', async () => {
+    const width = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth');
+    Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => 320 });
+    const emitted: number[] = [];
+    fixture.componentInstance.zoomChange.subscribe((z) => emitted.push(z));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    if (width) Object.defineProperty(HTMLElement.prototype, 'clientWidth', width);
+    expect(emitted.at(-1)).toBe(50);
+  });
+
+  it('keeps the chosen zoom when the page already fits', async () => {
+    const width = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth');
+    Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => 1200 });
+    const emitted: number[] = [];
+    fixture.componentInstance.zoomChange.subscribe((z) => emitted.push(z));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    if (width) Object.defineProperty(HTMLElement.prototype, 'clientWidth', width);
+    expect(emitted).toEqual([]);
+  });
+
   it('fit width sets the zoom from the container width', () => {
     fixture.detectChanges();
     const canvas = fixture.nativeElement.querySelector('.canvas') as HTMLElement;

@@ -24,3 +24,15 @@
   padding: 1px 7px; border-radius: 999px; background: #fff1e0; color: #8a4b0f;
   font-size: 10.5px; font-weight: 600;
 }
+
+// Responsive rules live here so every component using the toolbar (incl. the edit toolbar) gets them.
+@media (max-width: 1100px), (max-height: 820px) {
+  .group-label { display: none; }
+  .group { padding-left: 4px; }
+}
+@media (max-width: 600px) {
+  .group-buttons button > span:not(.badge) {
+    position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+  }
+  .group-buttons button { padding: 0 9px; }
+}

@@ -54,9 +54,14 @@ h1 {
   &:focus-visible { outline: 2px solid #1e6b50; outline-offset: 2px; }
 }
 
+/* One row of tool groups: centred when it fits, scrolls sideways (never wraps or clips) when it does not. */
 .toolbar {
-  flex-shrink: 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+  flex-shrink: 0; display: flex; flex-wrap: nowrap; align-items: center; overflow-x: auto;
   gap: 10px; padding: 10px 24px; background: #f8f8f4; border-bottom: 1px solid #e3e5df;
+  scrollbar-width: thin;
+  > * { flex-shrink: 0; }
+  > :first-child { margin-left: auto; }
+  > :last-child { margin-right: auto; }
 }
 .zoom-value { min-width: 48px; text-align: center; font-size: 13px; font-weight: 600; color: #2b3530; }
 .badge { margin-left: 2px; }
@@ -119,13 +124,33 @@ app-page-rail { flex-shrink: 0; height: 100%; }
 }
 .loading { margin: auto; color: #5b6660; }
 
+/* Smaller laptops: drop group captions so every toolbar is a single short row. */
+@media (max-width: 1100px), (max-height: 820px) {
+  .toolbar { gap: 6px; padding: 6px 16px; }
+}
+
 @media (max-width: 900px) {
-  .workspace-header { grid-template-columns: 1fr; padding: 8px 16px; }
-  .tabs { justify-self: start; }
-  .header-actions { justify-content: flex-start; }
-  .toolbar { justify-content: flex-start; padding: 4px 16px; }
+  /* Title and tabs share one row; the Export tab replaces the duplicate header button. */
+  .workspace-header { grid-template-columns: minmax(0, 1fr) auto; min-height: 56px; gap: 10px; padding: 6px 12px; }
+  .header-actions, .doc-badge { display: none; }
+  .toolbar { padding: 4px 12px; }
   .body { flex-wrap: wrap; overflow: auto; }
   app-page-rail { height: auto; }
   .canvas { flex-basis: 0; min-height: 50vh; }
   .side-panel { width: 100%; flex-basis: 100%; border-left: none; border-top: 1px solid #dcddd6; overflow: visible; }
+}
+
+/* Phones: icon-only tools (names stay available to screen readers), pages strip above the page. */
+@media (max-width: 600px) {
+  .identity { gap: 8px; }
+  .back { width: 34px; height: 34px; }
+  h1 { font-size: 16px; }
+  .meta { display: none; }
+  .tabs button { height: 34px; padding: 0 10px; gap: 6px; font-size: 13px; }
+  .tabs button app-icon { display: none; }
+  /* The edit help repeats the toolbar; on a phone the page needs the room. */
+  .side-panel[data-slot="edit-panel"] { display: none; }
+  .body { flex-direction: column; flex-wrap: nowrap; overflow: hidden; }
+  app-page-rail { height: auto; width: 100%; }
+  .canvas { flex: 1 1 auto; min-height: 0; }
 }
