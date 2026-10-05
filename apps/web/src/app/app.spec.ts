@@ -1,10 +1,12 @@
 import { TestBed } from '@angular/core/testing';
+import { provideRouter, Router } from '@angular/router';
 import { App } from './app';
 
 describe('App', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [App],
+      providers: [provideRouter([{ path: '', children: [] }])],
     }).compileComponents();
   });
 
@@ -20,5 +22,15 @@ describe('App', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('router-outlet')).not.toBeNull();
     expect(compiled.textContent).not.toContain('Congratulations');
+  });
+
+  it('shows a branded loading screen until the first page has loaded', async () => {
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).querySelector('[data-app-loading]')?.textContent).toContain('Arks Scanner');
+
+    await TestBed.inject(Router).navigateByUrl('/');
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).querySelector('[data-app-loading]')).toBeNull();
   });
 });

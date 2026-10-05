@@ -2,3 +2,17 @@
   display: block;
   min-height: 100dvh;
 }
+
+/* Same look as the splash in index.html, shown until the first page is ready. */
+.app-loading {
+  position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 12px; background: #f6f5f1; color: #1b2420; font-family: system-ui, sans-serif;
+  strong { font-size: 20px; letter-spacing: .01em; }
+}
+.app-loading__spinner {
+  width: 26px; height: 26px; border: 3px solid #d3e8dd; border-top-color: #1e6b50; border-radius: 50%;
+  animation: app-loading-spin .9s linear infinite;
+}
+.app-loading__text { font-size: 13px; color: #6b766f; }
+@keyframes app-loading-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .app-loading__spinner { animation: none; } }
