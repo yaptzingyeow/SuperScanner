@@ -63,7 +63,8 @@ public sealed class TextStyleEstimator(
             Math.Atan2((word.Polygon[1].Y - word.Polygon[0].Y) * height,
                 (word.Polygon[1].X - word.Polygon[0].X) * width) * 180 / Math.PI);
         angle = Math.Clamp(angle, -45, 45);
-        var phrase = string.Join(' ', words.Select(word => word.Text));
+        // OCR word text keeps trailing spaces and line breaks; compare against the printed phrase only.
+        var phrase = string.Join(' ', words.Select(word => word.Text.Trim()).Where(text => text.Length > 0));
         var ink = foreground is null ? null
             : InkShape.Measure(rgb, cropWidth, cropHeight, Luma(background), Luma(foreground.Value));
         var (candidates, fontSize) = ink is { Height: > 2, Width: > 2 }

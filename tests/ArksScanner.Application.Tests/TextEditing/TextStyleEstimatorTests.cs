@@ -65,7 +65,9 @@ public sealed class TextStyleEstimatorTests
         var png = await File.ReadAllBytesAsync(Path.Combine(folder, "scanned-arial-rm-1500.png"));
         using var json = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(folder, "scanned-arial-rm-1500.json")));
         var words = json.RootElement.EnumerateArray().Select((word, i) => OcrElement.Create(Guid.NewGuid(), Guid.NewGuid(),
-            Guid.NewGuid(), OcrElementKind.Word, word.GetProperty("text").GetString()!, .98, OcrTextType.Printed, i + 1,
+            Guid.NewGuid(), OcrElementKind.Word,
+            // Google OCR word text keeps its trailing break ("RM ", "1,500" + newline); the estimator must cope.
+            word.GetProperty("text").GetString()! + (i == 0 ? " " : Environment.NewLine), .98, OcrTextType.Printed, i + 1,
             word.GetProperty("polygon").EnumerateArray().Select(p => new OcrPoint(p.GetProperty("x").GetDouble(),
                 p.GetProperty("y").GetDouble())).ToArray())).ToArray();
         var estimator = new TextStyleEstimator(new Store(png),
