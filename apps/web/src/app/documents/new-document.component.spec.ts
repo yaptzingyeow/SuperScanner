@@ -36,6 +36,14 @@ describe('NewDocumentComponent', () => {
     fixture.detectChanges();
   });
 
+  it('explains that the title is optional and comes from the file name', () => {
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('label[for="document-title"]')?.textContent).toContain('(optional)');
+    expect(el.querySelector('#document-title-hint')?.textContent)
+      .toContain('Type a name before choosing files, or rename it later from My documents.');
+    expect(el.querySelector('#document-title')?.getAttribute('aria-describedby')).toBe('document-title-hint');
+  });
+
   it('shows the selected file name and size', () => {
     fixture.componentInstance.selectFile(
       new File(['%PDF-1.7'], 'application.pdf', { type: 'application/pdf' }),

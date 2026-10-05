@@ -7,9 +7,14 @@
     </header>
 
     <form (submit)="$event.preventDefault(); submit()">
-      <label for="document-title">Document title</label>
+      <label for="document-title">Document title <span class="optional">(optional)</span></label>
+      <p id="document-title-hint" class="field-hint">
+        Uploading starts as soon as you choose files, and the file name is used as the title.
+        Type a name before choosing files, or rename it later from My documents.
+      </p>
       <input
         id="document-title"
+        aria-describedby="document-title-hint"
         type="text"
         maxlength="200"
         autocomplete="off"
