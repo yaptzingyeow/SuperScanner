@@ -33,16 +33,39 @@ public sealed class TextEditingEndpointsTests
         var json = await response.Content.ReadAsStringAsync();
         using var document = System.Text.Json.JsonDocument.Parse(json);
         var faces = document.RootElement.EnumerateArray().ToArray();
-        Assert.Equal(20, faces.Select(face => face.GetProperty("familyName").GetString()).Distinct().Count());
+        Assert.Equal(30, faces.Select(face => face.GetProperty("familyName").GetString()).Distinct().Count());
         Assert.All(faces, face =>
         {
             Assert.True(face.GetProperty("enabled").GetBoolean());
-            Assert.StartsWith("/assets/fonts/", face.GetProperty("webAssetUrl").GetString());
+            Assert.Matches(@"^/(assets|api)/fonts/[A-Za-z0-9-]+\.ttf$", face.GetProperty("webAssetUrl").GetString());
             Assert.True(face.GetProperty("weight").GetInt32() is 400 or 700);
+            Assert.NotEmpty(face.GetProperty("scripts").EnumerateArray());
         });
+        var chinese = faces.Single(face => face.GetProperty("catalogueId").GetString() == "noto-sans-sc");
+        Assert.Equal("/api/fonts/NotoSansSC-Regular.ttf", chinese.GetProperty("webAssetUrl").GetString());
+        Assert.Contains("Hans", chinese.GetProperty("scripts").EnumerateArray().Select(s => s.GetString()));
         Assert.DoesNotContain("rendererAssetPath", json);
         Assert.DoesNotContain("assetSha256Hex", json);
         Assert.DoesNotContain("licenseNoticePath", json);
+    }
+
+    [Fact]
+    public async Task World_script_fonts_are_served_only_from_the_catalogue_to_signed_in_users()
+    {
+        await using var factory = Factory(enabled: true);
+        using var anonymous = Client(factory, authenticated: false);
+        using var client = Client(factory);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync("/api/fonts/NotoSansThai-Regular.ttf")).StatusCode);
+
+        var font = await client.GetAsync("/api/fonts/NotoSansThai-Regular.ttf");
+
+        Assert.Equal(HttpStatusCode.OK, font.StatusCode);
+        Assert.Equal("font/ttf", font.Content.Headers.ContentType?.MediaType);
+        Assert.Contains("max-age", font.Headers.CacheControl?.ToString());
+        Assert.True((await font.Content.ReadAsByteArrayAsync()).Length > 10_000);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/api/fonts/LiberationSans-Regular.ttf")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/api/fonts/..%2Fmanifest.json")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/api/fonts/Nope.ttf")).StatusCode);
     }
 
     private static readonly Guid DocumentId = Guid.NewGuid();

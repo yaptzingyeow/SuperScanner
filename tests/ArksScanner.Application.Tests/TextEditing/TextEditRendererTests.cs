@@ -120,6 +120,30 @@ public sealed class TextEditRendererTests
     }
 
     [Fact]
+    public async Task Refuses_a_font_that_cannot_draw_the_replacement_script()
+    {
+        var result = await CreateRenderer().RenderAsync(Request() with { ReplacementText = "租金" }, default);
+
+        Assert.Equal("text_edit_font_unsupported", result.FailureCode);
+        Assert.Null(result.Output);
+    }
+
+    [Fact]
+    public async Task Draws_chinese_with_a_font_that_covers_it()
+    {
+        var request = Request() with
+        {
+            ReplacementText = "租金",
+            Style = new TextEditStyle("noto-sans-sc", "gfonts-23e54b51-regular", .05, 400, "#142435", 0, .5, 0, TextAlignment.Center),
+        };
+
+        var result = await CreateRenderer().RenderAsync(request, default);
+
+        Assert.Null(result.FailureCode);
+        Assert.Contains(true, result.ChangedPixelMask!);
+    }
+
+    [Fact]
     public async Task Same_source_and_edit_produce_byte_identical_png()
     {
         var renderer = CreateRenderer();

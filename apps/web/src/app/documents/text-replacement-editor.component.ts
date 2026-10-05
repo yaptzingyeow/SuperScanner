@@ -1,4 +1,4 @@
-import { Component, HostListener, OnDestroy, OnInit, computed, input, output, signal, inject } from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit, computed, effect, input, output, signal, inject, untracked } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { TextEditService } from './text-edit.service';
@@ -9,6 +9,7 @@ import { fitSingleLine } from './text-fit';
 import { OcrPoint } from './document.models';
 import { FontCatalogueService } from './font-catalogue.service';
 import { FontFaceEntry } from './font-catalogue.models';
+import { coversText } from './text-scripts';
 
 @Component({
   selector: 'app-text-replacement-editor',
@@ -34,8 +35,29 @@ export class TextReplacementEditorComponent implements OnInit, OnDestroy {
   protected readonly fontCategories = ['SansSerif', 'Serif', 'Monospace', 'Handwriting'] as const;
   protected readonly visibleFontFamilies = computed(() => {
     const search = this.fontSearch().trim().toLowerCase();
-    return this.fontFaces().filter((face) => face.weight === 400 &&
+    const text = this.replacement();
+    return this.fontFaces().filter((face) => face.weight === 400 && coversText(face.scripts, text) &&
       (!search || face.familyName.toLowerCase().includes(search)));
+  });
+  /** No installed font has glyphs for every typed character (e.g. a script not bundled yet). */
+  protected readonly noFontForText = computed(() => this.fontFaces().length > 0 &&
+    !this.fontFaces().some((face) => coversText(face.scripts, this.replacement())));
+  protected readonly scriptNotice = signal('');
+  // When typed characters need a script the chosen font lacks, switch to one that has it.
+  private readonly followScript = effect(() => {
+    const text = this.replacement();
+    const faces = this.fontFaces();
+    const current = untracked(() => this.style());
+    if (!current || !faces.length) return;
+    const chosen = faces.find((face) => face.catalogueId === current.fontId && face.version === current.fontVersion);
+    if (!chosen || coversText(chosen.scripts, text)) return;
+    const next = faces.find((face) => face.weight === 400 && face.category === chosen.category && coversText(face.scripts, text))
+      ?? faces.find((face) => face.weight === 400 && coversText(face.scripts, text));
+    if (!next) return;
+    untracked(() => {
+      this.chooseFont(next.catalogueId);
+      this.scriptNotice.set(`Switched to ${next.familyName} so these characters can be written.`);
+    });
   });
   protected readonly fontWeights = computed(() => this.fontFaces()
     .filter((face) => face.catalogueId === this.style()?.fontId)
@@ -365,7 +387,9 @@ export class TextReplacementEditorComponent implements OnInit, OnDestroy {
     } catch (error) {
       if (this.destroyed) return;
       const code = await this.errorCode(error);
-      this.status.set(code === 'text_edit_unsafe_background'
+      this.status.set(code === 'text_edit_font_unsupported'
+        ? 'This font cannot write some of these characters. Choose a font for this language.'
+        : code === 'text_edit_unsafe_background'
         ? 'We could not clear the original ink without risking other page content. Select different words. Your page is unchanged.'
         : code === 'text_edit_placement_overlap'
           ? 'The new letters would cover nearby text. Move or resize the transparent placement box, or use a smaller font.'
@@ -459,6 +483,8 @@ export class TextReplacementEditorComponent implements OnInit, OnDestroy {
             ? 'We could not clear the original ink without risking other page content. Try a different word selection. The previous page is unchanged.'
             : result.failureCode === 'text_edit_placement_overlap'
               ? 'The new letters would cover nearby text. Move or resize the transparent placement box, or use a smaller font. The previous page is unchanged.'
+            : result.failureCode === 'text_edit_font_unsupported'
+              ? 'This font cannot write some of these characters. Choose a font for this language and try again. The previous page is unchanged.'
             : result.failureCode === 'text_edit_font_unavailable'
               ? 'This font is unavailable for rendering. Choose another font and try again. The previous page is unchanged.'
               : 'Rendering failed. The previous page is unchanged.');

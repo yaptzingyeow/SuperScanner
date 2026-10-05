@@ -55,6 +55,9 @@
         </label> }
         @if (mode() !== 'delete') {
         @if (warning()) { <p class="warning" role="status">{{ warning() }}</p> }
+        @if (noFontForText()) {
+          <p class="warning" role="status">No installed font can write these characters yet. Remove them or contact support.</p>
+        } @else if (scriptNotice()) { <p class="notice" role="status">{{ scriptNotice() }}</p> }
         @if (overflow() && isDirty()) { <p class="warning" role="status">This text may need more space. Apply will check the exact fit before changing your page.</p> }
         <label>Search fonts
           <input aria-label="Search fonts" type="search" [ngModel]="fontSearch()"
@@ -108,7 +111,7 @@
         <div class="actions">
           <button type="button" data-testid="cancel-edit" [disabled]="submitting()" (click)="cancel()">Cancel</button>
           <button type="button" data-testid="preview-edit"
-            [disabled]="submitting() || previewing() || (mode() !== 'delete' && !replacement().trim())"
+            [disabled]="submitting() || previewing() || noFontForText() || (mode() !== 'delete' && !replacement().trim())"
             (click)="preview()">{{ previewing() ? 'Rendering…' : 'Preview exact result' }}</button>
           <button type="button" data-testid="apply-edit" class="primary"
             [disabled]="submitting() || previewing() || done() || !canApplyPreview()"

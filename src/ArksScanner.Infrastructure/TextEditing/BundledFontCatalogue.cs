@@ -8,6 +8,10 @@ public interface IFontCatalogue
 {
     IReadOnlyList<FontCatalogueEntry> Entries { get; }
     FontCatalogueEntry Get(string catalogueId, string version);
+    /// <summary>ISO 15924 scripts the face has glyphs for (empty = Latin only).</summary>
+    IReadOnlyList<string> ScriptsOf(FontCatalogueEntry entry) => [];
+    /// <summary>True when the API, not the web bundle, serves the font file to browsers.</summary>
+    bool ServedByApi(FontCatalogueEntry entry) => false;
 }
 
 public sealed class BundledFontCatalogue : IFontCatalogue
@@ -38,6 +42,8 @@ public sealed class BundledFontCatalogue : IFontCatalogue
         using var document = JsonDocument.Parse(File.ReadAllText(fullManifestPath));
         var faces = document.RootElement.GetProperty("faces");
         var entries = new List<FontCatalogueEntry>();
+        var scripts = new Dictionary<(string, string), IReadOnlyList<string>>();
+        var servedByApi = new HashSet<(string, string)>();
         foreach (var face in faces.EnumerateArray())
         {
             string Field(string name) => face.GetProperty(name).GetString()
@@ -62,6 +68,10 @@ public sealed class BundledFontCatalogue : IFontCatalogue
                 !File.ReadAllText(noticePath)
                     .Contains("SIL OPEN FONT LICENSE Version 1.1", StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("Bundled font licence is invalid.");
+            var key = (Field("catalogueId"), Field("version"));
+            scripts[key] = face.TryGetProperty("scripts", out var list)
+                ? list.EnumerateArray().Select(item => item.GetString()!).ToArray() : [];
+            if (face.TryGetProperty("webDelivery", out var delivery) && delivery.GetString() == "api") servedByApi.Add(key);
             entries.Add(FontCatalogueEntry.Create(
                 Guid.NewGuid(), Field("catalogueId"), Field("version"), Field("displayName"),
                 Field("familyName"), expectedHash, license, webPath, assetPath,
@@ -74,6 +84,15 @@ public sealed class BundledFontCatalogue : IFontCatalogue
         }
         if (entries.Count == 0 || entries.Select(entry => (entry.CatalogueId, entry.Version)).Distinct().Count() != entries.Count)
             throw new InvalidOperationException("Font manifest is empty or contains duplicate faces.");
-        return new BundledFontCatalogue(entries);
+        return new BundledFontCatalogue(entries) { scriptsByKey = scripts, apiServed = servedByApi };
     }
+
+    private IReadOnlyDictionary<(string, string), IReadOnlyList<string>> scriptsByKey =
+        new Dictionary<(string, string), IReadOnlyList<string>>();
+    private IReadOnlySet<(string, string)> apiServed = new HashSet<(string, string)>();
+
+    public IReadOnlyList<string> ScriptsOf(FontCatalogueEntry entry) =>
+        scriptsByKey.TryGetValue((entry.CatalogueId, entry.Version), out var list) ? list : [];
+
+    public bool ServedByApi(FontCatalogueEntry entry) => apiServed.Contains((entry.CatalogueId, entry.Version));
 }

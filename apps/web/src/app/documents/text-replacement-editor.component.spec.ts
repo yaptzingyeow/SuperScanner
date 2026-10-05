@@ -33,6 +33,9 @@ describe('TextReplacementEditorComponent', () => {
       { catalogueId: 'carlito', version: 'v1-regular', familyName: 'Carlito',
         category: 'SansSerif', weight: 400, webFamilyName: 'ArksScanner Carlito v1',
         webAssetUrl: '/assets/fonts/Carlito-Regular.ttf', enabled: true },
+      { catalogueId: 'noto-sans-sc', version: 'v1-regular', familyName: 'Noto Sans SC',
+        category: 'SansSerif', weight: 400, webFamilyName: 'ArksScanner Noto Sans SC v1',
+        webAssetUrl: '/api/fonts/NotoSansSC-Regular.ttf', enabled: true, scripts: ['Latn', 'Hani', 'Hans'] },
     ]), loadFace: vi.fn().mockResolvedValue(undefined) };
     const api = {
       propose: vi.fn().mockResolvedValue({ ...proposal, ...override }),
@@ -137,7 +140,7 @@ describe('TextReplacementEditorComponent', () => {
     const { fixture, api } = await setup(undefined, 'add');
     const font = fixture.nativeElement.querySelector('select[aria-label="Font"]') as HTMLSelectElement;
     expect([...font.options].map((option) => option.textContent?.trim()))
-      .toEqual(['Noto Sans', 'Carlito', 'Noto Serif']);
+      .toEqual(['Noto Sans', 'Carlito', 'Noto Sans SC', 'Noto Serif']);
     expect(font.value).toBe('noto-sans');
     const weight = fixture.nativeElement.querySelector('select[aria-label="Weight"]') as HTMLSelectElement;
     weight.value = weight.options[1].value;
@@ -176,6 +179,36 @@ describe('TextReplacementEditorComponent', () => {
     field.dispatchEvent(new Event('input', { bubbles: true }));
     fixture.detectChanges();
     expect(el.textContent).toContain('check the exact fit');
+  });
+
+  it('switches to a font that can write newly typed characters and lists only those fonts', async () => {
+    const { fixture } = await setup();
+    const el = fixture.nativeElement as HTMLElement;
+    const field = el.querySelector('[aria-label="Replacement text"]') as HTMLInputElement;
+
+    field.value = '租金 1,500';
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const font = el.querySelector('select[aria-label="Font"]') as HTMLSelectElement;
+    expect([...font.options].map((o) => o.textContent!.trim())).toEqual(['Noto Sans SC']);
+    expect(font.value).toBe('noto-sans-sc');
+    expect(el.textContent).toContain('Switched to Noto Sans SC so these characters can be written.');
+  });
+
+  it('explains when no installed font can write the typed characters', async () => {
+    const { fixture } = await setup();
+    const el = fixture.nativeElement as HTMLElement;
+    const field = el.querySelector('[aria-label="Replacement text"]') as HTMLInputElement;
+
+    field.value = 'สวัสดี';
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+    fixture.detectChanges();
+
+    expect(el.textContent).toContain('No installed font can write these characters yet.');
+    expect((el.querySelector('[data-testid="preview-edit"]') as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('shows a readable pixel font size and converts edits back to the stored ratio', async () => {

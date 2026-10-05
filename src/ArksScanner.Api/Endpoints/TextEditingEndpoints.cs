@@ -22,7 +22,25 @@ public static class TextEditingEndpoints
                 .Select(face => new FontCatalogueDto(
                     face.CatalogueId, face.Version, face.DisplayName, face.FamilyName,
                     face.Category.ToString(), face.Weight, face.Style.ToString(),
-                    face.WebFamilyName, "/" + face.WebAssetPath.Replace('\\', '/'), true)));
+                    face.WebFamilyName,
+                    catalogue.ServedByApi(face)
+                        ? "/api/fonts/" + Path.GetFileName(face.WebAssetPath)
+                        : "/" + face.WebAssetPath.Replace('\\', '/'),
+                    true, catalogue.ScriptsOf(face))));
+        }).RequireAuthorization();
+
+        // Large world-script fonts are kept once on the server and streamed on demand.
+        endpoints.MapGet("/api/fonts/{file}", (string file, IFontCatalogue catalogue, IWebHostEnvironment environment,
+            HttpContext context) =>
+        {
+            var face = catalogue.Entries.FirstOrDefault(entry => entry.Enabled && catalogue.ServedByApi(entry) &&
+                string.Equals(Path.GetFileName(entry.RendererAssetPath), file, StringComparison.Ordinal));
+            if (face is null) return Results.NotFound();
+            var path = Path.Combine(environment.ContentRootPath, face.RendererAssetPath);
+            if (!File.Exists(path)) path = Path.Combine(AppContext.BaseDirectory, face.RendererAssetPath);
+            if (!File.Exists(path)) return Results.NotFound();
+            context.Response.Headers.CacheControl = "private, max-age=2592000, immutable";
+            return Results.File(path, "font/ttf");
         }).RequireAuthorization();
 
         var group = endpoints
@@ -55,7 +73,7 @@ public static class TextEditingEndpoints
 
     public sealed record FontCatalogueDto(string CatalogueId, string Version,
         string DisplayName, string FamilyName, string Category, int Weight,
-        string Style, string WebFamilyName, string WebAssetUrl, bool Enabled);
+        string Style, string WebFamilyName, string WebAssetUrl, bool Enabled, IReadOnlyList<string> Scripts);
 
     private static async Task<IResult> ProposeAsync(
         Guid documentId,

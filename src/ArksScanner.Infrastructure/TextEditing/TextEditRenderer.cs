@@ -1,3 +1,4 @@
+using ArksScanner.Application.TextEditing;
 using System.Security.Cryptography;
 using ImageMagick;
 using ImageMagick.Drawing;
@@ -107,6 +108,9 @@ public sealed class TextEditRenderer(
         catch (KeyNotFoundException) { return Task.FromResult(Fail("text_edit_font_unavailable")); }
         if (!font.SupportsWeight(request.Style.Weight))
             return Task.FromResult(Fail("text_edit_font_unavailable"));
+        // Never draw empty boxes: the font must have glyphs for every script in the new text.
+        if (!TextScripts.Covers(catalogue.ScriptsOf(font), request.ReplacementText))
+            return Task.FromResult(Fail("text_edit_font_unsupported"));
         var fontPath = Path.GetFullPath(Path.Combine(fontRoot, font.RendererAssetPath));
         var expectedRoot = Path.GetFullPath(Path.Combine(fontRoot, "assets/fonts")) +
             Path.DirectorySeparatorChar;

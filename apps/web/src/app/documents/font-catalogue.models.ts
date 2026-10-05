@@ -9,4 +9,6 @@ export interface FontFaceEntry {
   webFamilyName: string;
   webAssetUrl: string;
   enabled: boolean;
+  /** ISO 15924 scripts the font can draw (absent = Latin only). */
+  scripts?: string[];
 }

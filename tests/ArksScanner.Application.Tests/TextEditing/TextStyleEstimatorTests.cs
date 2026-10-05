@@ -81,6 +81,22 @@ public sealed class TextStyleEstimatorTests
         Assert.InRange(estimate.FontSizePoints, 48, 58);
     }
 
+    [Fact]
+    public async Task Only_suggests_fonts_that_can_draw_the_selected_script()
+    {
+        var root = RepositoryRoot();
+        var (png, box) = Render("每月租金 1,500", Path.Combine(root, "assets", "fonts", "NotoSansSC-Regular.ttf"), 48);
+        var catalogue = BundledFontCatalogue.Load(Path.Combine(root, "assets", "fonts", "manifest.json"));
+        var estimator = new TextStyleEstimator(new Store(png), catalogue, root);
+
+        var estimate = await estimator.EstimateAsync("page.png", [Word("每月租金 1,500", box)], default);
+
+        Assert.NotEmpty(estimate.Candidates);
+        Assert.All(estimate.Candidates, candidate =>
+            Assert.Contains("Hani", catalogue.ScriptsOf(catalogue.Get(candidate.CatalogueId, candidate.Version))));
+        Assert.InRange(estimate.FontSizePoints, 48 * .9, 48 * 1.1);
+    }
+
     /// <summary>Draws black text on white and returns the ink box padded the way OCR word boxes are.</summary>
     private static (byte[] Png, (double X0, double Y0, double X1, double Y1) Box) Render(string text, string font, double size, int pad = 9)
     {

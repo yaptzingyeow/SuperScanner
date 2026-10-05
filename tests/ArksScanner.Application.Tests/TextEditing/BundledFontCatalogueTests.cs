@@ -20,9 +20,12 @@ public sealed class BundledFontCatalogueTests
         {
             var bytes = File.ReadAllBytes(Path.Combine(root, entry.RendererAssetPath));
             Assert.Equal(entry.AssetSha256Hex, Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant());
-            var webBytes = File.ReadAllBytes(Path.Combine(root, "apps", "web", "public", entry.WebAssetPath));
-            Assert.Equal(entry.AssetSha256Hex,
-                Convert.ToHexString(SHA256.HashData(webBytes)).ToLowerInvariant());
+            // World-script fonts keep one copy and are served by the API; the rest ship in the web bundle.
+            var webFile = Path.Combine(root, "apps", "web", "public", entry.WebAssetPath);
+            Assert.Equal(!catalogue.ServedByApi(entry), File.Exists(webFile));
+            if (File.Exists(webFile))
+                Assert.Equal(entry.AssetSha256Hex,
+                    Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(webFile))).ToLowerInvariant());
             Assert.Equal("OFL-1.1", entry.LicenseIdentifier);
             Assert.Same(entry, catalogue.Get(entry.CatalogueId, entry.Version));
         }
@@ -57,7 +60,7 @@ public sealed class BundledFontCatalogueTests
     }
 
     [Fact]
-    public void Catalogue_contains_the_twenty_approved_font_families()
+    public void Catalogue_contains_the_approved_latin_and_world_script_font_families()
     {
         var root = FindRepositoryRoot();
         var catalogue = BundledFontCatalogue.Load(Path.Combine(root, "assets", "fonts", "manifest.json"));
@@ -67,9 +70,11 @@ public sealed class BundledFontCatalogueTests
             "caladea", "carlito", "caveat", "dancing-script", "lato",
             "liberation-mono", "liberation-sans", "liberation-serif", "libre-baskerville",
             "merriweather", "montserrat", "noto-sans", "noto-sans-mono", "noto-serif",
+            "noto-naskh-arabic", "noto-sans-bengali", "noto-sans-devanagari", "noto-sans-hebrew", "noto-sans-jp",
+            "noto-sans-kr", "noto-sans-sc", "noto-sans-tamil", "noto-sans-tc", "noto-sans-thai",
             "open-sans", "oswald", "poppins", "roboto", "source-sans-3", "source-serif-4",
         };
-        Assert.Equal(expected, actual);
+        Assert.Equal(expected.Order(StringComparer.Ordinal), actual);
     }
 
     [Theory]

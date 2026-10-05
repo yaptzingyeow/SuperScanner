@@ -89,7 +89,7 @@ public sealed class TextStyleEstimator(
     {
         var sample = text.Length > 40 ? text[..40] : text;
         var scored = new List<(FontCandidate Candidate, double Size)>();
-        foreach (var (face, path) in SelectableFaces())
+        foreach (var (face, path) in SelectableFaces(text))
         {
             try
             {
@@ -110,7 +110,7 @@ public sealed class TextStyleEstimator(
                 // A missing/unsupported face is never treated as an exact match.
             }
         }
-        if (scored.Count == 0) return (Fallback(), observed.Height * 1.4);
+        if (scored.Count == 0) return (Fallback(text), observed.Height * 1.4);
         var ordered = scored.OrderByDescending(item => item.Candidate.Score)
             .ThenBy(item => item.Candidate.CatalogueId, StringComparer.Ordinal)
             .ThenBy(item => item.Candidate.Version, StringComparer.Ordinal).ToArray();
@@ -135,7 +135,7 @@ public sealed class TextStyleEstimator(
     private (IReadOnlyList<FontCandidate> Candidates, double FontSize) RankByBox(string text, double observedWidth, double fontSize)
     {
         var ranked = new List<FontCandidate>();
-        foreach (var (face, path) in SelectableFaces())
+        foreach (var (face, path) in SelectableFaces(text))
         {
             try
             {
@@ -149,26 +149,30 @@ public sealed class TextStyleEstimator(
                 // A missing/unsupported face is never treated as an exact match.
             }
         }
-        if (ranked.Count == 0) return (Fallback(), fontSize);
+        if (ranked.Count == 0) return (Fallback(text), fontSize);
         var ordered = ranked.OrderByDescending(candidate => candidate.Score)
             .ThenBy(candidate => candidate.CatalogueId, StringComparer.Ordinal)
             .ThenBy(candidate => candidate.Version, StringComparer.Ordinal).ToArray();
         return (DistinctFamiliesFirst(ordered), fontSize);
     }
 
-    private IEnumerable<(FontCatalogueEntry Face, string Path)> SelectableFaces()
+    /// <summary>Faces that can draw every letter of the phrase (a Chinese selection never suggests a Latin font).</summary>
+    private IEnumerable<(FontCatalogueEntry Face, string Path)> SelectableFaces(string text)
     {
         var expectedRoot = Path.GetFullPath(Path.Combine(fontRoot, "assets/fonts")) + Path.DirectorySeparatorChar;
-        foreach (var face in catalogue.Entries.Where(entry => entry.Enabled && entry.SelectableForNewEdits))
+        foreach (var face in Covering(text))
         {
             var path = Path.GetFullPath(Path.Combine(fontRoot, face.RendererAssetPath));
             if (path.StartsWith(expectedRoot, StringComparison.OrdinalIgnoreCase)) yield return (face, path);
         }
     }
 
-    private IReadOnlyList<FontCandidate> Fallback() =>
-        catalogue.Entries.Where(entry => entry.Enabled && entry.SelectableForNewEdits)
-            .Select(entry => new FontCandidate(entry.CatalogueId, entry.Version, 0)).ToArray();
+    private IEnumerable<FontCatalogueEntry> Covering(string text) =>
+        catalogue.Entries.Where(entry => entry.Enabled && entry.SelectableForNewEdits &&
+            TextScripts.Covers(catalogue.ScriptsOf(entry), text));
+
+    private IReadOnlyList<FontCandidate> Fallback(string text) =>
+        Covering(text).Select(entry => new FontCandidate(entry.CatalogueId, entry.Version, 0)).ToArray();
 
     /// <summary>Show distinct families first so the quick recommendations are useful.</summary>
     private static IReadOnlyList<FontCandidate> DistinctFamiliesFirst(FontCandidate[] ordered)
