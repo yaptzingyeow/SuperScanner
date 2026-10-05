@@ -1,69 +1,99 @@
 <main class="cleanup-shell">
-  <a [routerLink]="['/documents', documentId]" [queryParams]="workspaceQuery">{{ i18n.t('pages.clean.cancel') }}</a>
-  <h1>{{ i18n.t('pages.clean.title') }}</h1>
-  <p>{{ notice() }}</p>
-  @if (error()) { <p role="alert" class="error">{{ error() }}</p> }
-  @if (originalUrl()) {
-    <div class="toolbar" [attr.aria-label]="i18n.t('pages.clean.viewControls')">
-      <button type="button" [disabled]="zoom() <= 1" (click)="zoomOut()">{{ i18n.t('pages.clean.zoomOut') }}</button>
-      <span>{{ i18n.t('pages.clean.zoom', { percent: zoom() * 100 }) }}</span>
-      <button type="button" [disabled]="zoom() >= 3" (click)="zoomIn()">{{ i18n.t('pages.clean.zoomIn') }}</button>
-      <button type="button" [attr.aria-pressed]="panMode()" (click)="panMode.set(!panMode())">{{ panMode() ? i18n.t('pages.clean.panOn') : i18n.t('pages.clean.pan') }}</button>
+  <!-- Everything you need stays on screen: tools, size, zoom and Preview/Apply sit in one bar at the top;
+       only the page scrolls, inside its own frame. -->
+  <header class="cleanup-bar">
+    <div class="bar-title">
+      <a class="back" [routerLink]="['/documents', documentId]" [queryParams]="workspaceQuery">{{ i18n.t('pages.clean.cancel') }}</a>
+      <h1>{{ i18n.t('pages.clean.title') }}</h1>
+      @if (error()) { <p role="alert" class="error">{{ error() }}</p> }
+      @else { <p class="notice" role="status">{{ notice() }}</p> }
     </div>
-    <div class="toolbar" [attr.aria-label]="i18n.t('pages.clean.tools')">
-      <button type="button" [attr.aria-pressed]="tool() === 'rectangle'" (click)="tool.set('rectangle'); panMode.set(false)">{{ i18n.t('pages.clean.rectangle') }}</button>
-      <button type="button" [attr.aria-pressed]="tool() === 'brush'" (click)="tool.set('brush'); panMode.set(false)">{{ i18n.t('pages.clean.brush') }}</button>
-      <button type="button" [attr.aria-pressed]="tool() === 'erase'" (click)="tool.set('erase'); panMode.set(false)">{{ i18n.t('pages.clean.erase') }}</button>
-      @if (tool() === 'brush') {
-        <label>{{ i18n.t('pages.clean.brushSize') }}
-          <select [value]="brushRadius()" (change)="brushRadius.set(+$any($event.target).value)">
-            <option value="0.003">{{ i18n.t('pages.clean.fine') }}</option><option value="0.008">{{ i18n.t('pages.clean.medium') }}</option><option value="0.015">{{ i18n.t('pages.clean.wide') }}</option>
-          </select>
-        </label>
-      }
-    </div>
-    <button type="button" [disabled]="finding() || !!operation()" (click)="findHoles()">
-      {{ finding() ? i18n.t('pages.clean.finding') : i18n.t('pages.clean.findHoles') }}
-    </button>
-    <div class="comparison">
-      <section><h2>{{ i18n.t('pages.clean.original') }}</h2>
-        <div class="viewport"><div class="stage" #stage [style.width.%]="zoom() * 100"
-          [class.panning]="panMode()" (pointerdown)="begin($event, stage)"
-          (pointermove)="move($event, stage)" (pointerup)="end($event, stage)"
-          (pointercancel)="cancel($event, stage)">
-          <img [src]="originalUrl()" (load)="onImageLoad($event)" [alt]="i18n.t('pages.clean.originalAlt')" draggable="false" />
-          @for (box of boxes(); track $index) { <div class="mask" [style.left]="boxStyle(box).left" [style.top]="boxStyle(box).top"
-            [style.width]="boxStyle(box).width" [style.height]="boxStyle(box).height"></div> }
-          @if (drawing(); as box) { <div class="mask drawing" [style.left]="boxStyle(box).left" [style.top]="boxStyle(box).top"
-            [style.width]="boxStyle(box).width" [style.height]="boxStyle(box).height"></div> }
-          <svg class="brush-overlay" [attr.viewBox]="'0 0 1000 ' + brushViewHeight()" preserveAspectRatio="none" aria-hidden="true">
-            @for (stroke of strokes(); track $index) {
-              <polyline [attr.points]="strokePoints(stroke)" [attr.stroke-width]="brushUnitRadius(stroke) * 2" />
-              <circle [attr.cx]="stroke.points[0][0] * 1000" [attr.cy]="stroke.points[0][1] * brushViewHeight()"
-                [attr.r]="brushUnitRadius(stroke)" />
+    @if (originalUrl()) {
+      <div class="bar-row">
+        <div class="group" role="group" [attr.aria-label]="i18n.t('pages.clean.tools')">
+          <button type="button" [attr.aria-pressed]="tool() === 'brush'" (click)="chooseTool('brush')">{{ i18n.t('pages.clean.brush') }}</button>
+          <button type="button" [attr.aria-pressed]="tool() === 'rectangle'" (click)="chooseTool('rectangle')">{{ i18n.t('pages.clean.rectangle') }}</button>
+          <button type="button" [attr.aria-pressed]="tool() === 'erase'" (click)="chooseTool('erase')">{{ i18n.t('pages.clean.erase') }}</button>
+        </div>
+        @if (tool() === 'brush') {
+          <div class="group" role="group" [attr.aria-label]="i18n.t('pages.clean.brushSize')">
+            <!-- Eraser size: from a hair-thin 0.1% of the page width up to 3%, plus quick presets. -->
+            <label class="brush-size">{{ i18n.t('pages.clean.brushSize') }}
+              <input type="range" data-testid="brush-size" min="1" max="30" step="1"
+                [value]="brushRadius() * 1000" (input)="brushRadius.set(+$any($event.target).value / 1000)" />
+              <span class="brush-dot" aria-hidden="true" [style.width.px]="brushDotPx()" [style.height.px]="brushDotPx()"></span>
+            </label>
+            <button type="button" class="chip" [attr.aria-pressed]="brushRadius() === .001" (click)="brushRadius.set(.001)">{{ i18n.t('pages.clean.tiny') }}</button>
+            <button type="button" class="chip" [attr.aria-pressed]="brushRadius() === .003" (click)="brushRadius.set(.003)">{{ i18n.t('pages.clean.fine') }}</button>
+            <button type="button" class="chip" [attr.aria-pressed]="brushRadius() === .008" (click)="brushRadius.set(.008)">{{ i18n.t('pages.clean.medium') }}</button>
+            <button type="button" class="chip" [attr.aria-pressed]="brushRadius() === .015" (click)="brushRadius.set(.015)">{{ i18n.t('pages.clean.wide') }}</button>
+          </div>
+        }
+        <div class="group" role="group" [attr.aria-label]="i18n.t('pages.clean.viewControls')">
+          <button type="button" class="icon" [disabled]="zoom() <= 1" (click)="zoomOut()" [attr.aria-label]="i18n.t('pages.clean.zoomOut')">−</button>
+          <span class="zoom">{{ zoom() * 100 }}%</span>
+          <button type="button" class="icon" [disabled]="zoom() >= 3" (click)="zoomIn()" [attr.aria-label]="i18n.t('pages.clean.zoomIn')">+</button>
+          <button type="button" [attr.aria-pressed]="panMode()" (click)="panMode.set(!panMode())">{{ panMode() ? i18n.t('pages.clean.panOn') : i18n.t('pages.clean.pan') }}</button>
+        </div>
+        <button type="button" [disabled]="finding() || !!operation()" (click)="findHoles()">
+          {{ finding() ? i18n.t('pages.clean.finding') : i18n.t('pages.clean.findHoles') }}
+        </button>
+        <div class="group actions">
+          @if (!operation()) {
+            <button type="button" [disabled]="!(boxes().length || strokes().length)" (click)="undoSelection()">{{ i18n.t('pages.clean.undo') }}</button>
+            <button type="button" [disabled]="!(boxes().length || strokes().length)" (click)="clearSelection()">{{ i18n.t('pages.clean.clearAll') }}</button>
+            <button type="button" class="primary" [disabled]="!(boxes().length || strokes().length) || busy() || finding()" (click)="preview()">{{ i18n.t('pages.clean.previewCleanup') }}</button>
+          } @else {
+            @if (previewUrl()) {
+              <span class="before-after" role="group" [attr.aria-label]="i18n.t('pages.clean.compare')">
+                <button type="button" [attr.aria-pressed]="showOriginal()" (click)="showOriginal.set(true)">{{ i18n.t('pages.clean.before') }}</button>
+                <button type="button" [attr.aria-pressed]="!showOriginal()" (click)="showOriginal.set(false)">{{ i18n.t('pages.clean.after') }}</button>
+              </span>
             }
-            @if (activeStroke(); as stroke) {
-              <polyline [attr.points]="strokePoints(stroke)" [attr.stroke-width]="brushUnitRadius(stroke) * 2" />
-              <circle [attr.cx]="stroke.points[0][0] * 1000" [attr.cy]="stroke.points[0][1] * brushViewHeight()"
-                [attr.r]="brushUnitRadius(stroke)" />
-            }
-          </svg>
-        </div></div>
-      </section>
-      @if (previewUrl()) { <section><h2>{{ i18n.t('pages.clean.previewNotApplied') }}</h2><img [src]="previewUrl()" [alt]="i18n.t('pages.clean.previewAlt')" /></section> }
-    </div>
-    @if ((boxes().length || strokes().length) && !operation()) {
-      <div class="areas"><h2>{{ i18n.t('pages.clean.selected') }}</h2>
-        <button type="button" (click)="undoSelection()">{{ i18n.t('pages.clean.undo') }}</button>
-        <button type="button" (click)="clearSelection()">{{ i18n.t('pages.clean.clearAll') }}</button>
-        @for (box of boxes(); track $index) { <button type="button" (click)="remove($index)">{{ i18n.t('pages.clean.removeArea', { n: $index + 1 }) }}</button> }
-        @for (stroke of strokes(); track $index) { <button type="button" (click)="removeStroke($index)">{{ i18n.t('pages.clean.removeStroke', { n: $index + 1 }) }}</button> }
+            <button type="button" data-testid="keep-erasing" (click)="keepErasing()" [disabled]="busy()">{{ i18n.t('pages.clean.keepErasing') }}</button>
+            @if (previewUrl()) { <button class="primary" type="button" [disabled]="busy()" (click)="apply()">{{ i18n.t('pages.clean.apply') }}</button> }
+          }
+        </div>
       </div>
+      @if ((boxes().length || strokes().length) && !operation()) {
+        <details class="areas">
+          <summary>{{ i18n.t('pages.clean.selectedCount', { count: boxes().length + strokes().length }) }}</summary>
+          @for (box of boxes(); track $index) { <button type="button" (click)="remove($index)">{{ i18n.t('pages.clean.removeArea', { n: $index + 1 }) }}</button> }
+          @for (stroke of strokes(); track $index) { <button type="button" (click)="removeStroke($index)">{{ i18n.t('pages.clean.removeStroke', { n: $index + 1 }) }}</button> }
+        </details>
+      }
     }
-    <div class="actions">
-      @if (!operation()) { <button type="button" [disabled]="!(boxes().length || strokes().length) || busy() || finding()" (click)="preview()">{{ i18n.t('pages.clean.previewCleanup') }}</button> }
-      @if (operation()) { <button type="button" (click)="discard()" [disabled]="busy()">{{ i18n.t('pages.clean.discard') }}</button> }
-      @if (previewUrl()) { <button class="primary" type="button" [disabled]="busy()" (click)="apply()">{{ i18n.t('pages.clean.apply') }}</button> }
+  </header>
+  @if (originalUrl()) {
+    <div class="viewport">
+      @if (previewUrl() && !showOriginal()) {
+        <div class="stage preview-stage" [style.width.%]="zoom() * 100">
+          <span class="badge">{{ i18n.t('pages.clean.previewNotApplied') }}</span>
+          <img [src]="previewUrl()" [alt]="i18n.t('pages.clean.previewAlt')" draggable="false" />
+        </div>
+      }
+      <div class="stage" #stage [style.width.%]="zoom() * 100" [hidden]="previewUrl() && !showOriginal()"
+        [class.panning]="panMode()" [class.erasing]="tool() === 'brush'" (pointerdown)="begin($event, stage)"
+        (pointermove)="move($event, stage)" (pointerup)="end($event, stage)"
+        (pointercancel)="cancel($event, stage)">
+        <img [src]="originalUrl()" (load)="onImageLoad($event)" [alt]="i18n.t('pages.clean.originalAlt')" draggable="false" />
+        @for (box of boxes(); track $index) { <div class="mask" [style.left]="boxStyle(box).left" [style.top]="boxStyle(box).top"
+          [style.width]="boxStyle(box).width" [style.height]="boxStyle(box).height"></div> }
+        @if (drawing(); as box) { <div class="mask drawing" [style.left]="boxStyle(box).left" [style.top]="boxStyle(box).top"
+          [style.width]="boxStyle(box).width" [style.height]="boxStyle(box).height"></div> }
+        <svg class="brush-overlay" [attr.viewBox]="'0 0 1000 ' + brushViewHeight()" preserveAspectRatio="none" aria-hidden="true">
+          @for (stroke of strokes(); track $index) {
+            <polyline [attr.points]="strokePoints(stroke)" [attr.stroke-width]="brushUnitRadius(stroke) * 2" />
+            <circle [attr.cx]="stroke.points[0][0] * 1000" [attr.cy]="stroke.points[0][1] * brushViewHeight()"
+              [attr.r]="brushUnitRadius(stroke)" />
+          }
+          @if (activeStroke(); as stroke) {
+            <polyline [attr.points]="strokePoints(stroke)" [attr.stroke-width]="brushUnitRadius(stroke) * 2" />
+            <circle [attr.cx]="stroke.points[0][0] * 1000" [attr.cy]="stroke.points[0][1] * brushViewHeight()"
+              [attr.r]="brushUnitRadius(stroke)" />
+          }
+        </svg>
+      </div>
     </div>
-  } @else if (!error()) { <p role="status">{{ i18n.t('pages.clean.loading') }}</p> }
+  } @else if (!error()) { <p role="status" class="loading">{{ i18n.t('pages.clean.loading') }}</p> }
 </main>

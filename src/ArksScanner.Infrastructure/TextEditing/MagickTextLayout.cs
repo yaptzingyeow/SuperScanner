@@ -9,8 +9,9 @@ namespace ArksScanner.Infrastructure.TextEditing;
 internal static class MagickTextLayout
 {
     public static TextLayoutResult Fit(string text, NormalizedBox box, int width, int height,
-        TextEditStyle style, string fontPath, TextEditingOptions options)
+        TextEditStyle style, string fontPath, TextEditingOptions options, int faceWeight = 0)
     {
+        var steps = faceWeight > 0 ? Math.Max(0, (style.Weight - faceWeight) / 100) : 0;
         var fit = TextLayoutEngine.Fit(new TextLayoutRequest(text, box, width, height,
             style.FontSize, style.LetterSpacing,
             style.LetterSpacing > .1 ? style.LetterSpacing : options.MinimumLetterSpacing,
@@ -20,7 +21,7 @@ internal static class MagickTextLayout
             // (ascent + descent) is taller than the printed letters and would shrink every edit.
             using var ink = DrawInk(value, fontPath, pixels, 0, MagickColors.Black);
             return new TextMeasurement(ink.Width, ink.Height);
-        });
+        }) with { SyntheticWeightSteps = steps };
         if (!fit.Fits) return fit;
         var bounds = PixelBounds(box, width, height);
         for (var attempt = 0; attempt < 12; attempt++)
@@ -50,12 +51,15 @@ internal static class MagickTextLayout
     {
         var pixels = fit.FontSize * height;
         return DrawInk(text, fontPath, pixels, fit.LetterSpacing * pixels, new MagickColor(style.ColorHex),
-            style.AngleDegrees);
+            style.AngleDegrees, fit.SyntheticWeightSteps, style.Strikethrough);
     }
+
+    // Each 100 of synthetic weight thickens strokes by this share of the font size per side.
+    private const double SyntheticStrokePerStep = .009;
 
     /// <summary>The text's actual ink, trimmed of transparent padding (optionally rotated).</summary>
     private static MagickImage DrawInk(string text, string fontPath, double pixels, double kerning, MagickColor color,
-        double angleDegrees = 0)
+        double angleDegrees = 0, int syntheticWeightSteps = 0, bool strikethrough = false)
     {
         var metrics = new Drawables().Font(fontPath).FontPointSize(pixels)
             .TextKerning(kerning).FontTypeMetrics(text)
@@ -66,9 +70,22 @@ internal static class MagickTextLayout
             (uint)Math.Max(1, Math.Ceiling(metrics.TextHeight) + padding * 2));
         try
         {
-            new Drawables().Font(fontPath).FontPointSize(pixels)
-                .TextKerning(kerning).FillColor(color)
-                .Text(padding, padding + metrics.Ascent, text).Draw(tile);
+            var drawing = new Drawables().Font(fontPath).FontPointSize(pixels)
+                .TextKerning(kerning).FillColor(color);
+            // Synthetic bold: outline the glyphs in their own colour, so a face can be drawn heavier.
+            if (syntheticWeightSteps > 0)
+                drawing = drawing.StrokeColor(color)
+                    .StrokeWidth(2 * SyntheticStrokePerStep * syntheticWeightSteps * pixels);
+            drawing.Text(padding, padding + metrics.Ascent, text).Draw(tile);
+            if (strikethrough)
+            {
+                // Through the lower-case letters: about 0.3 em above the baseline, as in word processors.
+                var thickness = Math.Max(1, pixels * (.06 + SyntheticStrokePerStep * syntheticWeightSteps));
+                var middle = padding + metrics.Ascent - pixels * .3;
+                new Drawables().FillColor(color).StrokeColor(MagickColors.Transparent)
+                    .Rectangle(padding, middle - thickness / 2, padding + metrics.TextWidth, middle + thickness / 2)
+                    .Draw(tile);
+            }
             tile.BackgroundColor = MagickColors.Transparent;
             if (Math.Abs(angleDegrees) > .001) tile.Rotate(angleDegrees);
             tile.Trim();

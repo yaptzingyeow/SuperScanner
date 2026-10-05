@@ -120,7 +120,17 @@ public static class BackgroundReconstructor
                     sampled = true;
                     break;
                 }
-                if (!sampled) return Fail("paper-sample-missing");
+                // Neighbouring words or marks can crowd both sides of the selection
+                // (e.g. "NO:650927-10-6391)"). Do not refuse the edit: fall back to
+                // paper found on one side further out, then to the paper around the word.
+                if (!sampled)
+                {
+                    var paperIndex = FindNearbyPaper(source, protectedPixels, selected, y,
+                        minX, maxX, width, height);
+                    if (paperIndex < 0) return Fail("paper-sample-missing");
+                    rowStart = paperIndex - paperIndex % width;
+                    leftPaperX = rightPaperX = paperIndex % width;
+                }
             }
             var left = (rowStart + leftPaperX) * 3;
             var right = (rowStart + rightPaperX) * 3;
@@ -148,7 +158,9 @@ public static class BackgroundReconstructor
                         borderSamples.Add(rightSample);
                 }
             }
-            if (borderSamples.Count < 4) return Fail("border-samples-missing");
+            // Crowded rows may have few clean border pixels; the paper samples stand in.
+            if (borderSamples.Count < 4)
+                borderSamples.AddRange([leftBrightness, rightBrightness]);
             // Textured paper is not rejected: the repair copies nearby
             // background (FillFromNearbyBackground) rather than a flat colour.
             for (var channel = 0; channel < 3; channel++)
@@ -226,22 +238,9 @@ public static class BackgroundReconstructor
 
         AddSharpeningHalo(source, repair, approved, protectedPixels, lines, width, height);
 
-        // OCR polygons can end one pixel before an antialiased glyph does.
-        // Reject a box that would leave a visible fragment of the old text.
-        for (var y = 0; y < height; y++)
-        {
-            if (background[y * 3] == 0) continue;
-            var paper = paperFloor[y];
-            foreach (var x in new[] { minX - 1, minX - 2, minX - 3,
-                maxX + 1, maxX + 2, maxX + 3 })
-            {
-                if (x < 0 || x >= width) continue;
-                var index = y * width + x;
-                if (!protectedPixels[index] && !lines[index] && paper - Brightness(source, index * 3) > 24 &&
-                    Brightness(source, index * 3) < inkCutoff &&
-                    !repair[index]) return Fail("old-ink-remains");
-            }
-        }
+        // Ink just outside the selection that was not repaired (e.g. a pen line struck through the
+        // old text and running on past it) belongs to other content: it is kept as it is and does
+        // not block the edit. The user checks the exact preview before applying.
 
         var output = (byte[])source.Clone();
         // Never copy ink-dark pixels (other text, card borders, artwork) into
@@ -686,6 +685,29 @@ public static class BackgroundReconstructor
             if (!protectedPixels[rowStart + x] &&
                 Brightness(source, (rowStart + x) * 3) >= 120)
                 return x;
+        }
+        return -1;
+    }
+
+    // Closest clean paper pixel (not a recognised word, not the selection, not ink)
+    // to row y beside the selection: one side is enough, and rows up to 24 px away
+    // and columns up to 48 px out are searched. Returns a pixel index or -1.
+    private static int FindNearbyPaper(byte[] source, bool[] protectedPixels, bool[] selected,
+        int y, int minX, int maxX, int width, int height)
+    {
+        for (var dy = 0; dy <= 24; dy++)
+        foreach (var sampleY in dy == 0 ? new[] { y } : new[] { y - dy, y + dy })
+        {
+            if (sampleY < 0 || sampleY >= height) continue;
+            var rowStart = sampleY * width;
+            for (var distance = 2; distance <= 48; distance++)
+            foreach (var x in new[] { minX - distance, maxX + distance })
+            {
+                if (x < 0 || x >= width) continue;
+                var index = rowStart + x;
+                if (!protectedPixels[index] && !selected[index] && Brightness(source, index * 3) >= 120)
+                    return index;
+            }
         }
         return -1;
     }

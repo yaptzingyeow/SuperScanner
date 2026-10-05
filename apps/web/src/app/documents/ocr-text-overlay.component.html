@@ -40,13 +40,15 @@
         <span>{{ i18n.t(selection.wordCount === 1 ? 'editor.oneWord' : 'editor.manyWords', { count: selection.wordCount }) }}</span>
         <span>{{ i18n.t('editor.confidencePct', { percent: (selection.averageConfidence * 100 | number: '1.0-0') ?? '' }) }}</span>
         <span>{{ i18n.t('editor.type' + selection.textType) }}</span>
-        @if (selection.textType === 'Printed') {
-          <button type="button" data-testid="edit-selection" (click)="requestEdit()">
-            {{ i18n.t('editor.editSelectedText') }}
-          </button>
-          <button type="button" data-testid="delete-selection" (click)="requestEdit('delete')">{{ i18n.t('editor.deleteSelectedText') }}</button>
-        } @else {
-          <span>{{ i18n.t('editor.handwritingUnavailable') }}</span>
+        @if (editable()) {
+          @if (selection.textType === 'Printed') {
+            <button type="button" data-testid="edit-selection" (click)="requestEdit()">
+              {{ i18n.t('editor.editSelectedText') }}
+            </button>
+            <button type="button" data-testid="delete-selection" (click)="requestEdit('delete')">{{ i18n.t('editor.deleteSelectedText') }}</button>
+          } @else {
+            <span>{{ i18n.t('editor.handwritingUnavailable') }}</span>
+          }
         }
       </aside>
     }

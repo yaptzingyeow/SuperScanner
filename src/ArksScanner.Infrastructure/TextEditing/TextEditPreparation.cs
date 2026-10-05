@@ -17,7 +17,7 @@ public sealed class TextEditPreparation(
         NormalizedBox box, TextEditStyle style, CancellationToken ct)
     {
         var font = fonts.Get(style.FontId, style.FontVersion);
-        if (!font.SupportsWeight(style.Weight)) return new PreparedTextEdit(string.Empty, false);
+        if (!font.CanRenderWeight(style.Weight)) return new PreparedTextEdit(string.Empty, false);
         var fontPath = Path.GetFullPath(Path.Combine(fontRoot, font.RendererAssetPath));
         var expectedRoot = Path.GetFullPath(Path.Combine(fontRoot, "assets/fonts")) +
             Path.DirectorySeparatorChar;
@@ -42,7 +42,7 @@ public sealed class TextEditPreparation(
             throw new InvalidDataException("Text-edit source exceeds the pixel limit.");
         if (string.IsNullOrWhiteSpace(replacement)) return new PreparedTextEdit(hash, true);
         var fit = MagickTextLayout.Fit(replacement, box, (int)image.Width,
-            (int)image.Height, style, fontPath, options);
+            (int)image.Height, style, fontPath, options, font.Weight);
         return new PreparedTextEdit(hash, fit.Fits);
     }
 }

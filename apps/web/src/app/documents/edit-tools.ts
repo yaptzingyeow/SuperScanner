@@ -22,7 +22,7 @@ export const EDIT_TOOLS: readonly EditTool[] = [
   { id: 'crop', label: 'Crop & look', path: 'crop', title: 'Crop & look', action: 'Open crop & look',
     body: 'Move the four corners, rotate the page, or switch between Magic scan and the other looks. Your original photo is kept.',
     steps: ['Drag each corner to the paper edge, or use Auto detect.', 'Choose a look; Magic scan is the default for photos.', 'Save to update the page.'] },
-  { id: 'clean', label: 'Clean page', path: 'clean', title: 'Clean page', action: 'Start cleaning',
+  { id: 'clean', label: 'Eraser', path: 'clean', title: 'Eraser', action: 'Open eraser',
     body: 'Remove punch holes, staple marks or small debris. Only the areas you select change.',
     steps: ['Find punch holes, or paint over a mark.', 'Preview the cleanup.', 'Apply, or undo later from History.'] },
   { id: 'text', label: 'Edit text', path: 'text', title: 'Edit printed text', action: 'Select words',

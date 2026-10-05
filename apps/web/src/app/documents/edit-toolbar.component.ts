@@ -4,6 +4,8 @@ import { Router } from '@angular/router';
 import { EDIT_TOOLS, EditTool, EditToolId, opensInWorkspace } from './edit-tools';
 import { PageEditHistory } from './text-edit.models';
 import { TextEditService } from './text-edit.service';
+import { PageSignatureService } from './page-signature.service';
+import { PageMarkService } from './page-mark.service';
 import { I18nService } from '../core/i18n/i18n.service';
 import { IconComponent, IconName } from './ui-icon.component';
 
@@ -35,6 +37,8 @@ export function openEditTool(router: Router, documentId: string, pageId: string,
 export class EditToolbarComponent implements OnChanges {
   private readonly router = inject(Router);
   private readonly textEdits = inject(TextEditService);
+  private readonly signatureApi = inject(PageSignatureService);
+  private readonly markApi = inject(PageMarkService);
 
   @Input({ required: true }) documentId = '';
   @Input() pageId: string | null = null;
@@ -58,6 +62,8 @@ export class EditToolbarComponent implements OnChanges {
   }));
   protected readonly i18n = inject(I18nService);
   protected readonly history = signal<PageEditHistory | null>(null);
+  /** Signatures and tick/cross marks on the page. They are not page versions: they stay on every version. */
+  protected readonly placed = signal<{ id: string; label: string; at: string | null }[]>([]);
   protected readonly historyOpen = signal(false);
   protected readonly historyBusy = signal(false);
   protected readonly historyError = signal('');
@@ -78,8 +84,13 @@ export class EditToolbarComponent implements OnChanges {
     else void openEditTool(this.router, this.documentId, this.pageId, tool);
   }
 
-  protected async toggleHistory(): Promise<void> {
+  /** The panel floats under the History button; the one-row toolbar can't make room for it. */
+  protected readonly panelTop = signal(0);
+
+  protected async toggleHistory(event?: Event): Promise<void> {
     if (this.historyOpen()) { this.historyOpen.set(false); return; }
+    const anchor = event?.currentTarget as HTMLElement | undefined;
+    this.panelTop.set((anchor?.getBoundingClientRect().bottom ?? 0) + 6);
     this.historyOpen.set(true);
     await this.loadHistory(true);
   }
@@ -88,14 +99,30 @@ export class EditToolbarComponent implements OnChanges {
     const pageId = this.pageId;
     const run = ++this.generation;
     this.history.set(null);
+    this.placed.set([]);
     this.historyError.set('');
     if (!pageId) return;
+    void this.loadPlaced(pageId, run);
     try {
       const history = await this.textEdits.history(this.documentId, pageId);
       if (run === this.generation) this.history.set(history);
     } catch {
       if (run === this.generation && report) this.historyError.set(this.i18n.t('ws.historyUnavailable'));
     }
+  }
+
+  private async loadPlaced(pageId: string, run: number): Promise<void> {
+    const [signatures, marks] = await Promise.all([
+      this.signatureApi.list(this.documentId, pageId).catch(() => []),
+      this.markApi.list(this.documentId, pageId).catch(() => []),
+    ]);
+    if (run !== this.generation) return;
+    const items = [
+      ...signatures.map((s) => ({ id: s.id, label: this.i18n.t('ws.historySignature'), at: s.createdAt ?? null })),
+      ...marks.filter((m) => !m.isDeleted).map((m) => ({ id: m.id,
+        label: this.i18n.t(m.kind === 'Check' ? 'ws.historyTick' : 'ws.historyCross'), at: m.createdAt ?? null })),
+    ];
+    this.placed.set(items.sort((a, b) => (b.at ?? '').localeCompare(a.at ?? '')));
   }
 
   /** Every saved version, newest first, ending with the original page. */

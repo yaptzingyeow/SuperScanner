@@ -143,7 +143,7 @@ describe('TextReplacementEditorComponent', () => {
       .toEqual(['Noto Sans', 'Carlito', 'Noto Sans SC', 'Noto Serif']);
     expect(font.value).toBe('noto-sans');
     const weight = fixture.nativeElement.querySelector('select[aria-label="Weight"]') as HTMLSelectElement;
-    weight.value = weight.options[1].value;
+    weight.value = [...weight.options].find((option) => option.textContent?.includes('700'))!.value;
     weight.dispatchEvent(new Event('change', { bubbles: true }));
     const text = fixture.nativeElement.querySelector('[aria-label="Replacement text"]') as HTMLInputElement;
     text.value = 'Hello';
@@ -153,6 +153,32 @@ describe('TextReplacementEditorComponent', () => {
     await fixture.whenStable();
     expect(api.preview.mock.calls[0][2].style.fontVersion).toBe('archive-main-bold');
     expect(font.value).toBe('noto-sans');
+  });
+
+  it('accepts any weight 100–900: the nearest lighter face is used and the rest is synthetic bold', async () => {
+    const { fixture, api } = await setup(undefined, 'add');
+    const el = fixture.nativeElement as HTMLElement;
+    const weight = el.querySelector('select[aria-label="Weight"]') as HTMLSelectElement;
+    const options = [...weight.options];
+    expect(options.length).toBe(9);
+    expect(options.filter((option) => option.disabled).map((option) => option.textContent?.trim()))
+      .toEqual(['Thin 100', 'Extra light 200', 'Light 300']);
+    const number = el.querySelector('[data-testid="weight-number"]') as HTMLInputElement;
+    number.value = '600';
+    number.dispatchEvent(new Event('change', { bubbles: true }));
+    const strike = el.querySelector('[data-testid="strikethrough"]') as HTMLInputElement;
+    strike.checked = true;
+    strike.dispatchEvent(new Event('change', { bubbles: true }));
+    const text = el.querySelector('[aria-label="Replacement text"]') as HTMLInputElement;
+    text.value = 'Hello';
+    text.dispatchEvent(new Event('input', { bubbles: true }));
+    fixture.detectChanges();
+    (el.querySelector('[data-testid="preview-edit"]') as HTMLButtonElement).click();
+    await fixture.whenStable();
+    const style = api.preview.mock.calls[0][2].style;
+    expect(style.weight).toBe(600);
+    expect(style.fontVersion).toBe('archive-main-regular');
+    expect(style.strikethrough).toBe(true);
   });
 
   it('starts tidy: single spaces, a rounded size and an honest first status', async () => {

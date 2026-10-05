@@ -30,6 +30,8 @@ export interface TextEditStyle {
   baseline: number;
   angleDegrees: number;
   alignment: number;
+  /** Line through the new text. Omitted means no line (older edits). */
+  strikethrough?: boolean;
 }
 export interface CreateTextEditRequest {
   ocrResultId: string;

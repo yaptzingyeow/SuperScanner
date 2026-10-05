@@ -100,9 +100,14 @@ public sealed class PageRepairProcessor(AppDbContext db, IObjectStore store, ICo
                 throw new TimeoutException("Repair preview timed out.");
             }
             var result = await stdout;
-            await stderr;
+            var errors = await stderr;
             if (process.ExitCode != 0 || result.Length > 4096)
-                throw new InvalidDataException("Repair preview failed.");
+            {
+                // Keep the script's own reason (last line, trimmed) for the worker log.
+                var reason = errors.Trim().Split('\n').LastOrDefault()?.Trim() ?? string.Empty;
+                throw new InvalidDataException(
+                    $"Repair preview failed (exit {process.ExitCode}): {reason[..Math.Min(reason.Length, 300)]}");
+            }
             return result;
     }
 

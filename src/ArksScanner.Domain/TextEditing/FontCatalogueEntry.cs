@@ -27,6 +27,12 @@ public sealed class FontCatalogueEntry
 
     public bool SupportsWeight(int weight) => weight == Weight;
 
+    /// <summary>
+    /// A heavier weight than this face is drawn by thickening its strokes (synthetic bold), so any
+    /// weight from the face's own up to 900 can be rendered. A lighter one needs a lighter face.
+    /// </summary>
+    public bool CanRenderWeight(int weight) => weight >= Weight && weight <= 900 && weight % 100 == 0;
+
     public static FontCatalogueEntry Create(
         Guid id,
         string catalogueId,

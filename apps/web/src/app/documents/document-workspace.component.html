@@ -170,8 +170,13 @@
       @switch (tab()) {
         @case ('edit') {
           <aside class="side-panel" [attr.aria-label]="i18n.t('ws.editPanel')" data-slot="edit-panel">
-            <app-edit-panel [tool]="editTool()" [pageId]="selectedPageId()" [pageNumber]="selectedPageNumber()"
-              (start)="startEditTool($event)" />
+            @if (sidePanel.template(); as controls) {
+              <!-- The page editor's own controls, e.g. Add text styling while a box is open on the page. -->
+              <ng-container *ngTemplateOutlet="controls" />
+            } @else {
+              <app-edit-panel [tool]="editTool()" [pageId]="selectedPageId()" [pageNumber]="selectedPageNumber()"
+                (start)="startEditTool($event)" />
+            }
           </aside>
         }
         @case ('export') {

@@ -3,10 +3,16 @@ import { Router, provideRouter } from '@angular/router';
 import { vi } from 'vitest';
 import { EditPanelComponent, EditToolbarComponent } from './edit-toolbar.component';
 import { TextEditService } from './text-edit.service';
+import { PageSignatureService } from './page-signature.service';
+import { PageMarkService } from './page-mark.service';
 
 describe('EditToolbarComponent', () => {
   const history = (canUndo: boolean, canRedo = false) => ({ canUndo, canRedo, activeRevisionId: 'r1', entries: [] });
   let service: { history: ReturnType<typeof vi.fn>; switchRevision: ReturnType<typeof vi.fn>; jumpTo: ReturnType<typeof vi.fn> };
+
+  let signatures: unknown[] = [];
+  let marks: unknown[] = [];
+  beforeEach(() => { signatures = []; marks = []; });
 
   async function setup(historyResult: unknown = history(false)) {
     service = {
@@ -17,7 +23,9 @@ describe('EditToolbarComponent', () => {
     if (historyResult instanceof Error) service.history.mockRejectedValue(historyResult);
     else service.history.mockResolvedValue(historyResult);
     TestBed.configureTestingModule({
-      providers: [provideRouter([]), { provide: TextEditService, useValue: service }],
+      providers: [provideRouter([]), { provide: TextEditService, useValue: service },
+        { provide: PageSignatureService, useValue: { list: vi.fn().mockResolvedValue(signatures) } },
+        { provide: PageMarkService, useValue: { list: vi.fn().mockResolvedValue(marks) } }],
     });
     const router = TestBed.inject(Router);
     const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
@@ -35,7 +43,7 @@ describe('EditToolbarComponent', () => {
 
   it('crop and clean navigate to their own editors for the selected page', async () => {
     const { button, navigate } = await setup();
-    for (const [label, segment] of [['Crop & look', 'crop'], ['Clean page', 'clean']]) {
+    for (const [label, segment] of [['Crop & look', 'crop'], ['Eraser', 'clean']]) {
       navigate.mockClear();
       button(label).click();
       expect(navigate, label).toHaveBeenCalledWith(['/documents', 'doc-1', 'pages', 'p1', segment], undefined);
@@ -101,6 +109,22 @@ describe('EditToolbarComponent', () => {
 
     expect(el.querySelector('.history-panel')?.textContent).toContain('No saved changes on this page yet.');
     expect(el.querySelectorAll('[data-history-version]').length).toBe(0);
+  });
+
+  it('history lists signatures and marks placed on the page', async () => {
+    signatures = [{ id: 's1', createdAt: '2026-10-05T15:08:00Z' }];
+    marks = [{ id: 'm1', kind: 'Check', createdAt: '2026-10-05T15:09:00Z' },
+      { id: 'm2', kind: 'Cross', isDeleted: true, createdAt: '2026-10-05T15:10:00Z' }];
+    const { fixture, el, button } = await setup({ canUndo: false, canRedo: false, activeRevisionId: null, entries: [] });
+    button('History').click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const items = Array.from(el.querySelectorAll('[data-history-placed] li')).map((li) => li.textContent ?? '');
+    expect(items.length).toBe(2);
+    expect(items[0]).toContain('Tick added');
+    expect(items[1]).toContain('Signature added');
+    expect(el.querySelector('.history-panel')?.textContent).not.toContain('No saved changes');
   });
 
   it('history load failure shows the safe message', async () => {

@@ -32,6 +32,17 @@
         (save)="saveMark()" (cancel)="cancelMark()" (edit)="editMark()" (duplicate)="duplicateMark()" (remove)="deleteMark()" />
     }
     </div>
+    @if (selectedMark() || selectedSignature() || markDraft() || signatureDraft() || hasCopied() || isInlineAdd()) {
+      <p class="shortcut-hint" data-testid="shortcut-hint">
+        @if (selectedMark() || selectedSignature() || isInlineAdd()) {
+          <button type="button" data-testid="copy-item" (click)="copySelected()">{{ i18n.t('editor.copy') }}</button>
+        }
+        @if (hasCopied()) {
+          <button type="button" data-testid="paste-item" [disabled]="markBusy() || signatureBusy()" (click)="pasteCopied()">{{ i18n.t('editor.paste') }}</button>
+        }
+        <span>{{ i18n.t('editor.shortcutHint') }}</span>
+      </p>
+    }
     @if (signatureError()) { <p role="alert" class="error">{{ signatureError() }}</p><button type="button" [disabled]="signatureBusy()" (click)="refreshSignatures()">{{ i18n.t('editor.reloadSignatures') }}</button> }
     <p role="status" aria-live="polite">{{ signatureNotice() }}</p>
     @if (signatureDraft(); as draft) {
@@ -86,10 +97,11 @@
         (pointerdown)="beginPan($event)" (pointermove)="movePan($event)"
         (pointerup)="endPan($event)" (pointercancel)="endPan($event)">
         <div class="full-page-image" [style.width.%]="zoom() * 100">
-          <img [src]="imageUrl()" [alt]="i18n.t('editor.fullPagePreviewAlt')" draggable="false" />
+          <img [src]="(isInlineAdd() && inlineEditor()?.previewUrl()) || imageUrl()" [alt]="i18n.t('editor.fullPagePreviewAlt')"
+            draggable="false" (load)="pageImageLoaded($event)" />
           @if (ocr()?.state === 'Ready') {
-            <app-ocr-text-overlay [pageId]="pageId" [ocr]="ocr()!"
-              [style.pointer-events]="spaceHeld() || placingMark() || markDraft() ? 'none' : null"
+            <app-ocr-text-overlay [pageId]="pageId" [ocr]="ocr()!" [editable]="true"
+              [style.pointer-events]="spaceHeld() || placingMark() || markDraft() || placingText() || isInlineAdd() ? 'none' : null"
               (editSelection)="beginTextEdit($event)"
               (deleteSelection)="beginTextEdit($event, 'delete')" />
           }
@@ -99,17 +111,43 @@
             [placementMode]="placingMark()" [panMode]="spaceHeld()" [disabled]="markBusy()"
             (place)="placeMark($event)" (select)="selectMark($event)" (toggleDelete)="deleteMark($event)"
             (boxChange)="changeMarkBox($event)" />
+          @if (placingText()) {
+            <div class="text-place-surface" data-testid="text-place-surface" [attr.aria-label]="i18n.t('editor.clickToPlaceText')"
+              (click)="placeText($event)"></div>
+          }
+          @if (isInlineAdd()) {
+            @if (inlineEditor(); as ed) {
+              @if (!ed.previewUrl() && ed.style(); as chosenStyle) {
+                <app-text-replacement-overlay [box]="ed.box()" [text]="ed.replacement()" [style]="chosenStyle"
+                  [selectedWebFamily]="ed.selectedWebFamily()" [originalPolygon]="[]" [editableText]="true"
+                  [style.pointer-events]="spaceHeld() ? 'none' : null"
+                  (boxChange)="ed.updateBox($event)" (textChange)="ed.updateText($event)" />
+              }
+            }
+          }
         </div>
       </div>
     </section>
   }
 </main>
+<ng-template #addTextControls>
+  @if (selection(); as chosen) {
+    <app-text-replacement-editor [documentId]="documentId" [selection]="chosen" mode="add" [inline]="true"
+      [imageUrl]="imageUrl()" [placeAt]="textPoint()" [seed]="textSeed()" [pageSize]="pageSize()"
+      (closed)="closeTextEdit()" (completed)="textEditCompleted()" />
+  }
+</ng-template>
+@if (isInlineAdd() && !embedded()) {
+  <aside class="inline-add-panel"><ng-container *ngTemplateOutlet="addTextControls" /></aside>
+}
 @if (signatureCreatorOpen()) {
   <div class="signature-modal" role="dialog" aria-modal="true" [attr.aria-label]="i18n.t('editor.addYourSignature')" cdkTrapFocus [cdkTrapFocusAutoCapture]="true"><app-signature-creator
     (confirmed)="signatureCreated($event)" (cancelled)="signatureCreatorOpen.set(false)" /></div>
 }
 @if (selection(); as chosen) {
+  @if (editMode() !== 'add') {
   <app-text-replacement-editor [documentId]="documentId" [selection]="chosen" [mode]="editMode()"
     [imageUrl]="imageUrl()" [otherPolygons]="otherPolygons()"
     (closed)="closeTextEdit()" (completed)="textEditCompleted()" />
+  }
 }

@@ -63,6 +63,7 @@ public static class PageSignatureEndpoints
     private static object Dto(PageSignature signature) => new
     {
         signature.Id, signature.PageId, signature.Box, signature.ImageAspectRatio, signature.Revision,
+        signature.CreatedAt, signature.UpdatedAt,
         imageUrl = $"/api/documents/{signature.DocumentId}/pages/{signature.PageId}/signatures/{signature.Id}/image"
     };
     private static void NoCache(HttpContext context)

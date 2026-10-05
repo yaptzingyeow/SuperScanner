@@ -29,6 +29,15 @@ app-ocr-text-overlay { position: absolute; inset: 0; }
 .signature-toolbar > span { flex: 1; font-size: .9rem; } .signature-toolbar button { min-height: 44px; margin-right: 8px; padding: 10px 14px; border: 1px solid #a7bdf2; border-radius: 9px; background: white; color: #17372b; font: inherit; font-weight: 650; cursor: pointer; }
 .signature-toolbar button.primary { background: #165e47; color: white; border-color: #165e47; }
 .signature-toolbar button:disabled { opacity: .55; cursor: default; }
+.shortcut-hint { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 12px; font-size: .85rem; color: #4b5a52; }
+.shortcut-hint button { min-height: 36px; padding: 6px 12px; border: 1px solid #b9d8c8; border-radius: 8px; background: #fff; color: #17372b; font: inherit; font-weight: 650; cursor: pointer; }
+.shortcut-hint button:disabled { opacity: .55; cursor: default; }
+/* Add text: click anywhere on the page to drop a text box there. */
+.text-place-surface { position: absolute; inset: 0; z-index: 9; cursor: text; background: rgb(11 138 98 / 4%); outline: 2px dashed rgb(11 138 98 / 45%); outline-offset: -2px; }
+.full-page-image app-text-replacement-overlay { z-index: 10; }
+/* Stand-alone page (not in the workspace): the Add text controls float at the side. */
+.inline-add-panel { position: fixed; right: 16px; top: 96px; z-index: 40; width: min(340px, calc(100vw - 32px)); max-height: calc(100vh - 112px);
+  overflow: auto; padding: 16px; border: 1px solid #d5ddd8; border-radius: 12px; background: #fff; box-shadow: 0 10px 30px rgb(15 23 42 / 18%); }
 .signature-fields { display: flex; gap: 10px; } .signature-fields label { display: grid; gap: 4px; font-size: .85rem; }
 .signature-fields input { width: 82px; min-height: 36px; padding: 4px 8px; border: 1px solid #a7bdf2; border-radius: 6px; }
 .signature-modal { position: fixed; inset: 0; z-index: 100; overflow-y: auto; background: #17203380; padding: 5vh 16px; }

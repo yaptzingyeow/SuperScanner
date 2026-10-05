@@ -41,6 +41,7 @@ describe('OcrTextOverlayComponent', () => {
     fixture = TestBed.createComponent(OcrTextOverlayComponent);
     fixture.componentRef.setInput('pageId', 'p1');
     fixture.componentRef.setInput('ocr', ocr());
+    fixture.componentRef.setInput('editable', true);
     fixture.detectChanges();
     Object.defineProperty(svg(), 'getBoundingClientRect', {
       value: () => ({ left: 100, top: 50, width: 500, height: 250, right: 600, bottom: 300 }),
@@ -243,6 +244,15 @@ describe('OcrTextOverlayComponent', () => {
     expect(action.style.top).toBe('8%');
     expect(action.style.left).toBe('95%');
     expect(action.style.transform).toBe('translateX(-100%)');
+  });
+
+  it('hides edit and delete actions when the overlay is not editable (view mode)', () => {
+    fixture.componentRef.setInput('editable', false);
+    fixture.detectChanges();
+    drag(155, 110, 155, 110);
+    expect(fixture.nativeElement.querySelector('.selection-summary')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid="edit-selection"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid="delete-selection"]')).toBeNull();
   });
 
   it('does not offer editing for handwriting and states why', () => {

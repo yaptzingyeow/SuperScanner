@@ -1,6 +1,7 @@
 import { I18nService } from '../core/i18n/i18n.service';
 import { HttpClient } from '@angular/common/http';
-import { Component, HostListener, OnDestroy, OnInit, ViewChild, inject, input, output, signal } from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit, TemplateRef, ViewChild, computed, effect, inject, input, output, signal, viewChild } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { API_BASE_URL } from '../core/api/security.interceptor';
@@ -20,6 +21,10 @@ import { PageMarkToolsComponent } from './page-mark-tools.component';
 import { PageMarkService } from './page-mark.service';
 import { PageMarkDraft, PageMarkDto, PageMarkKind, markBoxAt, markSizeBox } from './page-mark.models';
 import { PageMarkHistory } from './page-mark-history';
+import { EditorClipboardService, offsetBox } from './editor-clipboard.service';
+import { SidePanelSlotService } from './side-panel-slot.service';
+import { TextReplacementOverlayComponent } from './text-replacement-overlay.component';
+import { TextEditBox, TextEditStyle } from './text-edit.models';
 import { PlanService } from '../plans/plan.service';
 import { UsageLineComponent } from '../plans/usage-line.component';
 import { errorMessage } from '../plans/limit-message';
@@ -27,7 +32,7 @@ import { errorMessage } from '../plans/limit-message';
 @Component({
   selector: 'app-page-text-editor',
   standalone: true,
-  imports: [RouterLink, OcrTextOverlayComponent, TextReplacementEditorComponent, SignatureCreatorComponent, PageSignatureOverlayComponent, PageMarkOverlayComponent, PageMarkToolsComponent, CdkTrapFocus, UsageLineComponent],
+  imports: [RouterLink, NgTemplateOutlet, OcrTextOverlayComponent, TextReplacementEditorComponent, TextReplacementOverlayComponent, SignatureCreatorComponent, PageSignatureOverlayComponent, PageMarkOverlayComponent, PageMarkToolsComponent, CdkTrapFocus, UsageLineComponent],
   templateUrl: './page-text-editor.component.html',
   styleUrl: './page-text-editor.component.scss',
   host: { '[class.embedded]': 'embedded()' },
@@ -40,6 +45,15 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
   private readonly http = inject(HttpClient);
   private readonly signatureApi = inject(PageSignatureService);
   private readonly markApi = inject(PageMarkService);
+  private readonly clipboard = inject(EditorClipboardService);
+  private readonly sidePanel = inject(SidePanelSlotService);
+  /** Add text happens on the page: click to drop a box, type in it, style it from the side panel. */
+  protected readonly placingText = signal(false);
+  protected readonly textPoint = signal<{ x: number; y: number } | null>(null);
+  protected readonly textSeed = signal<{ text: string; style: TextEditStyle; box: TextEditBox } | null>(null);
+  protected readonly pageSize = signal<{ width: number; height: number } | null>(null);
+  protected readonly inlineEditor = viewChild(TextReplacementEditorComponent);
+  private readonly addTextControls = viewChild<TemplateRef<unknown>>('addTextControls');
   protected readonly plans = inject(PlanService);
   private readonly base = inject(API_BASE_URL).replace(/\/+$/, '');
   /** Set when the editor is embedded in the workspace; otherwise the route supplies the page. */
@@ -66,6 +80,14 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
   protected readonly error = signal('');
   protected readonly selection = signal<TextEditSelection | null>(null);
   protected readonly editMode = signal<'replace' | 'delete' | 'add'>('replace');
+  protected readonly isInlineAdd = computed(() => !!this.selection() && this.editMode() === 'add');
+  // In the workspace, the Add text controls replace the right-hand panel while a box is open.
+  private readonly showControlsInSidePanel = effect(() => {
+    const template = this.addTextControls();
+    if (!template) return;
+    if (this.embedded() && this.isInlineAdd()) this.sidePanel.show(template);
+    else this.sidePanel.clear(template);
+  });
   protected readonly otherPolygons = signal<OcrPoint[][]>([]);
   protected readonly zoom = signal(1);
   protected readonly spaceHeld = signal(false);
@@ -199,6 +221,7 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
 
   @HostListener('document:keydown', ['$event'])
   protected panKeyDown(event: KeyboardEvent): void {
+    this.shortcutKeyDown(event);
     if (event.code !== 'Space' && event.key !== ' ') return;
     if (event.target instanceof HTMLElement &&
         event.target.closest('input, textarea, select, button, [contenteditable="true"]')) return;
@@ -210,6 +233,98 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
   @HostListener('document:keyup', ['$event'])
   protected panKeyUp(event: KeyboardEvent): void {
     if (event.code === 'Space' || event.key === ' ') this.spaceHeld.set(false);
+  }
+
+  /**
+   * Ctrl/⌘+C copies the selected tick, cross or signature; Ctrl/⌘+V pastes a copy, ready to place;
+   * Ctrl/⌘+S saves what is being placed. Typing in a field keeps its own copy and paste.
+   */
+  private shortcutKeyDown(event: KeyboardEvent): void {
+    if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return;
+    const key = event.key.toLowerCase();
+    if (key !== 'c' && key !== 'v' && key !== 's') return;
+    const typing = event.target instanceof HTMLElement && !!event.target.closest('input, textarea, [contenteditable="true"]');
+    if (this.isInlineAdd()) {
+      // Ctrl+S is the text editor's; inside the text field, copy and paste act on the letters.
+      if (key === 's' || typing) return;
+      if (key === 'c') { if (this.copyTextBox()) event.preventDefault(); return; }
+      if (this.clipboard.current?.kind === 'text') { event.preventDefault(); void this.pasteCopied(); }
+      return;
+    }
+    if (this.selection()) return; // the replace/delete dialog handles its own keys
+    if (key === 's') {
+      if (this.markDraft()) { event.preventDefault(); void this.saveMark(); }
+      else if (this.signatureDraft()) { event.preventDefault(); void this.saveSignature(); }
+      return;
+    }
+    if (event.target instanceof HTMLElement && event.target.closest('input, textarea, [contenteditable="true"]')) return;
+    if (key === 'c') { if (this.copySelected()) event.preventDefault(); return; }
+    if (this.clipboard.current) { event.preventDefault(); void this.pasteCopied(); }
+  }
+
+  protected readonly copiedCount = signal(0);
+  protected hasCopied(): boolean { return this.copiedCount() >= 0 && !!this.clipboard.current; }
+
+  /** Copy the open Add text box (its text, style and place) to paste more like it. */
+  protected copyTextBox(): boolean {
+    const editor = this.inlineEditor();
+    const style = editor?.style();
+    if (!editor || !style || !editor.replacement().trim()) return false;
+    this.clipboard.copy({ kind: 'text', text: editor.replacement(), style: { ...style }, box: { ...editor.box() } });
+    this.copiedCount.update((n) => n + 1);
+    this.signatureNotice.set(this.i18n.t('editor.copiedText'));
+    return true;
+  }
+
+  protected copySelected(): boolean {
+    if (this.isInlineAdd()) return this.copyTextBox();
+    const mark = this.selectedMark();
+    if (mark) {
+      this.clipboard.copy({ kind: 'mark', mark: { kind: mark.kind, box: { ...mark.box }, color: mark.color, strokeWidth: mark.strokeWidth } });
+      this.copiedCount.update((n) => n + 1);
+      this.markNotice.set(this.i18n.t('editor.copiedMark'));
+      return true;
+    }
+    const signature = this.selectedSignature();
+    if (signature) {
+      void fetch(signature.localImageUrl).then((response) => response.blob()).then((image) => {
+        this.clipboard.copy({ kind: 'signature', image, box: { ...signature.box }, imageAspectRatio: signature.imageAspectRatio });
+        this.copiedCount.update((n) => n + 1);
+        this.signatureNotice.set(this.i18n.t('editor.copiedSignature'));
+      }).catch(() => this.signatureError.set(this.i18n.t('editor.errSigOpen')));
+      return true;
+    }
+    return false;
+  }
+
+  protected async pasteCopied(): Promise<void> {
+    const item = this.clipboard.current;
+    if (!item || this.markBusy() || this.signatureBusy()) return;
+    if (item.kind === 'text') {
+      if (!this.leaveSignatureTool() || !this.leaveMarkTool()) return;
+      // A pasted box sits just below the copied one, ready to edit and save with Ctrl+S.
+      const box = offsetBox(item.box, 0);
+      this.openInlineAdd(null, { text: item.text, style: { ...item.style },
+        box: { ...box, y: Math.min(1 - box.height, box.y + box.height * 1.4) } });
+      return;
+    }
+    if (item.kind === 'mark') {
+      if (!this.leaveSignatureTool()) return;
+      if (this.markDraft() && !window.confirm(this.i18n.t('editor.confirmDiscardMark'))) return;
+      this.cancelMark();
+      this.markRequestId = crypto.randomUUID();
+      this.markNeedsOverwriteConfirmation = false; this.markTargetMissing = false; this.markAwaitingReload = false;
+      this.markDraft.set({ id: 'draft', ...item.mark, box: offsetBox(item.mark.box) });
+      this.selectedMarkId.set('draft'); this.placingMark.set(false); this.markError.set('');
+      this.markNotice.set(this.i18n.t('editor.pastedReady'));
+      return;
+    }
+    if (!this.leaveMarkTool() || !this.leaveSignatureTool()) return;
+    const url = URL.createObjectURL(item.image); this.signatureUrls.add(url);
+    this.signatureRequestId = crypto.randomUUID(); this.signatureBlob = item.image; this.signatureTarget = undefined;
+    this.signatureDraft.set({ id: 'draft', box: offsetBox(item.box), imageAspectRatio: item.imageAspectRatio, localImageUrl: url });
+    this.selectedSignatureId.set('draft'); this.signatureError.set('');
+    this.signatureNotice.set(this.i18n.t('editor.pastedReady'));
   }
 
   protected beginPan(event: PointerEvent): void {
@@ -249,17 +364,46 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
       .map((word) => word.polygon.map((point) => ({ ...point }))));
   }
 
+  /** Add text: wait for a click on the page, then open a box there (no dialog). */
   protected addText(): void {
     if (!this.leaveSignatureTool()) return;
     if (!this.leaveMarkTool()) return;
+    if (this.isInlineAdd()) this.closeTextEdit();
+    this.placingText.set(true);
+    this.markNotice.set(''); this.signatureNotice.set(this.i18n.t('editor.clickToPlaceText'));
+  }
+
+  protected placeText(event: MouseEvent): void {
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    this.openInlineAdd({ x: (event.clientX - rect.left) / rect.width, y: (event.clientY - rect.top) / rect.height }, null);
+  }
+
+  private openInlineAdd(point: { x: number; y: number } | null,
+    seed: { text: string; style: TextEditStyle; box: TextEditBox } | null): void {
+    this.placingText.set(false);
+    this.signatureNotice.set('');
+    this.selection.set(null); // a new editor instance per box
+    this.textPoint.set(point ? { x: Math.max(0, Math.min(1, point.x)), y: Math.max(0, Math.min(1, point.y)) } : null);
+    this.textSeed.set(seed);
     this.editMode.set('add');
     this.otherPolygons.set([]);
-    this.selection.set({ pageId: this.pageId,
+    queueMicrotask(() => this.selection.set({ pageId: this.pageId,
       ocrResultId: '00000000-0000-0000-0000-000000000000',
-      wordIds: [], phrase: '', textType: 'Printed', polygon: [] });
+      wordIds: [], phrase: '', textType: 'Printed', polygon: [] }));
+  }
+
+  protected pageImageLoaded(event: Event): void {
+    const image = event.target as HTMLImageElement;
+    // The preview image swaps in during inline add; keep the page size from the page itself.
+    if (image.naturalWidth && image.naturalHeight && !(this.isInlineAdd() && this.inlineEditor()?.previewUrl()))
+      this.pageSize.set({ width: image.naturalWidth, height: image.naturalHeight });
   }
 
   protected closeTextEdit(): void {
+    this.placingText.set(false);
+    this.textPoint.set(null);
+    this.textSeed.set(null);
     this.selection.set(null);
     this.otherPolygons.set([]);
   }
@@ -637,6 +781,7 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.destroyed = true;
+    this.sidePanel.clear(this.addTextControls());
     clearTimeout(this.timer);
     if (this.imageUrl()) URL.revokeObjectURL(this.imageUrl());
     this.signatureGeneration++;

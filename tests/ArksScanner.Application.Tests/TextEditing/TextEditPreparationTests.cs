@@ -70,15 +70,27 @@ public sealed class TextEditPreparationTests
     }
 
     [Fact]
-    public async Task Weight_that_disagrees_with_the_pinned_font_face_is_rejected()
+    public async Task Weight_lighter_than_the_pinned_font_face_is_rejected()
     {
         using var image = new MagickImage(MagickColors.White, 600, 800);
         var preparation = Create(image.ToByteArray(MagickFormat.Png));
         var result = await preparation.PrepareAsync("private/source.png", "Tan BB",
             new NormalizedBox(.1, .1, .8, .1),
             new TextEditStyle("noto-sans", "archive-main-regular", .04,
-                700, "#000000", 0, .2, 0, TextAlignment.Left), default);
+                300, "#000000", 0, .2, 0, TextAlignment.Left), default);
         Assert.False(result.Fits);
+    }
+
+    [Fact]
+    public async Task Weight_heavier_than_the_pinned_font_face_is_drawn_as_synthetic_bold()
+    {
+        using var image = new MagickImage(MagickColors.White, 600, 800);
+        var preparation = Create(image.ToByteArray(MagickFormat.Png));
+        var result = await preparation.PrepareAsync("private/source.png", "Tan BB",
+            new NormalizedBox(.1, .1, .8, .1),
+            new TextEditStyle("noto-sans", "archive-main-regular", .04,
+                600, "#000000", 0, .2, 0, TextAlignment.Left), default);
+        Assert.True(result.Fits);
     }
 
     private static TextEditPreparation Create(byte[] bytes, TextEditingOptions? options = null)

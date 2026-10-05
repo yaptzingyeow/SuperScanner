@@ -6,6 +6,13 @@ h2 { margin: .25rem 0; font-size: clamp(1.4rem, 3vw, 2rem); }
 .close { font-size: 1.6rem; line-height: 1; }
 .content { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(260px, .7fr); gap: 1.5rem; }
 .image-pane { min-width: 0; }
+/* Inline add text: the controls sit in the side panel; the box is drawn on the page itself. */
+:host(.inline-host) { position: static; inset: auto; z-index: auto; overflow: visible; padding: 0; background: none; }
+.editor.inline { max-width: none; margin: 0; padding: 0; border-radius: 0; box-shadow: none; background: transparent; }
+.editor.inline h2 { font-size: 1.25rem; }
+.editor.inline .content { grid-template-columns: minmax(0, 1fr); gap: .75rem; }
+.editor.inline .actions { flex-wrap: wrap; justify-content: flex-start; gap: .5rem; }
+.inline-hint { margin: 0; padding: .55rem .7rem; border-radius: .5rem; background: #e7f2ec; color: #1e4a3a; font-size: .85rem; }
 .image-viewport { max-height: 72vh; min-height: 20rem; overflow: auto; background: #e9efeb; }
 .image-viewport.can-pan { cursor: grab; touch-action: none; }
 .image-viewport.is-panning { cursor: grabbing; user-select: none; }
@@ -13,6 +20,8 @@ h2 { margin: .25rem 0; font-size: clamp(1.4rem, 3vw, 2rem); }
 .preview-zoom-controls { display: flex; align-items: center; justify-content: center; gap: .75rem; padding: .4rem; }
 .preview-zoom-controls span { min-width: 3.5rem; text-align: center; font-weight: 700; }
 .preview-zoom-controls button { padding: .35rem .55rem; }
+.hide-original-toggle { display: inline-flex; align-items: center; gap: .35rem; font-weight: 600; cursor: pointer; }
+.hide-original-toggle input { width: 1rem; height: 1rem; accent-color: #087453; cursor: pointer; }
 .pan-hint { margin: 0 0 .5rem; color: #476458; font-size: .8rem; text-align: center; }
 .image-surface img { display: block; width: 100%; }
 app-text-replacement-overlay { position: absolute; inset: 0; }
@@ -25,6 +34,12 @@ input, select { width: 100%; box-sizing: border-box; padding: .65rem; border: 1p
 .colour-control input[type="color"] { flex: 0 0 4rem; width: 4rem; height: 2.8rem; padding: .15rem; border: 2px solid #527260; cursor: pointer; }
 .colour-control span { font-size: .85rem; font-weight: 600; }
 .control-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; }
+.weight-label { grid-column: 1 / -1; }
+.weight-control { display: flex; gap: .4rem; }
+.weight-control select { flex: 1 1 auto; min-width: 0; }
+.weight-control input { flex: 0 0 4.6rem; width: 4.6rem; }
+.strike-toggle { display: flex; align-items: center; gap: .45rem; cursor: pointer; }
+.strike-toggle input { width: 1.1rem; height: 1.1rem; accent-color: #087453; }
 .warning { color: #875315; background: #fff3d6; border-radius: 8px; padding: .65rem; }
 .status { min-height: 1.2rem; color: #385e4e; }
 button { border: 1px solid #bad1c4; border-radius: 8px; padding: .65rem 1rem; color: #155d46; background: #fff; font-weight: 700; cursor: pointer; }

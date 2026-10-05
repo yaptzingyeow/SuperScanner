@@ -42,6 +42,43 @@ public sealed class BackgroundReconstructorTests
     }
 
     [Fact]
+    public void Words_crowding_both_sides_do_not_block_the_edit_and_stay_intact()
+    {
+        // Like "NO:650927-10-6391)": recognised neighbours touch both ends of the
+        // selection and run the full height, so no paper is beside it on any row.
+        var rgb = Paper(100, 60, (_, _) => 245);
+        Ink(rgb, 100, 35, 25, 6, 8, 10);
+        Ink(rgb, 100, 24, 10, 3, 40, 10);
+        Ink(rgb, 100, 73, 10, 3, 40, 10);
+        var result = BackgroundReconstructor.Reconstruct(new BackgroundReconstructionRequest(
+            rgb, 100, 60, [Poly(.30, .35, .40, .25)],
+            [Poly(.22, .05, .08, .90), Poly(.70, .05, .08, .90)],
+            new NormalizedBox(.29, .32, .42, .31), 2));
+
+        Assert.Null(result.FailureCode);
+        Assert.Equal((byte)245, result.Pixels![(28 * 100 + 38) * 3]);
+        Assert.Equal((byte)10, result.Pixels[(28 * 100 + 25) * 3]);
+        Assert.Equal((byte)10, result.Pixels[(28 * 100 + 74) * 3]);
+    }
+
+    [Fact]
+    public void Pen_line_through_the_words_and_beyond_them_does_not_block_the_edit()
+    {
+        // Like "900806-08-6135" struck through by hand: the line runs past both ends of the
+        // selection. The part outside the selection stays; the edit is not refused.
+        var rgb = Paper(100, 60, (_, _) => 245);
+        Ink(rgb, 100, 35, 25, 6, 8, 10);
+        Ink(rgb, 100, 18, 28, 66, 1, 30);
+        var result = BackgroundReconstructor.Reconstruct(new BackgroundReconstructionRequest(
+            rgb, 100, 60, [Poly(.30, .35, .40, .25)], [],
+            new NormalizedBox(.30, .35, .40, .25), 2));
+
+        Assert.Null(result.FailureCode);
+        Assert.Equal((byte)245, result.Pixels![(27 * 100 + 38) * 3]);
+        Assert.Equal((byte)30, result.Pixels[(28 * 100 + 20) * 3]);
+    }
+
+    [Fact]
     public void Plain_paper_removes_only_selected_foreground()
     {
         var rgb = Paper(100, 60, (_, _) => 245);

@@ -6,6 +6,8 @@ export interface PageSignatureDto {
   imageAspectRatio: number;
   revision: number;
   imageUrl: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 export interface SignatureView extends PageSignatureDto { localImageUrl: string }
 export interface SignatureDraft { id: string; box: SignatureBox; imageAspectRatio: number; localImageUrl: string }

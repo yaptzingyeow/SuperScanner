@@ -23,7 +23,11 @@ public sealed record TextLayoutResult(
     double Width,
     double Height,
     int GraphemeCount,
-    IReadOnlyList<TextLayoutStep> Steps);
+    IReadOnlyList<TextLayoutStep> Steps)
+{
+    /// <summary>Hundreds of weight added beyond the font face's own weight (synthetic bold).</summary>
+    public int SyntheticWeightSteps { get; init; }
+}
 
 public static class TextLayoutEngine
 {

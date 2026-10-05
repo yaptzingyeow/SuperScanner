@@ -254,10 +254,27 @@ public sealed class TextEditRendererTests
     }
 
     [Fact]
-    public async Task Weight_that_disagrees_with_the_pinned_font_face_fails_without_output()
+    public async Task Heavier_weight_and_strikethrough_add_ink_to_the_same_text()
+    {
+        async Task<int> DarkPixels(TextEditStyle style)
+        {
+            var result = await CreateRenderer().RenderAsync(Request() with { Style = style }, default);
+            Assert.Null(result.FailureCode);
+            using var output = new MagickImage(result.Output!);
+            return output.GetPixels().ToByteArray(PixelMapping.RGB)!.Chunk(3).Count(p => p[0] < 128);
+        }
+        TextEditStyle Style(int weight, bool strike = false) => new("noto-sans", "archive-main-regular", .05,
+            weight, "#142435", 0, .5, 0, TextAlignment.Center, strike);
+        var plain = await DarkPixels(Style(400));
+        Assert.True(await DarkPixels(Style(800)) > plain * 1.15, "synthetic bold is heavier");
+        Assert.True(await DarkPixels(Style(400, strike: true)) > plain, "strike line adds ink");
+    }
+
+    [Fact]
+    public async Task Weight_lighter_than_the_pinned_font_face_fails_without_output()
     {
         var style = new TextEditStyle("noto-sans", "archive-main-regular", .05,
-            700, "#142435", 0, .5, 0, TextAlignment.Center);
+            200, "#142435", 0, .5, 0, TextAlignment.Center);
         var result = await CreateRenderer().RenderAsync(Request() with { Style = style }, default);
         Assert.Equal("text_edit_font_unavailable", result.FailureCode);
         Assert.Null(result.Output);

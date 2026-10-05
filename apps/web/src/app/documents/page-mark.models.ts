@@ -10,8 +10,10 @@ export interface PageMarkDto {
   strokeWidth: number;
   revision: number;
   isDeleted?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
-export type PageMarkDraft = Omit<PageMarkDto, 'revision' | 'pageId'> & { revision?: number };
+export type PageMarkDraft = Omit<PageMarkDto, 'revision' | 'pageId' | 'createdAt' | 'updatedAt'> & { revision?: number };
 
 const clamp = (value: number, min: number, max: number): number => Math.max(min, Math.min(max, value));
 

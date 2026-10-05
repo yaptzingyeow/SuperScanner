@@ -18,6 +18,7 @@ import { coversText } from './text-scripts';
   imports: [FormsModule, TextReplacementOverlayComponent],
   templateUrl: './text-replacement-editor.component.html',
   styleUrl: './text-replacement-editor.component.scss',
+  host: { '[class.inline-host]': 'inline()' },
 })
 export class TextReplacementEditorComponent implements OnInit, OnDestroy {
   protected readonly i18n = inject(I18nService);
@@ -26,12 +27,23 @@ export class TextReplacementEditorComponent implements OnInit, OnDestroy {
   readonly selection = input.required<TextEditSelection>();
   readonly imageUrl = input.required<string>();
   readonly otherPolygons = input<OcrPoint[][]>([]);
+  /**
+   * Add text on the page itself: no dialog or page copy here, only the controls. The host page
+   * draws the text box on its own image and feeds changes back through updateBox/updateText.
+   */
+  readonly inline = input(false);
+  /** Inline add: where the user clicked on the page (normalised), the new box starts there. */
+  readonly placeAt = input<{ x: number; y: number } | null>(null);
+  /** Inline add: start from pasted text and style (Ctrl+V of a copied text box). */
+  readonly seed = input<{ text: string; style: TextEditStyle; box: TextEditBox } | null>(null);
+  /** Inline add: the page image size in pixels, used for the size field and fitting. */
+  readonly pageSize = input<{ width: number; height: number } | null>(null);
   readonly closed = output<void>();
   readonly completed = output<void>();
   protected readonly proposal = signal<TextStyleProposal | null>(null);
-  protected readonly replacement = signal('');
-  protected readonly box = signal<TextEditBox>({ x: .1, y: .1, width: .2, height: .05 });
-  protected readonly style = signal<TextEditStyle | null>(null);
+  readonly replacement = signal('');
+  readonly box = signal<TextEditBox>({ x: .1, y: .1, width: .2, height: .05 });
+  readonly style = signal<TextEditStyle | null>(null);
   protected readonly fontFaces = signal<FontFaceEntry[]>([]);
   protected readonly fontSearch = signal('');
   protected readonly fontCategories = ['SansSerif', 'Serif', 'Monospace', 'Handwriting'] as const;
@@ -64,7 +76,14 @@ export class TextReplacementEditorComponent implements OnInit, OnDestroy {
   protected readonly fontWeights = computed(() => this.fontFaces()
     .filter((face) => face.catalogueId === this.style()?.fontId)
     .map((face) => face.weight).filter((weight, index, all) => all.indexOf(weight) === index));
-  protected readonly selectedWebFamily = computed(() => this.fontFaces().find((face) =>
+  /** Every weight from 100 to 900. Heavier than a real face is drawn as synthetic bold by the server. */
+  protected readonly weightSteps = [100, 200, 300, 400, 500, 600, 700, 800, 900] as const;
+  /** The lightest weight this font can draw: a face can be thickened, never thinned. */
+  protected readonly lightestWeight = computed(() => {
+    const weights = this.fontWeights();
+    return weights.length ? Math.min(...weights) : 400;
+  });
+  readonly selectedWebFamily = computed(() => this.fontFaces().find((face) =>
     face.catalogueId === this.style()?.fontId && face.version === this.style()?.fontVersion)
     ?.webFamilyName ?? null);
   protected fontsInCategory(category: FontFaceEntry['category']): FontFaceEntry[] {
@@ -76,10 +95,12 @@ export class TextReplacementEditorComponent implements OnInit, OnDestroy {
   protected readonly done = signal(false);
   protected readonly failed = signal(false);
   protected readonly previewZoom = signal(1);
+  /** Guide-only: covers the old words so the new text is easier to see. Never sent to the server. */
+  protected readonly hideOriginal = signal(false);
   protected readonly spaceHeld = signal(false);
   protected readonly panning = signal(false);
   private pan?: { pointerId: number; x: number; y: number; left: number; top: number };
-  protected readonly previewUrl = signal('');
+  readonly previewUrl = signal('');
   protected readonly previewing = signal(false);
   private initialStyle: TextEditStyle | null = null;
   private initialBox: TextEditBox | null = null;
@@ -125,6 +146,8 @@ export class TextReplacementEditorComponent implements OnInit, OnDestroy {
 
   async ngOnInit(): Promise<void> {
     const selection = this.selection();
+    const pageSize = this.pageSize();
+    if (pageSize?.width && pageSize.height) this.imageSize.set(pageSize);
     void this.fonts.list().then((faces) => {
       if (!this.destroyed) this.fontFaces.set(faces);
     }).catch(() => {
@@ -134,10 +157,17 @@ export class TextReplacementEditorComponent implements OnInit, OnDestroy {
       try {
         const history = await this.api.history(this.documentId(), selection.pageId);
         if (this.destroyed) return;
-        const box = { x: .1, y: .1, width: .3, height: .05 };
-        const style: TextEditStyle = { fontId: 'noto-sans', fontVersion: 'archive-main-regular',
+        const seed = this.seed();
+        const point = this.placeAt();
+        const size = { width: .3, height: .05 };
+        const box = seed ? { ...seed.box } : point
+          ? { x: Math.max(0, Math.min(1 - size.width, point.x)),
+              y: Math.max(0, Math.min(1 - size.height, point.y - size.height / 2)), ...size }
+          : { x: .1, y: .1, ...size };
+        const style: TextEditStyle = seed ? { ...seed.style } : { fontId: 'noto-sans', fontVersion: 'archive-main-regular',
           fontSize: .012, weight: 400, colorHex: '#202020', letterSpacing: 0,
           baseline: .75, angleDegrees: 0, alignment: 0 };
+        if (seed) this.replacement.set(seed.text);
         this.proposal.set({ activeRevisionId: history.activeRevisionId,
           ocrResultId: selection.ocrResultId, wordIds: [], originalText: '', box,
           style: { candidates: [
@@ -202,7 +232,7 @@ export class TextReplacementEditorComponent implements OnInit, OnDestroy {
     }
   }
 
-  protected updateText(value: string): void {
+  updateText(value: string): void {
     this.replacement.set(value);
     this.idempotencyKey = '';
     this.clearPreview();
@@ -211,12 +241,15 @@ export class TextReplacementEditorComponent implements OnInit, OnDestroy {
   protected chooseFont(value: string): void {
     const face = this.fontFaces().find((item) => item.catalogueId === value && item.weight === 400);
     if (face) {
+      const keepWeight = this.style()?.weight ?? 400;
       this.style.update((current) => current && ({
         ...current, fontId: face.catalogueId, fontVersion: face.version, weight: face.weight,
       }));
       void this.fonts.loadFace(face).catch(() => this.warning.set(this.i18n.t('editor.fontPreviewUnavailable')));
       this.idempotencyKey = '';
       this.clearPreview();
+      // Keep the chosen weight across a font change (nearest face, thickened if needed).
+      if (keepWeight !== face.weight) this.chooseWeight(keepWeight);
       return;
     }
     const candidates = this.proposal()?.style.candidates.filter((item) => item.catalogueId === value);
@@ -239,6 +272,27 @@ export class TextReplacementEditorComponent implements OnInit, OnDestroy {
   protected updateFontSizePixels(value: number): void {
     if (!Number.isFinite(value) || value <= 0) return;
     this.updateStyle('fontSize', Math.min(1, value / this.imageSize().height));
+  }
+
+  protected toggleStrikethrough(on: boolean): void {
+    this.style.update((current) => current && ({ ...current, strikethrough: on }));
+    this.idempotencyKey = '';
+    this.clearPreview();
+  }
+
+  /** Any weight 100–900: use the heaviest real face at or below it; the server thickens the rest. */
+  protected chooseWeight(raw: number): void {
+    const requested = Math.round(Number(raw) / 100) * 100;
+    if (!Number.isFinite(requested)) return;
+    const current = this.style();
+    const faces = this.fontFaces().filter((face) => face.catalogueId === current?.fontId);
+    if (!current || !faces.length) { this.updateStyle('weight', requested); return; }
+    const weight = Math.min(900, Math.max(this.lightestWeight(), requested));
+    const face = faces.filter((item) => item.weight <= weight).sort((a, b) => b.weight - a.weight)[0];
+    void this.fonts.loadFace(face).catch(() => this.warning.set(this.i18n.t('editor.fontPreviewUnavailable')));
+    this.style.set({ ...current, weight, fontVersion: face.version });
+    this.idempotencyKey = '';
+    this.clearPreview();
   }
 
   protected updateStyle(field: keyof TextEditStyle, value: string | number): void {
@@ -283,7 +337,7 @@ export class TextReplacementEditorComponent implements OnInit, OnDestroy {
     }
   }
 
-  protected updateBox(box: TextEditBox): void {
+  updateBox(box: TextEditBox): void {
     this.boxAdjusted = true;
     this.box.set(box);
     this.idempotencyKey = '';
@@ -296,6 +350,13 @@ export class TextReplacementEditorComponent implements OnInit, OnDestroy {
 
   @HostListener('document:keydown', ['$event'])
   protected panKeyDown(event: KeyboardEvent): void {
+    // Ctrl/⌘+S saves (preview first if needed); inline add also closes on Esc.
+    if (event.key === 'Escape' && this.inline()) { event.preventDefault(); this.cancel(); return; }
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 's') {
+      event.preventDefault();
+      void this.saveNow();
+      return;
+    }
     if (event.code !== 'Space' && event.key !== ' ') return;
     if (event.target instanceof HTMLElement &&
         event.target.closest('input, textarea, select, button, [contenteditable="true"]')) return;
@@ -360,11 +421,21 @@ export class TextReplacementEditorComponent implements OnInit, OnDestroy {
     return padded;
   }
 
-  protected cancel(): void {
+  cancel(): void {
     if (this.submitting()) return;
-    if (this.isDirty() && !window.confirm(this.i18n.t('editor.confirmDiscardText'))) return;
+    // Inline add: nothing is saved yet and the box is on the page in plain view, so Cancel/Esc
+    // just closes. A browser "discard?" prompt here read as "Cancel does nothing".
+    if (!this.inline() && this.isDirty() && !window.confirm(this.i18n.t('editor.confirmDiscardText'))) return;
     this.closed.emit();
   }
+
+  /** Ctrl+S: preview the exact result if needed, then save it. */
+  async saveNow(): Promise<void> {
+    if (this.submitting() || this.previewing()) return;
+    if (!this.canApplyPreview()) await this.preview();
+    if (this.canApplyPreview()) await this.apply();
+  }
+
 
   protected async preview(): Promise<void> {
     if (this.previewing() || this.submitting() || !this.proposal() ||

@@ -5,8 +5,12 @@
 .history-error { color: #a12a1f; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
-.history-panel { margin-top: 8px; max-width: 560px; }
-.history-list { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px; max-height: 260px; overflow-y: auto; }
+.history-panel {
+  position: fixed; right: 16px; z-index: 50; width: min(560px, calc(100vw - 32px)); box-sizing: border-box;
+  padding: 10px; border: 1px solid #e3e5df; border-radius: 10px; background: #fff;
+  box-shadow: 0 8px 24px rgb(15 23 42 / 16%);
+}
+.history-list { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px; max-height: min(260px, 40vh); overflow-y: auto; }
 .history-list button {
   width: 100%; text-align: left; padding: 8px 12px; border: 1px solid #e3e5df; border-radius: 8px;
   background: #fff; color: #2b3530; font: inherit; font-size: 13px; cursor: pointer;
@@ -15,3 +19,6 @@
   &:disabled:not(.current) { opacity: .5; cursor: default; }
 }
 .history-time { color: #8a948e; font-weight: 400; }
+.history-item { padding: 8px 12px; border: 1px dashed #d5d9d1; border-radius: 8px; background: #fafbf8; color: #2b3530; font-size: 13px; }
+.history-panel .history-note + .history-list[data-history-placed] { margin-bottom: 4px; }
+.history-list + .history-note { margin-top: 10px; }

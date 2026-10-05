@@ -2,6 +2,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { DocumentsApiService } from './documents-api.service';
 import { DocumentPage, PageOcr } from './document.models';
 import { PageViewerComponent } from './page-viewer.component';
+import { PageSignatureService } from './page-signature.service';
+import { PageMarkService } from './page-mark.service';
 
 const page = (n: number, extra: Partial<DocumentPage> = {}): DocumentPage => ({
   id: `p${n}`, position: n, pageNumber: n, sourceUploadId: 'u', sourcePageIndex: n, state: 'Ready',
@@ -27,16 +29,22 @@ describe('PageViewerComponent', () => {
   let fixture: ComponentFixture<PageViewerComponent>;
   const api = { getPagePreview: vi.fn(), getPageOcr: vi.fn() };
   const pages = [page(1), page(2), page(3)];
+  const signatureApi = { list: vi.fn(), image: vi.fn() };
+  const markApi = { list: vi.fn() };
 
   beforeEach(() => {
     api.getPagePreview.mockReset().mockResolvedValue(new Blob(['x']));
     api.getPageOcr.mockReset().mockResolvedValue(ocr());
+    signatureApi.list.mockReset().mockResolvedValue([]);
+    signatureApi.image.mockReset().mockResolvedValue(new Blob(['s']));
+    markApi.list.mockReset().mockResolvedValue([]);
     let n = 0;
     vi.spyOn(URL, 'createObjectURL').mockImplementation(() => `blob:${++n}`);
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
     TestBed.configureTestingModule({
       imports: [PageViewerComponent],
-      providers: [{ provide: DocumentsApiService, useValue: api }],
+      providers: [{ provide: DocumentsApiService, useValue: api },
+        { provide: PageSignatureService, useValue: signatureApi }, { provide: PageMarkService, useValue: markApi }],
     });
     fixture = TestBed.createComponent(PageViewerComponent);
     fixture.componentRef.setInput('documentId', 'd1');
@@ -140,6 +148,24 @@ describe('PageViewerComponent', () => {
     const hl = fixture.nativeElement.querySelectorAll('polygon.highlighted');
     expect(hl.length).toBe(1);
     expect(fixture.nativeElement.querySelector('[data-page-id="p2"] polygon.highlighted')).toBeTruthy();
+  });
+
+  it('draws saved signatures and tick/cross marks on their page without blocking selection', async () => {
+    signatureApi.list.mockImplementation((_d: string, pageId: string) => Promise.resolve(pageId === 'p2'
+      ? [{ id: 's1', pageId, revision: 0, box: { x: .1, y: .2, width: .3, height: .1 } }] : []));
+    markApi.list.mockImplementation((_d: string, pageId: string) => Promise.resolve(pageId === 'p2'
+      ? [{ id: 'm1', pageId, kind: 'Check', revision: 0, color: '#000000', strokeWidth: .1, box: { x: .5, y: .5, width: .05, height: .05 } },
+        { id: 'm2', pageId, kind: 'Cross', revision: 1, isDeleted: true, color: '#000000', strokeWidth: .1, box: { x: .6, y: .6, width: .05, height: .05 } }] : []));
+    fixture.componentRef.setInput('layout', 'continuous');
+    fixture.detectChanges();
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelectorAll('[data-page-id="p2"] .stamp').length).toBe(2);
+    });
+    const signature = fixture.nativeElement.querySelector('[data-page-id="p2"] img.stamp') as HTMLImageElement;
+    expect(signature.style.left).toBe('10%');
+    expect(signature.style.width).toBe('30%');
+    expect(fixture.nativeElement.querySelectorAll('[data-page-id="p1"] .stamp').length).toBe(0);
   });
 
   it('does not fetch previews or OCR for pages that are hidden or have no preview', async () => {

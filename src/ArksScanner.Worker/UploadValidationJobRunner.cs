@@ -158,12 +158,12 @@ public sealed class UploadValidationJobRunner(
                 logger.LogWarning("Text edit job failed safely. JobId={JobId} EditId={EditId} ErrorCode={ErrorCode}",
                     lease.Id, uploadId, failure.SafeCode);
             }
-            catch (InvalidDataException) when (repairJob)
+            catch (InvalidDataException failure) when (repairJob)
             {
                 await ReconcileRepairJobAsync(lease.Id, workerId, uploadId,
                     terminal: true, cancellationToken);
-                logger.LogWarning("Repair preview rejected. JobId={JobId} OperationId={OperationId}",
-                    lease.Id, uploadId);
+                logger.LogWarning("Repair preview rejected. JobId={JobId} OperationId={OperationId} Reason={Reason}",
+                    lease.Id, uploadId, failure.Message);
             }
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {

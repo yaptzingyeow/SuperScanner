@@ -1,8 +1,14 @@
 :host, .overlay { display: block; position: absolute; inset: 0; }
 .overlay { touch-action: none; container-type: size; }
 .source-mask { position: absolute; background: rgb(8 116 83 / 10%); outline: 1px dashed #087453; pointer-events: none; }
+.source-mask.hide-original { background: #fff; }
 .replacement { position: absolute; box-sizing: border-box; border: 2px solid #087453; background: transparent; cursor: move; outline-offset: 2px; }
 .replacement-text { position: absolute; display: block; width: 100%; white-space: nowrap; overflow: hidden; line-height: 1; }
+/* Inline add: a borderless field filling the box, so the text is typed where it will be printed. */
+.replacement-input { inset: 0; height: 100%; box-sizing: border-box; margin: 0; padding: 0 2px; border: 0; outline: 0;
+  background: rgb(255 255 255 / 55%); cursor: text; }
+.replacement-input::placeholder { color: #7a8a82; font-weight: 400; text-decoration: none; }
+.replacement:focus-within { border-color: #0b8a62; box-shadow: 0 0 0 3px rgb(11 138 98 / 22%); }
 .handle { position: absolute; width: 10px; height: 10px; background: #fff; border: 2px solid #087453; border-radius: 50%; transform: translate(-50%, -50%); }
 .n { left: 50%; top: 0; cursor: ns-resize; } .ne { left: 100%; top: 0; cursor: nesw-resize; }
 .e { left: 100%; top: 50%; cursor: ew-resize; } .se { left: 100%; top: 100%; cursor: nwse-resize; }

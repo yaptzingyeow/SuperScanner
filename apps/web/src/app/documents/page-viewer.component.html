@@ -11,6 +11,19 @@
       <div class="surface">
         @if (urls()[page.id]; as url) {
           <img [src]="url" [alt]="'Page ' + page.pageNumber" draggable="false" />
+          @for (signature of signaturesFor(page.id); track signature.id) {
+            <img class="stamp" [src]="signature.url" alt="" aria-hidden="true" draggable="false"
+              [style.left.%]="signature.box.x * 100" [style.top.%]="signature.box.y * 100"
+              [style.width.%]="signature.box.width * 100" [style.height.%]="signature.box.height * 100" />
+          }
+          @for (mark of marksFor(page.id); track mark.id) {
+            <svg class="stamp" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"
+              [style.left.%]="mark.box.x * 100" [style.top.%]="mark.box.y * 100"
+              [style.width.%]="mark.box.width * 100" [style.height.%]="mark.box.height * 100">
+              <path [attr.d]="markPath(mark.kind)" [attr.stroke]="mark.color" [attr.stroke-width]="mark.strokeWidth * 100"
+                stroke-linecap="round" stroke-linejoin="round" fill="none" />
+            </svg>
+          }
           @if (ocrFor(page); as ocr) {
             <app-ocr-text-overlay [pageId]="page.id" [ocr]="ocr" [highlightWordIds]="highlightsFor(page.id)" />
           }

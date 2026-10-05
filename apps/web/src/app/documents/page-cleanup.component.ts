@@ -11,6 +11,26 @@ type Point = [number, number];
 interface BrushStroke { radius: number; points: Point[]; }
 interface RepairOperation { operationId: string; state: 'Queued' | 'Ready' | 'Failed' | 'Applied'; hasPreview: boolean; candidates?: Box[] | null; }
 
+/** Eraser strokes plus boxes in one preview/apply; the API and repair script allow the same. */
+export const MAX_AREAS = 50;
+/** The stored stroke list is capped at 16 KB; points are sent to 4 decimals (0.01% of the page). */
+const MAX_STROKE_JSON = 16384;
+const round4 = (value: number) => Math.round(value * 10000) / 10000;
+export function compactStrokes(strokes: readonly BrushStroke[]): BrushStroke[] {
+  return strokes.map(stroke => ({ radius: round4(stroke.radius),
+    points: stroke.points.map(([x, y]) => [round4(x), round4(y)] as Point) }));
+}
+
+/**
+ * previewRevision carries the active revision id as 32 hex digits (Guid "N"); the repair API
+ * reads a standard dashed Guid, so an edited page could not be cleaned without this.
+ */
+export function asGuid(value: string): string {
+  return /^[0-9a-f]{32}$/i.test(value)
+    ? `${value.slice(0, 8)}-${value.slice(8, 12)}-${value.slice(12, 16)}-${value.slice(16, 20)}-${value.slice(20)}`
+    : value;
+}
+
 @Component({
   selector: 'app-page-cleanup', standalone: true, imports: [RouterLink],
   templateUrl: './page-cleanup.component.html', styleUrl: './page-cleanup.component.scss',
@@ -31,8 +51,13 @@ export class PageCleanupComponent implements OnInit, OnDestroy {
   readonly boxes = signal<Box[]>([]);
   readonly strokes = signal<BrushStroke[]>([]);
   readonly activeStroke = signal<BrushStroke | null>(null);
-  readonly tool = signal<'rectangle' | 'brush' | 'erase'>('rectangle');
+  /** The eraser (paint over) is the main tool, so it is ready when the page opens. */
+  readonly tool = signal<'rectangle' | 'brush' | 'erase'>('brush');
+  /** Before/After toggle once a preview is ready: one frame, no scrolling between two copies. */
+  readonly showOriginal = signal(false);
   readonly brushRadius = signal(.008);
+  /** Size sample next to the slider: the eraser's diameter at about 640 px page width, at least 2 px. */
+  protected brushDotPx(): number { return Math.max(2, Math.round(this.brushRadius() * 2 * 640)); }
   readonly drawing = signal<Box | null>(null);
   readonly operation = signal<RepairOperation | null>(null);
   readonly busy = signal(false);
@@ -74,7 +99,7 @@ export class PageCleanupComponent implements OnInit, OnDestroy {
       const document = await this.api.getDocument(this.documentId);
       const page = document.pages.find(item => item.id === this.pageId);
       if (!page || page.state !== 'Ready') throw new Error('Page unavailable');
-      this.sourceRevisionId = page.previewRevision.startsWith('crop-') ? null : page.previewRevision;
+      this.sourceRevisionId = page.previewRevision.startsWith('crop-') ? null : asGuid(page.previewRevision);
       this.sourceCropRevision = page.previewRevision.startsWith('crop-') ?
         Number(page.previewRevision.slice(5)) : null;
       const blob = await firstValueFrom(this.http.get(`${this.url}/preview`, { responseType: 'blob' }));
@@ -98,8 +123,11 @@ export class PageCleanupComponent implements OnInit, OnDestroy {
       return;
     }
     const point = this.point(event, stage);
+    // Painting again after a preview: close the preview and keep every stroke, so the next
+    // preview (and the single Apply) covers all of them.
+    if (this.operation()) this.keepErasing();
     if (this.tool() === 'erase') { this.eraseAt(point); return; }
-    if (this.boxes().length + this.strokes().length >= 20) {
+    if (this.boxes().length + this.strokes().length >= MAX_AREAS) {
       this.error.set(this.i18n.t('pages.clean.err.limit'));
       return;
     }
@@ -150,7 +178,8 @@ export class PageCleanupComponent implements OnInit, OnDestroy {
     if (stage.hasPointerCapture(event.pointerId)) stage.releasePointerCapture(event.pointerId);
     const box = this.drawing();
     if (box && box[2] - box[0] > .005 && box[3] - box[1] > .005 &&
-        (box[2] - box[0]) * (box[3] - box[1]) <= .03 && this.boxes().length < 20) {
+        (box[2] - box[0]) * (box[3] - box[1]) <= .03 && this.boxes().length < 20 &&
+        this.boxes().length + this.strokes().length < MAX_AREAS) {
       this.boxes.update(items => [...items, box]);
       this.selectionOrder.push({ kind: 'box', value: box });
     } else this.error.set(this.i18n.t('pages.clean.err.small'));
@@ -244,11 +273,16 @@ export class PageCleanupComponent implements OnInit, OnDestroy {
       this.error.set(this.i18n.t('pages.clean.err.cover'));
       return;
     }
+    const strokes = compactStrokes(this.strokes());
+    if (JSON.stringify(strokes).length > MAX_STROKE_JSON) {
+      this.error.set(this.i18n.t('pages.clean.err.tooMuch'));
+      return;
+    }
     this.busy.set(true); this.error.set('');
     try {
       const result = await firstValueFrom(this.http.post<RepairOperation>(`${this.url}/repair/previews`,
         { sourceRevisionId: this.sourceRevisionId, sourceCropRevision: this.sourceCropRevision,
-          rectangles: this.boxes(), strokes: this.strokes() }));
+          rectangles: this.boxes(), strokes }));
       this.operation.set(result);
       this.notice.set(this.i18n.t('pages.clean.notice.preparing'));
       this.poll(result.operationId, ++this.previewGeneration);
@@ -266,6 +300,7 @@ export class PageCleanupComponent implements OnInit, OnDestroy {
         const blob = await firstValueFrom(this.http.get(`${this.url}/repair/previews/${id}/image`, { responseType: 'blob' }));
         if (this.destroyed || generation !== this.previewGeneration) return;
         this.previewUrl.set(URL.createObjectURL(blob));
+        this.showOriginal.set(false);
         this.notice.set(this.i18n.t('pages.clean.notice.compare'));
       } catch {
         if (!this.destroyed && generation === this.previewGeneration)
@@ -273,12 +308,24 @@ export class PageCleanupComponent implements OnInit, OnDestroy {
       }
     }, 1200);
   }
+  /** Picking a tool while a preview is open goes back to editing, strokes kept. */
+  chooseTool(tool: 'rectangle' | 'brush' | 'erase'): void {
+    if (this.operation()) this.keepErasing();
+    this.tool.set(tool);
+    this.panMode.set(false);
+  }
+  /** Close the preview but keep every stroke and box: erase more, then preview everything again. */
+  keepErasing(): void {
+    this.discard();
+    this.notice.set(this.i18n.t('pages.clean.notice.keepErasing'));
+  }
   discard(): void {
     this.previewGeneration++;
     clearTimeout(this.timer);
     this.operation.set(null);
     if (this.previewUrl()) URL.revokeObjectURL(this.previewUrl());
     this.previewUrl.set('');
+    this.showOriginal.set(false);
     this.error.set('');
   }
   async apply(): Promise<void> {

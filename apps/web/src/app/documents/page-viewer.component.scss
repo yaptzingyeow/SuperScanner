@@ -47,6 +47,9 @@
 .page.selected .surface { outline: 2px solid #1E6B50; }
 
 img { display: block; width: 100%; height: auto; user-select: none; }
+/* Saved signatures and tick/cross marks: shown as on export, never intercept text selection. */
+.stamp { position: absolute; display: block; overflow: visible; pointer-events: none; user-select: none; }
+img.stamp { object-fit: fill; }
 
 .placeholder {
   display: grid;

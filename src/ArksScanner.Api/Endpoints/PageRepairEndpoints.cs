@@ -28,9 +28,11 @@ public static class PageRepairEndpoints
     }
 
     private static bool Valid(RepairRequest request) =>
+        // Up to 20 boxes; eraser strokes can add up to 50 areas in total (erase, preview, erase more,
+        // then apply once). The 16 KB stroke cap below still bounds the stored request.
         request.Rectangles is { Length: <= 20 } &&
-        request.Strokes is null or { Length: <= 20 } &&
-        request.Rectangles.Length + (request.Strokes?.Length ?? 0) is >= 1 and <= 20 &&
+        request.Strokes is null or { Length: <= 50 } &&
+        request.Rectangles.Length + (request.Strokes?.Length ?? 0) is >= 1 and <= 50 &&
         request.Rectangles.All(box => box is { Length: 4 } && box.All(double.IsFinite) &&
             box[0] >= 0 && box[1] >= 0 && box[2] <= 1 && box[3] <= 1 &&
             box[0] < box[2] && box[1] < box[3] &&

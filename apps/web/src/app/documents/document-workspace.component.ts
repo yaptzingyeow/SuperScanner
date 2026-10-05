@@ -20,6 +20,8 @@ import { PageTextEditorComponent } from './page-text-editor.component';
 import { IconComponent, IconName } from './ui-icon.component';
 import { PageRailComponent } from './page-rail.component';
 import { PageViewerComponent, ViewerLayout, clampZoom } from './page-viewer.component';
+import { NgTemplateOutlet } from '@angular/common';
+import { SidePanelSlotService } from './side-panel-slot.service';
 
 export type WorkspaceTab = 'view' | 'edit' | 'export';
 export type PointerMode = 'select' | 'pan';
@@ -44,12 +46,13 @@ function asTab(value: string | null): WorkspaceTab {
 @Component({
   selector: 'app-document-workspace',
   standalone: true,
-  imports: [RouterLink, PageRailComponent, PageViewerComponent, EditToolbarComponent, EditPanelComponent, ExportPanelComponent, PageTextEditorComponent, IconComponent],
+  imports: [RouterLink, NgTemplateOutlet, PageRailComponent, PageViewerComponent, EditToolbarComponent, EditPanelComponent, ExportPanelComponent, PageTextEditorComponent, IconComponent],
   templateUrl: './document-workspace.component.html',
   styleUrl: './document-workspace.component.scss',
 })
 export class DocumentWorkspaceComponent implements OnInit, OnDestroy {
   protected readonly i18n = inject(I18nService);
+  protected readonly sidePanel = inject(SidePanelSlotService);
   private readonly http = inject(HttpClient);
   private readonly api = inject(DocumentsApiService);
   private readonly route = inject(ActivatedRoute);

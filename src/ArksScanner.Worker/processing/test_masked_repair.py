@@ -37,10 +37,23 @@ class MaskedRepairTests(unittest.TestCase):
         self.assertGreater(int(repaired[100, 15, 0]), 180)
         self.assertTrue(np.array_equal(repaired[:, 40:], self.image[:, 40:]))
 
-    def test_brush_cannot_cross_protected_content(self):
+    def test_eraser_brush_may_cover_recognised_text_and_changes_only_painted_pixels(self):
+        # The Eraser is deliberate: painting over a recognised word erases it.
+        repaired = repair_masked_image(self.image, [], [(12, 98, 18, 102)],
+                                       strokes=[(9, [(15, 95), (15, 105)])])
+        self.assertGreater(int(repaired[100, 15, 0]), 180)
+        self.assertTrue(np.array_equal(repaired[:, 40:], self.image[:, 40:]))
+
+    def test_eraser_brush_erases_part_of_a_line_and_keeps_the_rest(self):
+        repaired = repair_masked_image(self.image, [], strokes=[(4, [(100, 150), (120, 150)])])
+        self.assertGreater(int(repaired[150, 110, 0]), 180)
+        self.assertTrue(np.array_equal(repaired[150, 130:], self.image[150, 130:]))
+        self.assertTrue(np.array_equal(repaired[150, :90], self.image[150, :90]))
+
+    def test_rectangle_still_cannot_cover_protected_content(self):
         with self.assertRaises(ValueError):
-            repair_masked_image(self.image, [], [(12, 98, 18, 102)],
-                                strokes=[(9, [(15, 95), (15, 105)])])
+            repair_masked_image(self.image, [(5, 90, 25, 110)], [(10, 95, 20, 105)],
+                                strokes=[(9, [(150, 50), (160, 50)])])
 
     def test_rejects_a_rule_crossing_a_cleanup_area_without_ocr(self):
         with self.assertRaisesRegex(ValueError, 'crosses page content'):

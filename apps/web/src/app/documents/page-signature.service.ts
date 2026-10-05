@@ -13,6 +13,7 @@ export class PageSignatureService {
   }
   private canonical(dto: PageSignatureDto, documentId: string, pageId: string): PageSignatureDto {
     return { id: dto.id, pageId, box: dto.box, imageAspectRatio: dto.imageAspectRatio, revision: dto.revision,
+      createdAt: dto.createdAt, updatedAt: dto.updatedAt,
       imageUrl: `${this.route(documentId, pageId)}/${encodeURIComponent(dto.id)}/image` };
   }
   /** The server removes the paper from a signature photo and returns a transparent PNG (nothing is saved). */

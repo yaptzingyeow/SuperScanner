@@ -1,5 +1,5 @@
 import { I18nService } from '../core/i18n/i18n.service';
-import { Component, OnChanges, SimpleChanges, computed, input, output, signal, inject } from '@angular/core';
+import { Component, ElementRef, OnChanges, SimpleChanges, afterNextRender, computed, input, output, signal, inject, viewChild } from '@angular/core';
 import { OcrPoint } from './document.models';
 import { TextEditBox, TextEditStyle } from './text-edit.models';
 
@@ -21,7 +21,17 @@ export class TextReplacementOverlayComponent implements OnChanges {
   readonly selectedWebFamily = input<string | null>(null);
   readonly originalPolygon = input.required<OcrPoint[]>();
   readonly otherPolygons = input<OcrPoint[][]>([]);
+  readonly hideOriginal = input(false);
+  /** Inline add: the box holds a text field so the user types on the page itself. */
+  readonly editableText = input(false);
   readonly boxChange = output<TextEditBox>();
+  readonly textChange = output<string>();
+  private readonly typeIn = viewChild<ElementRef<HTMLInputElement>>('typeIn');
+
+  constructor() {
+    // A freshly placed box is ready to type into.
+    afterNextRender(() => this.typeIn()?.nativeElement.focus({ preventScroll: true }));
+  }
   protected readonly current = signal<TextEditBox>({ x: 0, y: 0, width: .1, height: .05 });
   protected readonly handles: Handle[] = ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'];
   protected readonly collision = computed(() => this.otherPolygons().some((polygon) => {

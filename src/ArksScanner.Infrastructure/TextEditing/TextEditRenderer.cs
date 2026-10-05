@@ -106,7 +106,7 @@ public sealed class TextEditRenderer(
         FontCatalogueEntry font;
         try { font = catalogue.Get(request.Style.FontId, request.Style.FontVersion); }
         catch (KeyNotFoundException) { return Task.FromResult(Fail("text_edit_font_unavailable")); }
-        if (!font.SupportsWeight(request.Style.Weight))
+        if (!font.CanRenderWeight(request.Style.Weight))
             return Task.FromResult(Fail("text_edit_font_unavailable"));
         // Never draw empty boxes: the font must have glyphs for every script in the new text.
         if (!TextScripts.Covers(catalogue.ScriptsOf(font), request.ReplacementText))
@@ -149,7 +149,7 @@ public sealed class TextEditRenderer(
             if (!deleting)
             {
                 fit = MagickTextLayout.Fit(request.ReplacementText, placementBox,
-                    width, height, request.Style, fontPath, options);
+                    width, height, request.Style, fontPath, options, font.Weight);
                 if (!fit.Fits) return Task.FromResult(Fail("text_edit_overflow"));
             }
 

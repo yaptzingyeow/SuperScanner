@@ -21,13 +21,13 @@
     <button type="button" class="icon-only" data-testid="redo-edit" [attr.title]="i18n.t('ws.redo')" [attr.aria-label]="i18n.t('ws.redo')"
       [disabled]="!history()?.canRedo || historyBusy()" (click)="switchRevision('redo')"><app-icon name="redo" /></button>
     <button type="button" [class.on]="historyOpen()" [attr.aria-expanded]="historyOpen()" [disabled]="!pageId"
-      (click)="toggleHistory()" [attr.aria-label]="i18n.t('tool.history')"><app-icon name="history" /><span>{{ i18n.t('tool.history') }}</span></button>
+      (click)="toggleHistory($event)" [attr.aria-label]="i18n.t('tool.history')"><app-icon name="history" /><span>{{ i18n.t('tool.history') }}</span></button>
   </div>
 </div>
 @if (historyOpen() && history(); as h) {
-  <div class="history-panel">
+  <div class="history-panel" [style.top.px]="panelTop()">
     @if (versions().length < 2) {
-      <p class="history-note" role="status">{{ i18n.t('ws.noSavedChanges') }}</p>
+      @if (!placed().length) { <p class="history-note" role="status">{{ i18n.t('ws.noSavedChanges') }}</p> }
     } @else {
     <p class="history-note" role="status">
       {{ i18n.t('ws.versionsOfPage', { count: versions().length }) }}
@@ -44,6 +44,17 @@
         </li>
       }
     </ol>
+    }
+    @if (placed().length) {
+      <p class="history-note">{{ i18n.t('ws.historyPlacedNote') }}</p>
+      <ul class="history-list" data-history-placed>
+        @for (item of placed(); track item.id) {
+          <li class="history-item">
+            <span>{{ item.label }}</span>
+            @if (item.at) { <span class="history-time"> · {{ item.at | date: 'short' }}</span> }
+          </li>
+        }
+      </ul>
     }
   </div>
 }

@@ -1,4 +1,5 @@
-<section class="editor" role="dialog" aria-modal="true" aria-labelledby="edit-heading">
+<section class="editor" [class.inline]="inline()" [attr.role]="inline() ? 'region' : 'dialog'"
+  [attr.aria-modal]="inline() ? null : 'true'" aria-labelledby="edit-heading">
   <header>
     <div>
       <p class="eyebrow">{{ i18n.t('editor.printedTextEditor') }}</p>
@@ -9,6 +10,9 @@
   <p class="status" role="status" aria-live="polite">{{ status() }}</p>
   @if (proposal(); as suggested) {
     <div class="content">
+      @if (inline()) {
+        <p class="inline-hint">{{ previewUrl() ? i18n.t('editor.captionExact') : i18n.t('editor.inlineAddHint') }}</p>
+      } @else {
       <div class="image-pane">
         <div class="preview-caption">
           {{ previewUrl() ? i18n.t('editor.captionExact') :
@@ -23,6 +27,12 @@
             (click)="changePreviewZoom(.5)">{{ i18n.t('editor.zoomIn') }}</button>
           @if (previewUrl()) {
             <button type="button" data-testid="adjust-placement" (click)="adjustPlacement()">{{ i18n.t('editor.adjustTextOrBox') }}</button>
+          } @else if (mode() !== 'add') {
+            <label class="hide-original-toggle">
+              <input type="checkbox" role="switch" data-testid="hide-original"
+                [checked]="hideOriginal()" (change)="hideOriginal.set($any($event.target).checked)" />
+              {{ i18n.t('editor.hideOriginal') }}
+            </label>
           }
         </div>
         @if (previewZoom() > 1) {
@@ -41,12 +51,14 @@
               [box]="box()" [text]="replacement()" [style]="chosenStyle"
               [selectedWebFamily]="selectedWebFamily()"
               [originalPolygon]="selection().polygon"
+              [hideOriginal]="hideOriginal()"
               [otherPolygons]="otherPolygons()"
               (boxChange)="updateBox($event)" />
           }
         </div>
         </div>
       </div>
+      }
       <div class="controls">
         @if (mode() !== 'add') { <p><strong>{{ i18n.t('editor.original') }}</strong> {{ suggested.originalText }}</p> }
         @if (mode() !== 'delete') { <label>{{ mode() === 'add' ? i18n.t('editor.newText') : i18n.t('editor.replacementText') }}
@@ -89,14 +101,22 @@
             <label>{{ i18n.t('editor.sizePx') }} <input [attr.aria-label]="i18n.t('editor.sizeInPixels')" type="number" min="1" step="0.5"
               [ngModel]="fontSizePixels(chosen.fontSize)"
               (ngModelChange)="updateFontSizePixels(+$event)" /></label>
-            <label>{{ i18n.t('editor.weight') }} <select [attr.aria-label]="i18n.t('editor.weight')" [ngModel]="chosen.weight" (ngModelChange)="updateStyle('weight', +$event)">
-              @for (weight of fontWeights(); track weight) {
-                <option [ngValue]="weight">{{ weight === 700 ? i18n.t('editor.bold') : i18n.t('editor.regular') }}</option>
-              }
-              @if (!fontFaces().length) {
+            @if (fontFaces().length) {
+              <label class="weight-label">{{ i18n.t('editor.weight') }} <span class="weight-control">
+                <select [attr.aria-label]="i18n.t('editor.weight')" [ngModel]="chosen.weight" (ngModelChange)="chooseWeight(+$event)">
+                  @for (weight of weightSteps; track weight) {
+                    <option [ngValue]="weight" [disabled]="weight < lightestWeight()">{{ i18n.t('editor.weight' + weight) }}</option>
+                  }
+                </select>
+                <input type="number" data-testid="weight-number" min="100" max="900" step="100"
+                  [attr.aria-label]="i18n.t('editor.weightNumber')" [ngModel]="chosen.weight"
+                  (change)="chooseWeight(+$any($event.target).value)" />
+              </span></label>
+            } @else {
+              <label>{{ i18n.t('editor.weight') }} <select [attr.aria-label]="i18n.t('editor.weight')" [ngModel]="chosen.weight" (ngModelChange)="updateStyle('weight', +$event)">
                 <option [ngValue]="400">{{ i18n.t('editor.regular') }}</option><option [ngValue]="700">{{ i18n.t('editor.bold') }}</option>
-              }
-            </select></label>
+              </select></label>
+            }
             <label>{{ i18n.t('editor.colour') }} <span class="colour-control"><input [attr.aria-label]="i18n.t('editor.textColour')" type="color"
               [ngModel]="chosen.colorHex" (ngModelChange)="updateStyle('colorHex', $event)" />
               <span>{{ chosen.colorHex }}</span></span></label>
@@ -105,6 +125,9 @@
             <label>{{ i18n.t('editor.alignment') }} <select [ngModel]="chosen.alignment" (ngModelChange)="updateStyle('alignment', +$event)">
               <option [ngValue]="0">{{ i18n.t('editor.left') }}</option><option [ngValue]="1">{{ i18n.t('editor.centre') }}</option><option [ngValue]="2">{{ i18n.t('editor.right') }}</option>
             </select></label>
+            <label class="strike-toggle"><input type="checkbox" data-testid="strikethrough"
+              [checked]="!!chosen.strikethrough" (change)="toggleStrikethrough($any($event.target).checked)" />
+              <s>{{ i18n.t('editor.strikethrough') }}</s></label>
           </div>
         }
         }

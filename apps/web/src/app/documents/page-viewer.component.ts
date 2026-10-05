@@ -6,6 +6,13 @@ import {
 import { DocumentsApiService } from './documents-api.service';
 import { DocumentPage, PageOcr } from './document.models';
 import { OcrTextOverlayComponent } from './ocr-text-overlay.component';
+import { PageSignatureService } from './page-signature.service';
+import { PageMarkService } from './page-mark.service';
+import { PageMarkDto, markViewBoxPath } from './page-mark.models';
+import { SignatureBox } from './page-signature.models';
+
+/** A saved signature shown read-only on top of its page. */
+interface PlacedSignature { id: string; box: SignatureBox; url: string }
 
 export type ViewerLayout = 'continuous' | 'single' | 'double';
 
@@ -27,6 +34,8 @@ export function clampZoom(value: number): number {
 })
 export class PageViewerComponent {
   private readonly api = inject(DocumentsApiService);
+  private readonly signatureApi = inject(PageSignatureService);
+  private readonly markApi = inject(PageMarkService);
 
   readonly documentId = input.required<string>();
   readonly pages = input.required<readonly DocumentPage[]>();
@@ -87,6 +96,12 @@ export class PageViewerComponent {
   protected readonly ocrs = signal<Record<string, PageOcr>>({});
   private readonly loadedRevision = new Map<string, string>();
   private readonly ocrRequested = new Map<string, string>();
+  /** Signatures and tick/cross marks are stored apart from the page image, so they are drawn here. */
+  protected readonly signatures = signal<Record<string, PlacedSignature[]>>({});
+  protected readonly marks = signal<Record<string, PageMarkDto[]>>({});
+  protected readonly markPath = markViewBoxPath;
+  private readonly signatureImages = new Map<string, string>();
+  private readonly overlayRun = new Map<string, number>();
   private destroyed = false;
 
   constructor() {
@@ -98,12 +113,17 @@ export class PageViewerComponent {
     inject(DestroyRef).onDestroy(() => {
       this.destroyed = true;
       for (const url of Object.values(this.urls())) URL.revokeObjectURL(url);
+      for (const url of this.signatureImages.values()) URL.revokeObjectURL(url);
     });
     effect(() => {
       const visible = this.visiblePages();
       const documentId = this.documentId();
       untracked(() => {
-        for (const page of visible) this.ensureLoaded(documentId, page);
+        for (const page of visible) {
+          this.ensureLoaded(documentId, page);
+          // Re-read on every pages refresh: adding a signature does not change the page revision.
+          this.loadOverlays(documentId, page);
+        }
       });
     });
     // In the continuous layout, bring the selected page (rail click, search hit) into view once rendered.
@@ -140,6 +160,35 @@ export class PageViewerComponent {
   protected ocrFor(page: DocumentPage): PageOcr | null {
     const ocr = this.ocrs()[page.id];
     return ocr && ocr.state === 'Ready' ? ocr : null;
+  }
+
+  protected signaturesFor(pageId: string): PlacedSignature[] {
+    return this.signatures()[pageId] ?? [];
+  }
+
+  protected marksFor(pageId: string): PageMarkDto[] {
+    return this.marks()[pageId] ?? [];
+  }
+
+  private loadOverlays(documentId: string, page: DocumentPage): void {
+    const run = (this.overlayRun.get(page.id) ?? 0) + 1;
+    this.overlayRun.set(page.id, run);
+    const current = () => !this.destroyed && this.overlayRun.get(page.id) === run;
+    void this.markApi.list(documentId, page.id).then((marks) => {
+      if (current()) this.marks.update((cur) => ({ ...cur, [page.id]: marks.filter((mark) => !mark.isDeleted) }));
+    }).catch(() => undefined);
+    void this.signatureApi.list(documentId, page.id).then(async (signatures) => {
+      const placed = await Promise.all(signatures.map(async (signature) => {
+        const key = `${signature.id}:${signature.revision}`;
+        let url = this.signatureImages.get(key);
+        if (!url) {
+          url = URL.createObjectURL(await this.signatureApi.image(documentId, page.id, signature.id));
+          this.signatureImages.set(key, url);
+        }
+        return { id: signature.id, box: signature.box, url };
+      }));
+      if (current()) this.signatures.update((cur) => ({ ...cur, [page.id]: placed }));
+    }).catch(() => undefined);
   }
 
   private ensureLoaded(documentId: string, page: DocumentPage): void {

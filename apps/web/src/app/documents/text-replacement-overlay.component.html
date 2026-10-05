@@ -1,6 +1,7 @@
 <div class="overlay" data-testid="replacement-overlay"
   (pointermove)="move($event)" (pointerup)="end($event)" (pointercancel)="end($event)">
   @if (originalPolygon().length) { <div class="source-mask" data-testid="source-mask" aria-hidden="true"
+    [class.hide-original]="hideOriginal()"
     [style.left.%]="sourceArea().left" [style.top.%]="sourceArea().top"
     [style.width.%]="sourceArea().width" [style.height.%]="sourceArea().height"></div> }
   <div class="replacement" data-testid="replacement-box" tabindex="0"
@@ -8,8 +9,22 @@
     [style.left.%]="current().x * 100" [style.top.%]="current().y * 100"
     [style.width.%]="current().width * 100" [style.height.%]="current().height * 100"
     (pointerdown)="begin($event, 'move')" (keydown)="keydown($event)">
+    @if (editableText()) {
+      <!-- Inline add: type straight into the box on the page. Dragging the box border still moves it. -->
+      <input #typeIn class="replacement-text replacement-input" data-testid="inline-text-input" type="text" maxlength="4000"
+        [attr.aria-label]="i18n.t('editor.newText')" [placeholder]="i18n.t('editor.typeHere')"
+        [value]="text()" (input)="textChange.emit($any($event.target).value)"
+        (pointerdown)="$event.stopPropagation()" (keydown)="$event.stopPropagation()"
+        [style.font-family]="fontFamily()"
+        [style.color]="style().colorHex" [style.font-weight]="style().weight"
+        [style.text-decoration]="style().strikethrough ? 'line-through' : null"
+        [style.font-size]="'calc(' + (style().fontSize * 100) + 'cqh)'"
+        [style.letter-spacing.em]="style().letterSpacing"
+        [style.text-align]="style().alignment === 1 ? 'center' : style().alignment === 2 ? 'right' : 'left'" />
+    } @else {
     <span class="replacement-text" [style.font-family]="fontFamily()"
       [style.color]="style().colorHex" [style.font-weight]="style().weight"
+      [style.text-decoration]="style().strikethrough ? 'line-through' : null"
       [style.font-size]="'calc(' + (style().fontSize * 100) + 'cqh)'"
       [style.letter-spacing.em]="style().letterSpacing"
       [style.top.%]="style().baseline * 100"
@@ -17,6 +32,7 @@
       [style.text-align]="style().alignment === 1 ? 'center' : style().alignment === 2 ? 'right' : 'left'">
       {{ text() }}
     </span>
+    }
     @for (handle of handles; track handle) {
       <span class="handle" [class]="'handle ' + handle" [attr.data-handle]="handle"
         [attr.aria-label]="i18n.t('editor.resizeHandle', { handle: handle })" (pointerdown)="begin($event, handle)"></span>

@@ -168,6 +168,33 @@ describe('PageTextEditorComponent', () => {
       .toEqual(['10%', '50%', '70%']);
   });
 
+  it('Ctrl+C copies a selected mark, Ctrl+V pastes an offset copy and Ctrl+S saves it', async () => {
+    const original = { id: 'mark-original', pageId: 'page-1', kind: 'Check',
+      box: { x: .1, y: .2, width: .03, height: .04 }, color: '#1D4ED8', strokeWidth: .1, revision: 0 };
+    const { fixture, marks } = setup(notRequested, [], [original]);
+    marks.create.mockImplementation(async (_documentId, _pageId, draft) =>
+      ({ ...draft, id: 'mark-pasted', pageId: 'page-1', revision: 0 }));
+    await vi.waitFor(() => { fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('.mark-body')).toBeTruthy(); });
+    fixture.nativeElement.querySelector('.mark-body').click(); fixture.detectChanges();
+    const key = (k: string) => {
+      const event = new KeyboardEvent('keydown', { key: k, ctrlKey: true, bubbles: true, cancelable: true });
+      globalThis.document.body.dispatchEvent(event); fixture.detectChanges(); return event;
+    };
+    expect(key('c').defaultPrevented).toBe(true);
+    expect(key('v').defaultPrevented).toBe(true);
+    const copy = fixture.nativeElement.querySelector('.mark.editable') as HTMLElement;
+    expect(parseFloat(copy.style.left)).toBeCloseTo(12);
+    expect(parseFloat(copy.style.top)).toBeCloseTo(22);
+    expect(key('s').defaultPrevented).toBe(true);
+    await vi.waitFor(() => { fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('.mark.editable')).toBeNull(); });
+    expect(marks.create).toHaveBeenCalledOnce();
+    expect(marks.create.mock.calls[0][2]).toMatchObject({ kind: 'Check', color: '#1D4ED8' });
+    expect(marks.create.mock.calls[0][2].box.x).toBeCloseTo(.12);
+    expect(marks.create.mock.calls[0][2].box.y).toBeCloseTo(.22);
+  });
+
   it('clears stale undo history when saved marks are reloaded', async () => {
     const { fixture, marks } = setup();
     await vi.waitFor(() => { fixture.detectChanges(); expect(fixture.nativeElement.querySelector('[data-testid="add-mark"]')).toBeTruthy(); });
@@ -354,13 +381,28 @@ describe('PageTextEditorComponent', () => {
     expect(api.requestPageOcr).not.toHaveBeenCalled();
   });
 
-  it('opens Add Text without first running OCR', async () => {
+  it('opens Add Text without first running OCR: click the page, then type there (no dialog)', async () => {
     const { fixture, api } = setup();
-    await vi.waitFor(() => { fixture.detectChanges(); expect(fixture.nativeElement.querySelector('[data-testid="add-text"]')).toBeTruthy(); });
-    (fixture.nativeElement.querySelector('[data-testid="add-text"]') as HTMLButtonElement).click();
+    const el = fixture.nativeElement as HTMLElement;
+    await vi.waitFor(() => { fixture.detectChanges(); expect(el.querySelector('[data-testid="add-text"]')).toBeTruthy(); });
+    (el.querySelector('[data-testid="add-text"]') as HTMLButtonElement).click();
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('app-text-replacement-editor')).toBeTruthy();
+    const surface = el.querySelector('[data-testid="text-place-surface"]') as HTMLElement;
+    expect(surface).toBeTruthy();
+    expect(el.querySelector('app-text-replacement-editor')).toBeNull();
+    vi.spyOn(surface, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, width: 200, height: 400 } as DOMRect);
+    surface.dispatchEvent(new MouseEvent('click', { clientX: 50, clientY: 100, bubbles: true }));
+    await vi.waitFor(() => { fixture.detectChanges();
+      expect(el.querySelector('app-text-replacement-editor.inline-host')).toBeTruthy();
+      expect(el.querySelector('[data-testid="inline-text-input"]')).toBeTruthy(); });
+    expect(el.querySelector('[role="dialog"]')).toBeNull();
     expect(api.requestPageOcr).not.toHaveBeenCalled();
+    // Esc closes straight away: nothing has been saved, so no "discard?" prompt.
+    const confirm = vi.spyOn(window, 'confirm');
+    globalThis.document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    fixture.detectChanges();
+    expect(el.querySelector('app-text-replacement-editor')).toBeNull();
+    expect(confirm).not.toHaveBeenCalled();
   });
 
   it('starts OCR only when the user presses Recognize text', async () => {
@@ -484,10 +526,10 @@ describe('PageTextEditorComponent', () => {
       expect(fixture.nativeElement.querySelector('app-page-mark-tools')).toBeTruthy(); });
   });
 
-  it('tool=add opens the add-text editor on load', async () => {
+  it('tool=add waits for a click on the page to place the new text', async () => {
     const { fixture } = setup(notRequested, [], [], 'add');
     await vi.waitFor(() => { fixture.detectChanges();
-      expect(fixture.nativeElement.querySelector('app-text-replacement-editor')).toBeTruthy(); });
+      expect(fixture.nativeElement.querySelector('[data-testid="text-place-surface"]')).toBeTruthy(); });
   });
 
   it('tool=ocr starts recognition on load', async () => {

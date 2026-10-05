@@ -25,7 +25,8 @@ public sealed record TextEditStyle
         double letterSpacing,
         double baseline,
         double angleDegrees,
-        TextAlignment alignment)
+        TextAlignment alignment,
+        bool strikethrough = false)
     {
         ValidateIdentifier(fontId, nameof(fontId));
         ValidateIdentifier(fontVersion, nameof(fontVersion));
@@ -52,6 +53,7 @@ public sealed record TextEditStyle
         Baseline = baseline;
         AngleDegrees = angleDegrees;
         Alignment = alignment;
+        Strikethrough = strikethrough;
     }
 
     public string FontId { get; }
@@ -63,6 +65,8 @@ public sealed record TextEditStyle
     public double Baseline { get; }
     public double AngleDegrees { get; }
     public TextAlignment Alignment { get; }
+    /// <summary>Draw a line through the middle of the new text (e.g. to show it was struck out).</summary>
+    public bool Strikethrough { get; }
 
     internal static void ValidateIdentifier(string value, string parameterName)
     {
