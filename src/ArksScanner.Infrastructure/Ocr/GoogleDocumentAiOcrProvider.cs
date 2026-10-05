@@ -21,7 +21,7 @@ public sealed class GoogleDocumentAiOcrProvider(
         ArgumentNullException.ThrowIfNull(input);
 
         if (input.Content is null || !input.Content.CanRead ||
-            !string.Equals(input.Language, "en", StringComparison.Ordinal) ||
+            !OcrLanguage.IsValid(input.Language) ||
             input.MediaType is not ("image/jpeg" or "image/png"))
         {
             throw new OcrProviderException("ocr_unsupported_media", retryable: false);
@@ -31,11 +31,20 @@ public sealed class GoogleDocumentAiOcrProvider(
         var stopwatch = Stopwatch.StartNew();
         try
         {
-            var response = await client.ProcessAsync(content, input.MediaType, cancellationToken);
+            var response = await client.ProcessAsync(content, input.MediaType,
+                OcrLanguage.Hints(input.Language), cancellationToken);
             if (response?.Document is null)
                 throw new OcrProviderException("ocr_invalid_response", retryable: false);
 
-            var result = DocumentAiResultMapper.Map(response.Document);
+            var result = DocumentAiResultMapper.Map(response.Document) with
+            {
+                DetectedLanguage = response.Document.Pages
+                    .SelectMany(page => page.DetectedLanguages)
+                    .Where(language => OcrLanguage.IsValid(language.LanguageCode))
+                    .OrderByDescending(language => language.Confidence)
+                    .Select(language => language.LanguageCode)
+                    .FirstOrDefault()
+            };
             metrics?.ProviderRequest("google_document_ai", "ready", stopwatch.Elapsed.TotalMilliseconds);
             return result;
         }

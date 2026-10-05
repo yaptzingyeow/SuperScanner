@@ -90,6 +90,21 @@ public sealed class PageOcrResultTests
         Assert.Throws<InvalidOperationException>(() => result.Retry(Now.AddSeconds(2)));
     }
 
+    [Theory]
+    [InlineData("zh-Hant", "zh-Hant")]
+    [InlineData("ja", "ja")]
+    [InlineData(null, "en")]
+    [InlineData("not a language code", "en")]
+    public void Complete_records_the_detected_language(string? detected, string expected)
+    {
+        var result = CreateQueued();
+        result.BeginAttempt(1, Now.AddSeconds(1));
+
+        result.Complete("Fake", "fixture-v1", string.Empty, [], Now.AddSeconds(2), detected);
+
+        Assert.Equal(expected, result.Language);
+    }
+
     [Fact]
     public void CompletedResult_RejectsFurtherTransitions()
     {

@@ -23,7 +23,7 @@ public sealed class FakeOcrProvider(FakeOcrScenario scenario = FakeOcrScenario.N
     {
         ArgumentNullException.ThrowIfNull(input);
         if (input.Content is null || !input.Content.CanRead ||
-            !string.Equals(input.Language, "en", StringComparison.Ordinal) ||
+            !OcrLanguage.IsValid(input.Language) ||
             input.MediaType is not ("image/jpeg" or "image/png"))
         {
             throw new OcrProviderException("ocr_unsupported_media", false);

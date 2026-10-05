@@ -10,7 +10,8 @@ public sealed record NormalizedOcrDocument(
     string FullText,
     string ProviderName,
     string ModelVersion,
-    IReadOnlyList<NormalizedOcrElement> Elements);
+    IReadOnlyList<NormalizedOcrElement> Elements,
+    string? DetectedLanguage = null);
 
 public sealed record NormalizedOcrElement(
     string ClientId,

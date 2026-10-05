@@ -49,8 +49,8 @@ public sealed class PageOcrResult
             throw new ArgumentException("A SHA-256 source fingerprint is required.", nameof(sourceFingerprint));
         }
 
-        if (!string.Equals(language, "en", StringComparison.Ordinal))
-            throw new ArgumentException("Phase 3A supports English only.", nameof(language));
+        if (!IsLanguage(language) && language != "auto")
+            throw new ArgumentException("Use \"auto\" or a language code such as \"zh-Hant\".", nameof(language));
 
         return new PageOcrResult
         {
@@ -81,7 +81,8 @@ public sealed class PageOcrResult
         string modelVersion,
         string fullText,
         IReadOnlyList<OcrElement> elements,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        string? detectedLanguage = null)
     {
         if (State != OcrResultState.Processing)
             throw new InvalidOperationException("OCR is not processing.");
@@ -112,6 +113,8 @@ public sealed class PageOcrResult
         FullText = fullText;
         ElementCount = elements.Count;
         AggregateConfidence = elements.Count == 0 ? null : elements.Average(element => element.Confidence);
+        // Keep what the provider detected ("zh-Hant", "ar"…) when it is a plausible language code.
+        if (IsLanguage(detectedLanguage)) Language = detectedLanguage!;
         State = OcrResultState.Ready;
         CompletedAt = now;
         FailureCode = null;
@@ -160,4 +163,7 @@ public sealed class PageOcrResult
             }
         }
     }
+
+    private static bool IsLanguage(string? code) => code is { Length: >= 2 and <= 8 } &&
+        System.Text.RegularExpressions.Regex.IsMatch(code, "^[a-z]{2,3}(-[A-Za-z0-9]{2,4})?$");
 }

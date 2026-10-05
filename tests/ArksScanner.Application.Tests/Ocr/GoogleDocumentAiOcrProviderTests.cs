@@ -30,7 +30,8 @@ public sealed class GoogleDocumentAiOcrProviderTests
 
     [Theory]
     [InlineData("application/pdf", "en")]
-    [InlineData("image/png", "ms")]
+    [InlineData("image/png", "en;drop")]
+    [InlineData("image/png", "")]
     public async Task RecognizeAsync_RejectsUnsupportedMediaOrLanguageBeforeClient(
         string mediaType,
         string language)
@@ -45,6 +46,36 @@ public sealed class GoogleDocumentAiOcrProviderTests
         Assert.Equal("ocr_unsupported_media", error.SafeCode);
         Assert.False(error.Retryable);
         Assert.Equal(0, client.CallCount);
+    }
+
+    [Theory]
+    [InlineData("auto", new string[0])]
+    [InlineData("zh", new[] { "zh" })]
+    [InlineData("ms", new[] { "ms" })]
+    [InlineData("zh-Hant", new[] { "zh-Hant" })]
+    public async Task RecognizeAsync_accepts_any_language_and_passes_it_as_a_hint(string language, string[] hints)
+    {
+        var client = new RecordingClient(ValidResponse());
+        var provider = Provider(client);
+        await using var content = new MemoryStream([1]);
+
+        await provider.RecognizeAsync(new(content, "image/png", language), default);
+
+        Assert.Equal(hints, client.LanguageHints);
+    }
+
+    [Fact]
+    public async Task RecognizeAsync_reports_the_most_confident_detected_language()
+    {
+        var response = ValidResponse();
+        response.Document.Pages[0].DetectedLanguages.Add(new Document.Types.Page.Types.DetectedLanguage { LanguageCode = "en", Confidence = .2f });
+        response.Document.Pages[0].DetectedLanguages.Add(new Document.Types.Page.Types.DetectedLanguage { LanguageCode = "zh-Hant", Confidence = .7f });
+        var provider = Provider(new RecordingClient(response));
+        await using var content = new MemoryStream([1]);
+
+        var result = await provider.RecognizeAsync(new(content, "image/png", "auto"), default);
+
+        Assert.Equal("zh-Hant", result.DetectedLanguage);
     }
 
     [Fact]
@@ -274,16 +305,19 @@ public sealed class GoogleDocumentAiOcrProviderTests
         public int CallCount { get; private set; }
         public ByteString? Content { get; private set; }
         public string? MediaType { get; private set; }
+        public string[] LanguageHints { get; private set; } = [];
 
         public Task<ProcessResponse> ProcessAsync(
             ByteString content,
             string mediaType,
+            IReadOnlyList<string> languageHints,
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             CallCount++;
             Content = content;
             MediaType = mediaType;
+            LanguageHints = [.. languageHints];
             return Task.FromResult(response);
         }
     }
@@ -293,6 +327,7 @@ public sealed class GoogleDocumentAiOcrProviderTests
         public Task<ProcessResponse> ProcessAsync(
             ByteString content,
             string mediaType,
+            IReadOnlyList<string> languageHints,
             CancellationToken cancellationToken) =>
             Task.FromException<ProcessResponse>(exception);
     }
@@ -302,6 +337,7 @@ public sealed class GoogleDocumentAiOcrProviderTests
         public Task<ProcessResponse> ProcessAsync(
             ByteString content,
             string mediaType,
+            IReadOnlyList<string> languageHints,
             CancellationToken cancellationToken)
         {
             cancellation.Cancel();

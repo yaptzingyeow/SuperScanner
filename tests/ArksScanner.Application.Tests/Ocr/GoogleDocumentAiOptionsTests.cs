@@ -59,7 +59,7 @@ public sealed class GoogleDocumentAiOptionsTests
     [InlineData(false, "Disabled", "Development", "en", true)]
     [InlineData(true, "GoogleDocumentAi", "Development", "en", true)]
     [InlineData(true, "GoogleDocumentAi", "Production", "en", true)]
-    [InlineData(true, "GoogleDocumentAi", "Development", "ms", false)]
+    [InlineData(true, "GoogleDocumentAi", "Development", "en;drop", false)]
     [InlineData(true, "Fake", "Development", "en", true)]
     [InlineData(true, "Fake", "Production", "en", false)]
     [InlineData(true, "Disabled", "Development", "en", false)]

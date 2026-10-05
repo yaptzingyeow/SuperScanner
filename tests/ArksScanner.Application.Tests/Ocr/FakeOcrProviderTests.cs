@@ -55,7 +55,7 @@ public sealed class FakeOcrProviderTests
 
     [Theory]
     [InlineData("application/pdf", "en")]
-    [InlineData("image/jpeg", "ms")]
+    [InlineData("image/jpeg", "en;drop")]
     public async Task Provider_RejectsUnsupportedMediaOrLanguage(string mediaType, string language)
     {
         var provider = new FakeOcrProvider();
@@ -116,5 +116,21 @@ public sealed class FakeOcrProviderTests
         };
 
         Assert.Equal(expected, options.IsValid(environment));
+    }
+
+    [Theory]
+    [InlineData("auto", true)]
+    [InlineData("en", true)]
+    [InlineData("zh-Hant", true)]
+    [InlineData("ar", true)]
+    [InlineData("", false)]
+    [InlineData("en;drop", false)]
+    [InlineData("toolonglanguage", false)]
+    public void Options_accept_auto_or_a_language_code(string language, bool expected)
+    {
+        var options = new OcrOptions { Enabled = true, Provider = "Fake", Language = language };
+
+        Assert.Equal(expected, options.IsValid("Development"));
+        Assert.Equal("auto", new OcrOptions().Language);
     }
 }

@@ -15,6 +15,7 @@ public interface IDocumentAiClient
     Task<ProcessResponse> ProcessAsync(
         ByteString content,
         string mediaType,
+        IReadOnlyList<string> languageHints,
         CancellationToken cancellationToken);
 }
 
@@ -67,8 +68,21 @@ public sealed class DocumentAiClient : IDocumentAiClient
     public Task<ProcessResponse> ProcessAsync(
         ByteString content,
         string mediaType,
-        CancellationToken cancellationToken) =>
-        processDocument(new ProcessRequest
+        IReadOnlyList<string> languageHints,
+        CancellationToken cancellationToken)
+    {
+        OcrConfig? ocr = null;
+        if (options.EnableStyleInfo || languageHints.Count > 0)
+        {
+            ocr = new OcrConfig();
+#pragma warning disable CS0612 // Required until the configured processor accepts PremiumFeatures.ComputeStyleInfo.
+            if (options.EnableStyleInfo) ocr.ComputeStyleInfo = true;
+#pragma warning restore CS0612
+            // Google detects languages itself; a hint only helps when the user chose one.
+            if (languageHints.Count > 0) ocr.Hints = new OcrConfig.Types.Hints { LanguageHints = { languageHints } };
+        }
+
+        return processDocument(new ProcessRequest
         {
             Name = options.ProcessorName,
             RawDocument = new RawDocument
@@ -76,16 +90,7 @@ public sealed class DocumentAiClient : IDocumentAiClient
                 Content = content,
                 MimeType = mediaType
             },
-            ProcessOptions = options.EnableStyleInfo
-                ? new ProcessOptions
-                {
-                    OcrConfig = new OcrConfig
-                    {
-#pragma warning disable CS0612 // Required until the configured processor accepts PremiumFeatures.ComputeStyleInfo.
-                        ComputeStyleInfo = true
-#pragma warning restore CS0612
-                    }
-                }
-                : null
+            ProcessOptions = ocr is null ? null : new ProcessOptions { OcrConfig = ocr }
         }, cancellationToken);
+    }
 }

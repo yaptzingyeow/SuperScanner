@@ -34,7 +34,7 @@ public sealed class DocumentAiClientTests
                 };
             });
 
-        var response = await client.ProcessAsync(expectedContent, "image/png", cancellation.Token);
+        var response = await client.ProcessAsync(expectedContent, "image/png", ["ja"], cancellation.Token);
 
         Assert.Same(expectedResponse, response);
         Assert.Equal(expectedEndpoint, receivedEndpoint);
@@ -47,6 +47,7 @@ public sealed class DocumentAiClientTests
 #pragma warning disable CS0612 // Processor-compatible style flag is intentionally verified.
         Assert.True(receivedRequest.ProcessOptions.OcrConfig.ComputeStyleInfo);
 #pragma warning restore CS0612
+        Assert.Equal(["ja"], receivedRequest.ProcessOptions.OcrConfig.Hints.LanguageHints);
         Assert.Equal(cancellation.Token, receivedCancellation);
     }
 

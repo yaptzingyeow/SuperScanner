@@ -34,7 +34,7 @@ public sealed class RequestPageOcr(
         {
             if (plans is not null) await plans.ConsumeAsync(ownerUid, UsageKind.Ocr, 1, ct);
             result = PageOcrResult.Queue(Guid.NewGuid(), pageId, source.SourceObjectKey,
-                fingerprint, "en", clock.UtcNow);
+                fingerprint, OcrLanguage.Auto, clock.UtcNow);
             await repository.AddAsync(result, ct);
         }
         else if (result.State == OcrResultState.Failed)

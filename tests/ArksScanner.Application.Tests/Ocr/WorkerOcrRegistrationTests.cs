@@ -89,6 +89,7 @@ public sealed class WorkerOcrRegistrationTests
         public Task<ProcessResponse> ProcessAsync(
             ByteString content,
             string mediaType,
+            IReadOnlyList<string> languageHints,
             CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 

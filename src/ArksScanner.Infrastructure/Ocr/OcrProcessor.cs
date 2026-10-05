@@ -60,7 +60,7 @@ public sealed class OcrProcessor(
 
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         result.Complete(normalized.ProviderName, normalized.ModelVersion,
-            normalized.FullText, elements, clock.UtcNow);
+            normalized.FullText, elements, clock.UtcNow, normalized.DetectedLanguage);
         db.OcrElements.AddRange(elements);
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);

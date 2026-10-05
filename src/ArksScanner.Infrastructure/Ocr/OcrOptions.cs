@@ -14,7 +14,8 @@ public sealed class OcrOptions
     /// provider every automatic run (and every later look change) is a new charge.
     /// </summary>
     public bool AutoRecognize { get; init; }
-    public string Language { get; init; } = "en";
+    /// <summary>"auto" lets the provider detect the language (any script); or a code such as "ja" as a hint.</summary>
+    public string Language { get; init; } = "auto";
     public int MaxAttempts { get; init; } = 3;
     public int TimeoutSeconds { get; init; } = 30;
     public int MaxElements { get; init; } = 10_000;
@@ -25,7 +26,7 @@ public sealed class OcrOptions
     public bool IsValid(string environmentName)
     {
         if (string.IsNullOrWhiteSpace(environmentName) ||
-            !string.Equals(Language, "en", StringComparison.Ordinal) ||
+            !ArksScanner.Application.Ocr.OcrLanguage.IsValid(Language) ||
             MaxAttempts is < 1 or > PostgresJobQueue.DefaultMaxAttempts ||
             TimeoutSeconds < 1 ||
             MaxElements < 1 ||
