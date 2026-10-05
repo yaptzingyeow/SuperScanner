@@ -1,9 +1,17 @@
 import { Injectable, signal } from '@angular/core';
 import { AR, Dictionary, EN, MS, ZH } from './translations';
+import { EDITOR } from './translations-editor';
+import { PAGES } from './translations-pages';
+import { WORKSPACE } from './translations-workspace';
 
 export type LanguageCode = 'en' | 'ms' | 'zh' | 'ar';
 
-const DICTIONARIES: Record<LanguageCode, Dictionary> = { en: EN, ms: MS, zh: ZH, ar: AR };
+const AREAS = [EDITOR, PAGES, WORKSPACE];
+const merge = (base: Dictionary, code: LanguageCode): Dictionary =>
+  Object.assign({}, base, ...AREAS.map((area) => area[code]));
+const DICTIONARIES: Record<LanguageCode, Dictionary> = {
+  en: merge(EN, 'en'), ms: merge(MS, 'ms'), zh: merge(ZH, 'zh'), ar: merge(AR, 'ar'),
+};
 const RIGHT_TO_LEFT = new Set<LanguageCode>(['ar']);
 const STORAGE_KEY = 'arks:language';
 
