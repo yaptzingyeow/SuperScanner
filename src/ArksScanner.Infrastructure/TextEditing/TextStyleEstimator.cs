@@ -100,7 +100,8 @@ public sealed class TextStyleEstimator(
                 var weightError = Math.Abs(reference.Density - observed.Density) / Math.Max(observed.Density, .01);
                 // Letter shapes decide between faces of similar width (e.g. Arial vs Calibri vs Poppins).
                 var overlap = observedMask.Overlap(rendered.Value.Mask);
-                var score = (0.45 * overlap + 0.55 / (1 + 4 * widthError + weightError));
+                // Scans are often stretched a few percent by perspective correction, so shape outweighs width.
+                var score = 0.75 * overlap + 0.25 / (1 + 2 * widthError + weightError);
                 scored.Add((new FontCandidate(face.CatalogueId, face.Version, score), ReferencePixels * scale));
             }
             catch (MagickException)
@@ -204,20 +205,20 @@ public sealed class TextStyleEstimator(
         }
     }
 
-    /// <summary>The ink inside its bounding box, resampled to a fixed grid so faces can be compared by shape.</summary>
+    /// <summary>The ink inside its bounding box, resampled to a fixed grid of coverage fractions so faces
+    /// can be compared by shape (serifs, bowls and stroke contrast show up as differences).</summary>
     private sealed class InkMask
     {
-        private const int GridWidth = 96, GridHeight = 24;
-        private readonly bool[] cells;
-        private InkMask(bool[] cells) => this.cells = cells;
+        private const int GridWidth = 160, GridHeight = 40;
+        private readonly double[] cells;
+        private InkMask(double[] cells) => this.cells = cells;
 
         public static InkMask From(byte[] rgb, int width, InkShape ink, double threshold)
         {
-            var cells = new bool[GridWidth * GridHeight];
+            var cells = new double[GridWidth * GridHeight];
             for (var gy = 0; gy < GridHeight; gy++)
             for (var gx = 0; gx < GridWidth; gx++)
             {
-                // Any ink in the cell's footprint marks the cell (robust to thin strokes and scale).
                 var x0 = ink.Left + (int)(gx * ink.Width / GridWidth);
                 var x1 = ink.Left + Math.Max((int)((gx + 1) * ink.Width / GridWidth), (int)(gx * ink.Width / GridWidth) + 1);
                 var y0 = ink.Top + (int)(gy * ink.Height / GridHeight);
@@ -231,21 +232,21 @@ public sealed class TextStyleEstimator(
                     total++;
                     if (0.299 * rgb[o] + 0.587 * rgb[o + 1] + 0.114 * rgb[o + 2] <= threshold) dark++;
                 }
-                cells[gy * GridWidth + gx] = total > 0 && dark * 3 >= total;
+                cells[gy * GridWidth + gx] = total == 0 ? 0 : dark / (double)total;
             }
             return new InkMask(cells);
         }
 
-        /// <summary>Intersection over union of the two ink grids (1 = identical shapes).</summary>
+        /// <summary>Soft intersection over union of the two coverage grids (1 = identical shapes).</summary>
         public double Overlap(InkMask other)
         {
-            int both = 0, either = 0;
+            double both = 0, either = 0;
             for (var i = 0; i < cells.Length; i++)
             {
-                if (cells[i] && other.cells[i]) both++;
-                if (cells[i] || other.cells[i]) either++;
+                both += Math.Min(cells[i], other.cells[i]);
+                either += Math.Max(cells[i], other.cells[i]);
             }
-            return either == 0 ? 0 : both / (double)either;
+            return either == 0 ? 0 : both / either;
         }
     }
 
