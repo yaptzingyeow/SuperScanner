@@ -82,6 +82,14 @@ builder.Services.AddScoped<PageRepairAssetCleanup>();
 builder.Services.AddHostedService<PageRepairCleanupWorker>();
 builder.Services.AddScoped<DocumentRetention>();
 builder.Services.AddHostedService<DocumentRetentionWorker>();
+// Permanently erases documents removed more than Retention:PurgeAfterDays (default 30) ago.
+builder.Services.AddScoped(services => new DocumentPurge(
+    services.GetRequiredService<ArksScanner.Infrastructure.Persistence.AppDbContext>(),
+    services.GetRequiredService<ArksScanner.Application.Abstractions.IObjectStore>(),
+    services.GetRequiredService<ArksScanner.Application.Abstractions.IClock>(),
+    services.GetRequiredService<ILogger<DocumentPurge>>(),
+    builder.Configuration.GetValue("Retention:PurgeAfterDays", DocumentPurge.DefaultPurgeAfterDays)));
+builder.Services.AddHostedService<DocumentPurgeWorker>();
 ImageMagick.ResourceLimits.Memory = 256UL * 1024 * 1024;
 ImageMagick.ResourceLimits.Disk = 1024UL * 1024 * 1024;
 ImageMagick.ResourceLimits.Width = 20000;
