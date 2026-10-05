@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
@@ -41,5 +42,25 @@ public sealed class MePlanTests : IAsyncLifetime
 
         Assert.True((await owner.GetFromJsonAsync<JsonElement>("/api/me/plan")).GetProperty("isAdmin").GetBoolean());
         Assert.False((await member.GetFromJsonAsync<JsonElement>("/api/me/plan")).GetProperty("isAdmin").GetBoolean());
+    }
+
+    [Fact]
+    public async Task Daily_limits_reset_at_midnight_in_the_users_own_time_zone()
+    {
+        using var member = fixture.Client("member");
+        member.DefaultRequestHeaders.Add("X-Time-Zone", "Pacific/Kiritimati");
+        member.DefaultRequestHeaders.AcceptLanguage.ParseAdd("ms-MY");
+        await member.GetAsync("/api/me/plan"); // first visit records the region
+
+        var body = await member.GetFromJsonAsync<JsonElement>("/api/me/plan");
+
+        var reset = body.GetProperty("usage").GetProperty("resetsAt").GetDateTimeOffset();
+        var zone = TimeZoneInfo.FindSystemTimeZoneById("Pacific/Kiritimati");
+        Assert.Equal(TimeSpan.Zero, TimeZoneInfo.ConvertTime(reset, zone).TimeOfDay);
+        Assert.Equal("Pacific/Kiritimati", body.GetProperty("timeZone").GetString());
+        Assert.Equal("ms-MY", body.GetProperty("locale").GetString());
+        await using var db = fixture.Db();
+        var account = await db.Accounts.SingleAsync(a => a.FirebaseUid == "member-uid");
+        Assert.Equal("Pacific/Kiritimati", account.TimeZone);
     }
 }

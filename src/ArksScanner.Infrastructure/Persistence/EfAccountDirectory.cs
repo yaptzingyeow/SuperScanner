@@ -12,10 +12,11 @@ public sealed class EfAccountDirectory(AppDbContext db, IMemoryCache cache, IClo
 {
     private static readonly TimeSpan AdminCacheTime = TimeSpan.FromSeconds(30);
 
-    public async Task TouchAsync(string uid, string? email, string? provider, bool isGuest, CancellationToken ct)
+    public async Task TouchAsync(string uid, string? email, string? provider, bool isGuest, CancellationToken ct,
+        string? timeZone = null, string? locale = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(uid);
-        var key = $"account-touch:{uid}:{email}:{isGuest}";
+        var key = $"account-touch:{uid}:{email}:{isGuest}:{timeZone}:{locale}";
         if (cache.TryGetValue(key, out _)) return;
         var now = clock.UtcNow;
         var account = await db.Accounts.SingleOrDefaultAsync(a => a.FirebaseUid == uid, ct);
@@ -28,6 +29,7 @@ public sealed class EfAccountDirectory(AppDbContext db, IMemoryCache cache, IClo
         {
             account.Touch(email, provider ?? account.SignInProvider, isGuest, now);
         }
+        account.SetRegion(timeZone, locale, now);
 
         // Seed even when the visit itself is not worth saving (seen < 10 minutes ago).
         await SeedOwnerAdminAsync(account, now, ct);

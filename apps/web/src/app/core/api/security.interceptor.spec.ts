@@ -44,6 +44,7 @@ describe('securityInterceptor', () => {
     const request = httpTesting.expectOne('/api/documents');
     expect(request.request.headers.get('Authorization')).toBe('Bearer id-token');
     expect(request.request.headers.get('X-Firebase-AppCheck')).toBe('app-token');
+    expect(request.request.headers.get('X-Time-Zone')).toBe(Intl.DateTimeFormat().resolvedOptions().timeZone);
     request.flush([]);
 
     await expect(response).resolves.toEqual([]);

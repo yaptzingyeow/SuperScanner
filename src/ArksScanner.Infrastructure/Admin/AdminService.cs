@@ -64,7 +64,7 @@ public sealed class AdminService(AppDbContext db, IPlanRepository planRepository
             .GroupBy(u => u.Day).Select(g => new { Day = g.Key, Ocr = g.Sum(u => u.OcrPages), Watermark = g.Sum(u => u.WatermarkExports) })
             .ToListAsync(ct);
         var recentCreated = await db.Accounts.Where(a => a.CreatedAt >= todayStart.AddDays(-30)).Select(a => a.CreatedAt).ToListAsync(ct);
-        var newByDay = recentCreated.GroupBy(settings.UsageDay).ToDictionary(g => g.Key, g => g.Count());
+        var newByDay = recentCreated.GroupBy(created => settings.UsageDay(created)).ToDictionary(g => g.Key, g => g.Count());
 
         return new
         {

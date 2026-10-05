@@ -36,6 +36,8 @@ export const securityInterceptor: HttpInterceptorFn = (request, next) => {
           setHeaders: {
             Authorization: `Bearer ${idToken}`,
             'X-Firebase-AppCheck': appCheckToken,
+            // Daily limits reset at the user's own midnight.
+            'X-Time-Zone': Intl.DateTimeFormat().resolvedOptions().timeZone,
           },
         }),
       ),

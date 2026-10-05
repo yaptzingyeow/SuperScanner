@@ -52,17 +52,21 @@ public sealed class PlanSettings
     public PlanPhase EffectivePhase(DateTimeOffset now) =>
         Phase == PlanPhase.Enforced || (EnforceFromUtc is { } from && now >= from) ? PlanPhase.Enforced : PlanPhase.Test;
 
-    public DateOnly UsageDay(DateTimeOffset now) => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(now, Zone()).DateTime);
+    /// <summary>The usage day in the user's own time zone when known (else the admin default).</summary>
+    public DateOnly UsageDay(DateTimeOffset now, string? userTimeZone = null) =>
+        DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(now, Zone(userTimeZone)).DateTime);
 
     /// <summary>The next local midnight (when daily counters reset), as an instant.</summary>
-    public DateTimeOffset NextReset(DateTimeOffset now)
+    public DateTimeOffset NextReset(DateTimeOffset now, string? userTimeZone = null)
     {
-        var zone = Zone();
-        var nextDay = UsageDay(now).AddDays(1).ToDateTime(TimeOnly.MinValue);
+        var zone = Zone(userTimeZone);
+        var nextDay = UsageDay(now, userTimeZone).AddDays(1).ToDateTime(TimeOnly.MinValue);
         return new DateTimeOffset(nextDay, zone.GetUtcOffset(nextDay)).ToUniversalTime();
     }
 
-    private TimeZoneInfo Zone() => TimeZoneInfo.FindSystemTimeZoneById(UsageTimeZone);
+    private TimeZoneInfo Zone(string? userTimeZone = null) =>
+        userTimeZone is not null && TimeZoneInfo.TryFindSystemTimeZoneById(userTimeZone, out var own)
+            ? own : TimeZoneInfo.FindSystemTimeZoneById(UsageTimeZone);
 
     private void Apply(PlanSettingsValues v, string? adminUid, DateTimeOffset now)
     {

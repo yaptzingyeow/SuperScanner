@@ -12,6 +12,7 @@ public static class PlanEndpoints
             context.Response.Headers.CacheControl = "private, no-store";
             var entitlements = await plans.GetEntitlementsAsync(user.FirebaseUid, ct);
             var usage = await plans.GetUsageAsync(user.FirebaseUid, ct);
+            var region = await plans.GetRegionAsync(user.FirebaseUid, ct);
             return Results.Ok(new
             {
                 plan = entitlements.Plan.ToString(),
@@ -35,6 +36,8 @@ public static class PlanEndpoints
                 },
                 documentCount = await plans.CountActiveDocumentsAsync(user.FirebaseUid, ct),
                 isAdmin = await accounts.IsAdminAsync(user.FirebaseUid, ct),
+                timeZone = region.TimeZone,
+                locale = region.Locale,
             });
         }).RequireAuthorization();
     }

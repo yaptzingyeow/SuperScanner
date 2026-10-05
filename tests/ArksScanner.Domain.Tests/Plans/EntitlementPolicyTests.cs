@@ -92,6 +92,18 @@ public sealed class PlanSettingsTests
     private static readonly DateTimeOffset Now = new(2026, 10, 4, 6, 0, 0, TimeSpan.Zero);
 
     [Fact]
+    public void Usage_day_follows_the_users_own_time_zone_when_known()
+    {
+        var settings = EntitlementPolicyTests.Settings();
+        var londonEvening = new DateTimeOffset(2026, 10, 4, 22, 30, 0, TimeSpan.Zero); // 23:30 BST, 06:30 next day in KL
+        Assert.Equal(new DateOnly(2026, 10, 4), settings.UsageDay(londonEvening, "Europe/London"));
+        Assert.Equal(new DateOnly(2026, 10, 5), settings.UsageDay(londonEvening));
+        Assert.Equal(new DateTimeOffset(2026, 10, 4, 23, 0, 0, TimeSpan.Zero), settings.NextReset(londonEvening, "Europe/London"));
+        // An unknown zone falls back to the admin default rather than failing.
+        Assert.Equal(new DateOnly(2026, 10, 5), settings.UsageDay(londonEvening, "Mars/Olympus"));
+    }
+
+    [Fact]
     public void Usage_day_rolls_over_at_midnight_in_Kuala_Lumpur()
     {
         var settings = EntitlementPolicyTests.Settings();

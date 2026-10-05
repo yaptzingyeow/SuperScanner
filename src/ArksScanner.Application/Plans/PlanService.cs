@@ -19,6 +19,9 @@ public interface IPlanRepository
     Task<int> CountActiveDocumentsAsync(string uid, CancellationToken ct);
     /// <summary>The account's retention grace start and last recorded plan (both null for unknown accounts).</summary>
     Task<(DateTimeOffset? GraceFrom, PlanKind? LastPlan)> GetRetentionStateAsync(string uid, CancellationToken ct);
+    /// <summary>The account's own time zone and locale (null when not reported yet).</summary>
+    Task<(string? TimeZone, string? Locale)> GetRegionAsync(string uid, CancellationToken ct) =>
+        Task.FromResult<(string?, string?)>((null, null));
 }
 
 /// <summary>A plan limit was reached. <see cref="KindCode"/> is ocr, watermark or documents.</summary>
@@ -49,13 +52,14 @@ public sealed class PlanService(IPlanRepository repository, IClock clock)
         var settings = await repository.GetSettingsAsync(ct);
         var entitlements = EntitlementPolicy.Evaluate(settings, await repository.GetSubscriptionsAsync(uid, ct), now);
         var limit = kind == UsageKind.Ocr ? entitlements.OcrPagesPerDay : entitlements.WatermarkExportsPerDay;
-        var day = settings.UsageDay(now);
+        var zone = (await repository.GetRegionAsync(uid, ct)).TimeZone;
+        var day = settings.UsageDay(now, zone);
         if (await repository.TryConsumeAsync(uid, day, kind, amount, limit, ct) is not null) return;
 
         var usage = await repository.GetUsageAsync(uid, day, ct);
         var used = kind == UsageKind.Ocr ? usage.OcrPages : usage.WatermarkExports;
         throw new PlanLimitExceededException(kind == UsageKind.Ocr ? "ocr" : "watermark",
-            (limit ?? 0) + (kind == UsageKind.Ocr ? usage.BonusOcrPages : 0), used, settings.NextReset(now));
+            (limit ?? 0) + (kind == UsageKind.Ocr ? usage.BonusOcrPages : 0), used, settings.NextReset(now, zone));
     }
 
     public async Task EnsureCanCreateDocumentAsync(string uid, CancellationToken ct)
@@ -70,10 +74,14 @@ public sealed class PlanService(IPlanRepository repository, IClock clock)
     {
         var now = clock.UtcNow;
         var settings = await repository.GetSettingsAsync(ct);
-        var day = settings.UsageDay(now);
+        var zone = (await repository.GetRegionAsync(uid, ct)).TimeZone;
+        var day = settings.UsageDay(now, zone);
         var counts = await repository.GetUsageAsync(uid, day, ct);
-        return new(day, counts.OcrPages, counts.BonusOcrPages, counts.WatermarkExports, settings.NextReset(now));
+        return new(day, counts.OcrPages, counts.BonusOcrPages, counts.WatermarkExports, settings.NextReset(now, zone));
     }
+
+    public Task<(string? TimeZone, string? Locale)> GetRegionAsync(string uid, CancellationToken ct) =>
+        repository.GetRegionAsync(uid, ct);
 
     public Task<int> CountActiveDocumentsAsync(string uid, CancellationToken ct) => repository.CountActiveDocumentsAsync(uid, ct);
 

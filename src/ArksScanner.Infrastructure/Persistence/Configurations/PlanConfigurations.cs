@@ -14,6 +14,8 @@ public sealed class AccountConfiguration : IEntityTypeConfiguration<Account>
         builder.Property(x => x.Email).HasMaxLength(320);
         builder.Property(x => x.SignInProvider).HasMaxLength(64).IsRequired();
         builder.Property(x => x.LastPlan).HasConversion<string>().HasMaxLength(16);
+        builder.Property(x => x.TimeZone).HasMaxLength(64);
+        builder.Property(x => x.Locale).HasMaxLength(35);
         builder.HasIndex(x => x.Email);
         builder.HasIndex(x => x.CreatedAt);
         builder.HasIndex(x => x.LastSeenAt);

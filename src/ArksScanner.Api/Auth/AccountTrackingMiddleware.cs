@@ -19,7 +19,9 @@ public sealed class AccountTrackingMiddleware(RequestDelegate next, ILogger<Acco
                     ? user.FindFirstValue(ClaimTypes.Email) : null;
                 await accounts.TouchAsync(uid, email,
                     user.FindFirstValue(FirebaseAuthenticationHandler.ProviderClaimType),
-                    user.HasClaim(FirebaseAuthenticationHandler.GuestClaimType, "true"), context.RequestAborted);
+                    user.HasClaim(FirebaseAuthenticationHandler.GuestClaimType, "true"), context.RequestAborted,
+                    context.Request.Headers["X-Time-Zone"].FirstOrDefault(),
+                    PreferredLocale(context.Request.Headers.AcceptLanguage.FirstOrDefault()));
             }
             catch (Exception exception) when (exception is not OperationCanceledException)
             {
@@ -29,6 +31,11 @@ public sealed class AccountTrackingMiddleware(RequestDelegate next, ILogger<Acco
 
         await next(context);
     }
+
+    /// <summary>The first language tag of Accept-Language ("zh-TW,zh;q=0.9" -> "zh-TW").</summary>
+    private static string? PreferredLocale(string? header) =>
+        header?.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Select(part => part.Split(';')[0].Trim()).FirstOrDefault(tag => tag != "*");
 }
 
 /// <summary>Admin routes answer 404 to anyone who is not an admin, so the portal is not discoverable.</summary>

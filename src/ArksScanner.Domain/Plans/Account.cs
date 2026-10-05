@@ -17,6 +17,11 @@ public sealed class Account
     public DateTimeOffset? RetentionGraceFrom { get; private set; }
     /// <summary>The plan last computed for this account, used to detect Pro ending.</summary>
     public PlanKind? LastPlan { get; private set; }
+    /// <summary>IANA time zone reported by the user's browser/app (e.g. "Europe/London").</summary>
+    public string? TimeZone { get; private set; }
+    public DateTimeOffset? TimeZoneChangedAt { get; private set; }
+    /// <summary>BCP-47 locale (e.g. "zh-Hant-TW") for dates, numbers and the app language.</summary>
+    public string? Locale { get; private set; }
 
     public static Account Create(string uid, string? email, string provider, bool isGuest, DateTimeOffset now)
     {
@@ -40,6 +45,28 @@ public sealed class Account
         if (!string.IsNullOrWhiteSpace(provider)) SignInProvider = provider;
         LastSeenAt = now;
         return true;
+    }
+
+    /// <summary>Records the user's region; true when something changed. A time-zone change takes effect at most
+    /// once a day, so daily limits cannot be reset early by hopping zones.</summary>
+    public bool SetRegion(string? timeZone, string? locale, DateTimeOffset now)
+    {
+        var changed = false;
+        if (timeZone is { Length: > 0 and <= 64 } && timeZone != TimeZone &&
+            TimeZoneInfo.TryFindSystemTimeZoneById(timeZone, out _) &&
+            (TimeZoneChangedAt is null || now - TimeZoneChangedAt >= TimeSpan.FromHours(24)))
+        {
+            TimeZone = timeZone;
+            TimeZoneChangedAt = now;
+            changed = true;
+        }
+        if (locale is { Length: > 0 and <= 35 } && locale != Locale &&
+            System.Text.RegularExpressions.Regex.IsMatch(locale, "^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$"))
+        {
+            Locale = locale;
+            changed = true;
+        }
+        return changed;
     }
 
     /// <summary>Remembers the plan; starts a retention grace when the account drops to Free.</summary>
