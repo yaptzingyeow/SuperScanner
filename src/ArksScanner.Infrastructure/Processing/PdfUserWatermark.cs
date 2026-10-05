@@ -2,6 +2,7 @@ using ImageMagick;
 using ImageMagick.Drawing;
 using PdfSharp.Drawing;
 using PdfSharp.Pdf;
+using ArksScanner.Application.TextEditing;
 using ArksScanner.Domain.Documents;
 
 namespace ArksScanner.Infrastructure.Processing;
@@ -35,13 +36,50 @@ public static class PdfUserWatermark
             ["dancing-script"] = ("DancingScript-Regular.ttf", null),
         };
 
-    /// <summary>The font file for a watermark (the bold face when chosen and available).</summary>
+    /// <summary>
+    /// The font file for a watermark (the bold face when chosen and available). When that font cannot
+    /// draw the text (e.g. Chinese or Arabic), a bundled world-script face that can is used instead.
+    /// </summary>
     public static string FontPath(ExportWatermark watermark, string fontsDirectory)
     {
         ArgumentNullException.ThrowIfNull(watermark);
         var files = FontFiles[watermark.FontId];
-        return Path.Combine(fontsDirectory, watermark.Bold && files.Bold is not null ? files.Bold : files.Regular);
+        var chosen = watermark.Bold && files.Bold is not null ? files.Bold : files.Regular;
+        var faces = Faces(fontsDirectory);
+        if (TextScripts.Covers(ScriptsOfFile(chosen, fontsDirectory), watermark.Text))
+            return Path.Combine(fontsDirectory, chosen);
+        var fallback = faces
+            .Where(face => TextScripts.Covers(face.Scripts, watermark.Text))
+            .OrderBy(face => Math.Abs(face.Weight - (watermark.Bold ? 700 : 400)))
+            .Select(face => face.File)
+            .FirstOrDefault();
+        return Path.Combine(fontsDirectory, fallback ?? chosen);
     }
+
+    /// <summary>Scripts a bundled font file covers, from the font manifest (empty when unknown = Latin).</summary>
+    public static IReadOnlyList<string> ScriptsOfFile(string fileName, string fontsDirectory) =>
+        Faces(fontsDirectory).FirstOrDefault(face => face.File == fileName)?.Scripts ?? [];
+
+    private sealed record ManifestFace(string File, int Weight, IReadOnlyList<string> Scripts);
+
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, IReadOnlyList<ManifestFace>> FacesByDirectory = new();
+
+    private static IReadOnlyList<ManifestFace> Faces(string fontsDirectory) =>
+        FacesByDirectory.GetOrAdd(fontsDirectory, directory =>
+        {
+            var manifest = Path.Combine(directory, "manifest.json");
+            if (!File.Exists(manifest)) return [];
+            using var json = System.Text.Json.JsonDocument.Parse(File.ReadAllText(manifest));
+            return json.RootElement.GetProperty("faces").EnumerateArray()
+                .Where(face => !face.TryGetProperty("enabled", out var enabled) || enabled.GetBoolean())
+                .Select(face => new ManifestFace(
+                    Path.GetFileName(face.GetProperty("rendererAssetPath").GetString() ?? ""),
+                    face.TryGetProperty("weight", out var weight) ? weight.GetInt32() : 400,
+                    face.TryGetProperty("scripts", out var scripts)
+                        ? scripts.EnumerateArray().Select(script => script.GetString() ?? "").ToArray()
+                        : []))
+                .ToArray();
+        });
 
     public static void Draw(PdfPage page, ExportWatermark watermark, string fontsDirectory)
     {
