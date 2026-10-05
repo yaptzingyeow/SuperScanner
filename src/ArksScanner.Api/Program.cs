@@ -49,7 +49,10 @@ else
 {
     builder.Services.AddHttpClient<IFirebaseAppCheckTokenVerifier, FirebaseAppCheckTokenVerifier>(client =>
         client.Timeout = TimeSpan.FromSeconds(10));
-    builder.Services.AddSingleton<IFirebaseIdTokenVerifier, FirebaseAdminIdTokenVerifier>();
+    builder.Services.AddSingleton<FirebaseAdminIdTokenVerifier>();
+    builder.Services.AddSingleton<IFirebaseIdTokenVerifier>(services => services.GetRequiredService<FirebaseAdminIdTokenVerifier>());
+    builder.Services.AddSingleton<ArksScanner.Application.Plans.IIdentityAccountDeleter>(services =>
+        services.GetRequiredService<FirebaseAdminIdTokenVerifier>());
     builder.Services.AddSingleton<IRequestIdentityVerifier, FirebaseRequestIdentityVerifier>();
 }
 builder.Services.AddHttpContextAccessor();
@@ -71,6 +74,7 @@ builder.Services.AddSingleton(PlanSeed.FromConfiguration(builder.Configuration))
 builder.Services.AddScoped<ArksScanner.Application.Plans.IPlanRepository, EfPlanRepository>();
 builder.Services.AddScoped<ArksScanner.Application.Plans.PlanService>();
 builder.Services.AddScoped<ArksScanner.Infrastructure.Admin.AdminService>();
+builder.Services.AddScoped<ArksScanner.Infrastructure.Privacy.PrivacyService>();
 builder.Services.AddScoped<IDocumentExportRepository, EfDocumentExportRepository>();
 builder.Services.AddScoped<IPageSignatureRepository, EfPageSignatureRepository>();
 builder.Services.AddScoped<IPageMarkRepository, EfPageMarkRepository>();

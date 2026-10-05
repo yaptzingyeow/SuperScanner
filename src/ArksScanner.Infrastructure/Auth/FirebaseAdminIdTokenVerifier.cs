@@ -12,7 +12,7 @@ public interface IFirebaseIdTokenVerifier
     Task<VerifiedFirebaseIdToken> VerifyAsync(string token, CancellationToken cancellationToken);
 }
 
-public sealed class FirebaseAdminIdTokenVerifier : IFirebaseIdTokenVerifier
+public sealed class FirebaseAdminIdTokenVerifier : IFirebaseIdTokenVerifier, ArksScanner.Application.Plans.IIdentityAccountDeleter
 {
     private readonly Lazy<FirebaseAuth> _firebaseAuth;
 
@@ -39,6 +39,12 @@ public sealed class FirebaseAdminIdTokenVerifier : IFirebaseIdTokenVerifier
             : null;
         return new VerifiedFirebaseIdToken(identity.Uid, email, FirebaseClaims.IsAnonymous(identity.Claims),
             FirebaseClaims.SignInProvider(identity.Claims), FirebaseClaims.EmailVerified(identity.Claims));
+    }
+
+    public async Task DeleteAsync(string uid, CancellationToken ct)
+    {
+        try { await _firebaseAuth.Value.DeleteUserAsync(uid, ct); }
+        catch (FirebaseAuthException exception) when (exception.AuthErrorCode == AuthErrorCode.UserNotFound) { }
     }
 
     private static FirebaseAuth CreateFirebaseAuth(string projectId, string? serviceAccountJson)

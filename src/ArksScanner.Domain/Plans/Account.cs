@@ -22,6 +22,9 @@ public sealed class Account
     public DateTimeOffset? TimeZoneChangedAt { get; private set; }
     /// <summary>BCP-47 locale (e.g. "zh-Hant-TW") for dates, numbers and the app language.</summary>
     public string? Locale { get; private set; }
+    /// <summary>Version of the privacy notice the person accepted, and when.</summary>
+    public string? PrivacyConsentVersion { get; private set; }
+    public DateTimeOffset? PrivacyConsentedAt { get; private set; }
 
     public static Account Create(string uid, string? email, string provider, bool isGuest, DateTimeOffset now)
     {
@@ -67,6 +70,14 @@ public sealed class Account
             changed = true;
         }
         return changed;
+    }
+
+    public void RecordPrivacyConsent(string version, DateTimeOffset now)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(version);
+        if (version.Length > 32) throw new ArgumentException("Consent version is too long.", nameof(version));
+        PrivacyConsentVersion = version;
+        PrivacyConsentedAt = now;
     }
 
     /// <summary>Remembers the plan; starts a retention grace when the account drops to Free.</summary>
