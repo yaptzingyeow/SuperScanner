@@ -8,6 +8,7 @@ public sealed class CropGuidanceTests
     [InlineData("Ai", .84, "accurate")]
     [InlineData("Ai", .66, "verify")]
     [InlineData("OpenCvFallback", .82, "verify")]
+    [InlineData("OpenCvFallback", .99, "accurate")]
     [InlineData("Automatic", .99, "accurate")]
     [InlineData("Automatic", .85, "accurate")]
     [InlineData("Automatic", .80, "verify")]

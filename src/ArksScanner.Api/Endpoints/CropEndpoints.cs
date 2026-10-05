@@ -67,7 +67,7 @@ public static class CropEndpoints
         source == "FullImage" || confidence == 0 ? "manual"
         : source == "Ai" && confidence >= .78 ? "accurate"
         // The edge detector scores every side's edge evidence; .85+ means all four edges are clear.
-        : source == "Automatic" && confidence >= .85 ? "accurate"
+        : source is "Automatic" or "OpenCvFallback" && confidence >= .85 ? "accurate"
         : "verify";
 
     private static object ToDto(Page page) => new {

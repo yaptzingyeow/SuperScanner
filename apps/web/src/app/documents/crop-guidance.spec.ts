@@ -8,6 +8,7 @@ describe('cropGuidance (fallback when the server sends none)', () => {
     expect(cropGuidance(state('Automatic', .99))).toBe('accurate');
     expect(cropGuidance(state('Automatic', .85))).toBe('accurate');
     expect(cropGuidance(state('Automatic', .8))).toBe('verify');
+    expect(cropGuidance(state('OpenCvFallback', .99))).toBe('accurate');
     expect(cropGuidance(state('Ai', .8))).toBe('accurate');
     expect(cropGuidance(state('FullImage', 0))).toBe('manual');
   });
