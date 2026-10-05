@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using ArksScanner.Domain.Documents;
 using ArksScanner.Domain.TextEditing;
@@ -25,8 +26,7 @@ public sealed class PageRevisionPersistenceTests : IAsyncLifetime
         await using (var old = new AppDbContext(options))
         {
             await old.GetService<IMigrator>().MigrateAsync("20260927000000_PageMarkRequestHash");
-            old.Documents.Add(document);
-            await old.SaveChangesAsync();
+            await SaveIntoOldSchemaAsync(old, document);
         }
 
         await using (var upgraded = new AppDbContext(options))
@@ -100,8 +100,7 @@ public sealed class PageRevisionPersistenceTests : IAsyncLifetime
         await using (var old = new AppDbContext(options))
         {
             await old.GetService<IMigrator>().MigrateAsync("20260922174452_PageRevisions");
-            old.Documents.Add(document);
-            await old.SaveChangesAsync();
+            await SaveIntoOldSchemaAsync(old, document);
         }
         await using var upgraded = new AppDbContext(options);
         await upgraded.Database.MigrateAsync();
@@ -173,6 +172,45 @@ public sealed class PageRevisionPersistenceTests : IAsyncLifetime
         var export = DocumentExport.Create(Guid.NewGuid(), loaded!, "owner", Now,
             TimeSpan.FromDays(1));
         Assert.Contains("page-revisions/edited.jpg", export.SnapshotJson);
+    }
+
+    /// <summary>
+    /// Saves with today's model into an older schema: columns added by later migrations are
+    /// created just for the insert and dropped again, so the upgrade under test starts clean.
+    /// </summary>
+    private static async Task SaveIntoOldSchemaAsync(AppDbContext db, Document document)
+    {
+        var added = new List<(string Table, string Column)>();
+        foreach (var entity in db.Model.GetEntityTypes())
+        {
+            var table = entity.GetTableName();
+            if (table is null) continue;
+            var existing = await db.Database.SqlQueryRaw<string>(
+                "SELECT column_name AS \"Value\" FROM information_schema.columns WHERE table_name = {0}", table)
+                .ToListAsync();
+            if (existing.Count == 0) continue;
+            var store = StoreObjectIdentifier.Table(table, entity.GetSchema());
+            foreach (var property in entity.GetProperties())
+            {
+                var column = property.GetColumnName(store);
+                if (column is null || existing.Contains(column) || added.Contains((table, column))) continue;
+#pragma warning disable EF1002, EF1003 // identifiers come from the EF model, not user input
+                var fallback = property.GetDefaultValueSql()
+                    ?? (property.GetDefaultValue() is { } value
+                        ? property.GetRelationalTypeMapping().GenerateSqlLiteral(value) : null);
+                await db.Database.ExecuteSqlRawAsync(
+                    $"ALTER TABLE \"{table}\" ADD COLUMN \"{column}\" {property.GetColumnType()} NULL"
+                    + (fallback is null ? "" : $" DEFAULT {fallback}"));
+#pragma warning restore EF1002, EF1003
+                added.Add((table, column));
+            }
+        }
+        db.Documents.Add(document);
+        await db.SaveChangesAsync();
+        foreach (var (table, column) in added)
+#pragma warning disable EF1002
+            await db.Database.ExecuteSqlRawAsync($"ALTER TABLE \"{table}\" DROP COLUMN \"{column}\"");
+#pragma warning restore EF1002, EF1003
     }
 
     private DbContextOptions<AppDbContext> Options() =>

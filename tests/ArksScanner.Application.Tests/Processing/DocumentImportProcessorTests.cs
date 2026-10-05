@@ -14,7 +14,7 @@ namespace ArksScanner.Application.Tests.Processing;
 
 public sealed class DocumentImportProcessorTests
 {
-    [Fact]
+    [PopplerFact]
     public async Task Poppler_InspectsAndRendersDeterministicThreePagePdf()
     {
         var directory = Directory.CreateTempSubdirectory("arksscanner-poppler-test-");
@@ -39,7 +39,7 @@ public sealed class DocumentImportProcessorTests
         }
     }
 
-    [Fact]
+    [PopplerFact]
     public async Task Poppler_AccountsForEveryMixedPageDimension()
     {
         var directory = Directory.CreateTempSubdirectory("arksscanner-poppler-test-");

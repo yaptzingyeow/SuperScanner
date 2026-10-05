@@ -63,7 +63,8 @@ builder.Services
         FirebaseAuthenticationHandler.SchemeName,
         _ => { });
 builder.Services.AddAuthorization(AuthPolicies.AddSignedInAccount);
-builder.Services.AddHealthChecks();
+builder.Services.AddHealthChecks()
+    .AddCheck<ArksScanner.Api.Health.DatabaseReadinessCheck>("database", tags: [ArksScanner.Api.Health.DatabaseReadinessCheck.Tag]);
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("PostgreSql") ?? string.Empty));
 builder.Services.AddScoped<IDocumentRepository, EfDocumentRepository>();
@@ -219,7 +220,24 @@ TextEditingEndpoints.Map(app);
 AdminEndpoints.Map(app);
 PlanEndpoints.Map(app);
 UploadsEndpoints.Map(app);
-app.MapHealthChecks("/health");
+// /health: the process is up. /health/ready: database reachable and fully migrated.
+app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = _ => false,
+});
+app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains(ArksScanner.Api.Health.DatabaseReadinessCheck.Tag),
+    ResponseWriter = async (context, report) =>
+    {
+        context.Response.ContentType = "application/json";
+        await context.Response.WriteAsJsonAsync(new
+        {
+            status = report.Status.ToString(),
+            checks = report.Entries.ToDictionary(entry => entry.Key, entry => entry.Value.Description),
+        });
+    },
+});
 if (e2eIdentityEnabled)
 {
     E2eIdentityFixture.Map(app);
