@@ -356,3 +356,7 @@ h1 {
   &--danger { color: #ac3d39; }
 }
 .action-error { color: #ac3d39; font-weight: 600; }
+
+.rename-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.rename-row input { min-height: 32px; min-width: 0; flex: 1 1 180px; padding: 0 8px; border: 1px solid #1e6b50; border-radius: 8px; font: inherit; }
+.confirm-delete { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: .85rem; color: #ac3d39; font-weight: 600; }

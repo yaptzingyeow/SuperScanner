@@ -61,8 +61,19 @@ export class DocumentListComponent implements OnInit, OnDestroy {
 
   protected readonly actionError = signal('');
 
+  /** Card waiting for "Yes, delete" (in-card, because browsers can block confirm()). */
+  protected readonly confirmingDelete = signal<string | null>(null);
+  /** Card whose title is being edited inline, and the draft title. */
+  protected readonly renaming = signal<string | null>(null);
+  protected readonly renameDraft = signal('');
+
+  protected askDelete(document: DocumentSummary): void {
+    this.renaming.set(null);
+    this.confirmingDelete.set(document.id);
+  }
+
   protected async deleteDocument(document: DocumentSummary): Promise<void> {
-    if (!window.confirm(this.i18n.t('list.deleteConfirm', { title: document.title }))) return;
+    this.confirmingDelete.set(null);
     this.actionError.set('');
     try {
       await firstValueFrom(this.http.delete(`${this.apiBaseUrl}/documents/${document.id}`));
@@ -72,15 +83,27 @@ export class DocumentListComponent implements OnInit, OnDestroy {
     }
   }
 
-  protected async renameDocument(document: DocumentSummary): Promise<void> {
-    const title = window.prompt(this.i18n.t('list.renamePrompt'), document.title)?.trim();
-    if (!title || title === document.title) return;
+  protected startRename(document: DocumentSummary): void {
+    this.confirmingDelete.set(null);
+    this.renameDraft.set(document.title);
+    this.renaming.set(document.id);
+  }
+
+  protected renameKey(event: KeyboardEvent, document: DocumentSummary): void {
+    if (event.key === 'Enter') { event.preventDefault(); void this.saveRename(document); }
+    if (event.key === 'Escape') { event.preventDefault(); this.renaming.set(null); }
+  }
+
+  protected async saveRename(document: DocumentSummary): Promise<void> {
+    const title = this.renameDraft().trim();
+    if (!title || title === document.title) { this.renaming.set(null); return; }
     if (title.length > 200) { this.actionError.set(this.i18n.t('list.titleTooLong')); return; }
     this.actionError.set('');
     try {
       const renamed = await firstValueFrom(
         this.http.patch<DocumentSummary>(`${this.apiBaseUrl}/documents/${document.id}`, { title }));
       this.documents.update((all) => all.map((item) => item.id === document.id ? { ...item, title: renamed.title } : item));
+      this.renaming.set(null);
     } catch {
       this.actionError.set(this.i18n.t('list.renameFailed'));
     }

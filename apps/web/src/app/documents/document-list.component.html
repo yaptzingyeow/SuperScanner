@@ -77,7 +77,17 @@
           <li class="document-card">
             <span class="document-card__preview" aria-hidden="true">DOC</span>
             <div class="document-card__body">
-              <a [routerLink]="['/documents', document.id]"><strong data-document-title>{{ document.title }}</strong></a>
+              @if (renaming() === document.id) {
+                <span class="rename-row">
+                  <input data-rename-input maxlength="200" [attr.aria-label]="i18n.t('list.renamePrompt')"
+                    [value]="renameDraft()" (input)="renameDraft.set($any($event.target).value)"
+                    (keydown)="renameKey($event, document)" />
+                  <button type="button" class="card-action" data-save-rename (click)="saveRename(document)">{{ i18n.t('list.save') }}</button>
+                  <button type="button" class="card-action" (click)="renaming.set(null)">{{ i18n.t('list.cancel') }}</button>
+                </span>
+              } @else {
+                <a [routerLink]="['/documents', document.id]"><strong data-document-title>{{ document.title }}</strong></a>
+              }
               <span
                 >{{ document.pageCount === 1 ? i18n.t('list.page') : i18n.t('list.pages', { count: document.pageCount }) }} ·
                 {{ i18n.t('list.updated', { date: (document.updatedAt | date: 'mediumDate') ?? '' }) }}</span
@@ -90,10 +100,19 @@
             </div>
             <span class="document-card__status">{{ document.status }}</span>
             <span class="document-card__actions">
-              <button type="button" class="card-action" data-rename-document [attr.aria-label]="i18n.t('list.rename') + ' ' + document.title"
-                (click)="renameDocument(document)">{{ i18n.t('list.rename') }}</button>
-              <button type="button" class="card-action card-action--danger" data-delete-document
-                [attr.aria-label]="i18n.t('list.delete') + ' ' + document.title" (click)="deleteDocument(document)">{{ i18n.t('list.delete') }}</button>
+              @if (confirmingDelete() === document.id) {
+                <span class="confirm-delete" role="alertdialog" [attr.aria-label]="i18n.t('list.deleteAsk')">
+                  {{ i18n.t('list.deleteAsk') }}
+                  <button type="button" class="card-action card-action--danger" data-confirm-delete
+                    (click)="deleteDocument(document)">{{ i18n.t('list.deleteYes') }}</button>
+                  <button type="button" class="card-action" data-keep-document (click)="confirmingDelete.set(null)">{{ i18n.t('list.keep') }}</button>
+                </span>
+              } @else {
+                <button type="button" class="card-action" data-rename-document [attr.aria-label]="i18n.t('list.rename') + ' ' + document.title"
+                  (click)="startRename(document)">{{ i18n.t('list.rename') }}</button>
+                <button type="button" class="card-action card-action--danger" data-delete-document
+                  [attr.aria-label]="i18n.t('list.delete') + ' ' + document.title" (click)="askDelete(document)">{{ i18n.t('list.delete') }}</button>
+              }
             </span>
           </li>
         }

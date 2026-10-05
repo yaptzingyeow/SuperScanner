@@ -2,6 +2,11 @@
 export type Dictionary = Record<string, string>;
 
 export const EN: Dictionary = {
+  'list.save': 'Save',
+  'list.cancel': 'Cancel',
+  'list.deleteAsk': 'Delete this document?',
+  'list.deleteYes': 'Yes, delete',
+  'list.keep': 'Keep',
   'list.recent': 'Recent documents',
   'list.total': '{count} total',
   'list.emptyBody': 'Your next chapter starts with one document.',
@@ -86,6 +91,11 @@ export const EN: Dictionary = {
 };
 
 export const MS: Dictionary = {
+  'list.save': 'Simpan',
+  'list.cancel': 'Batal',
+  'list.deleteAsk': 'Padam dokumen ini?',
+  'list.deleteYes': 'Ya, padam',
+  'list.keep': 'Kekalkan',
   'list.recent': 'Dokumen terkini',
   'list.total': '{count} jumlah',
   'list.emptyBody': 'Bab seterusnya bermula dengan satu dokumen.',
@@ -169,6 +179,11 @@ export const MS: Dictionary = {
 };
 
 export const ZH: Dictionary = {
+  'list.save': '保存',
+  'list.cancel': '取消',
+  'list.deleteAsk': '删除此文档？',
+  'list.deleteYes': '确认删除',
+  'list.keep': '保留',
   'list.recent': '最近的文档',
   'list.total': '共 {count} 个',
   'list.emptyBody': '从一份文档开始您的新篇章。',
@@ -252,6 +267,11 @@ export const ZH: Dictionary = {
 };
 
 export const AR: Dictionary = {
+  'list.save': 'حفظ',
+  'list.cancel': 'إلغاء',
+  'list.deleteAsk': 'حذف هذا المستند؟',
+  'list.deleteYes': 'نعم، احذف',
+  'list.keep': 'إبقاء',
   'list.recent': 'المستندات الأخيرة',
   'list.total': 'المجموع {count}',
   'list.emptyBody': 'يبدأ فصلك التالي بمستند واحد.',

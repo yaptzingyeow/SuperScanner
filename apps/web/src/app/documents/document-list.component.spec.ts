@@ -83,33 +83,60 @@ describe('DocumentListComponent', () => {
     expect((fixture.nativeElement as HTMLElement).querySelector('[data-expiry-banner]')?.textContent).toContain('within a day');
   });
 
-  it('deletes a document after confirming and renames one in place', async () => {
+  it('deletes after an in-card confirmation and renames inline, without browser pop-ups', async () => {
     httpTesting.expectOne('/api/documents').flush([
       { id: 'a', title: 'IMG_9685', status: 'Ready', pageCount: 1, updatedAt: '2026-10-01T00:00:00Z' },
       { id: 'b', title: 'Lease', status: 'Ready', pageCount: 2, updatedAt: '2026-10-01T00:00:00Z' },
     ]);
     fixture.detectChanges();
     const el = fixture.nativeElement as HTMLElement;
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+    const confirm = vi.spyOn(window, 'confirm');
+    const prompt = vi.spyOn(window, 'prompt');
 
     (el.querySelectorAll('[data-delete-document]')[1] as HTMLButtonElement).click();
+    fixture.detectChanges();
     httpTesting.expectNone({ method: 'DELETE' });
+    (el.querySelector('[data-keep-document]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(el.querySelector('[data-confirm-delete]')).toBeNull();
     (el.querySelectorAll('[data-delete-document]')[1] as HTMLButtonElement).click();
-    expect(confirm).toHaveBeenLastCalledWith('Delete “Lease”? This cannot be undone from the app.');
+    fixture.detectChanges();
+    (el.querySelector('[data-confirm-delete]') as HTMLButtonElement).click();
     httpTesting.expectOne({ method: 'DELETE', url: '/api/documents/b' }).flush(null, { status: 204, statusText: 'No Content' });
     await fixture.whenStable();
     fixture.detectChanges();
     expect(el.textContent).not.toContain('Lease');
 
-    vi.spyOn(window, 'prompt').mockReturnValue('  Tenancy agreement ');
     (el.querySelector('[data-rename-document]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    const input = el.querySelector('[data-rename-input]') as HTMLInputElement;
+    expect(input.value).toBe('IMG_9685');
+    input.value = '  Tenancy agreement ';
+    input.dispatchEvent(new Event('input'));
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
     const patch = httpTesting.expectOne({ method: 'PATCH', url: '/api/documents/a' });
     expect(patch.request.body).toEqual({ title: 'Tenancy agreement' });
     patch.flush({ id: 'a', title: 'Tenancy agreement', status: 'Ready', pageCount: 1, updatedAt: '2026-10-05T00:00:00Z' });
     await fixture.whenStable();
     fixture.detectChanges();
     expect(el.querySelector('[data-document-title]')?.textContent).toBe('Tenancy agreement');
+    expect(confirm).not.toHaveBeenCalled();
+    expect(prompt).not.toHaveBeenCalled();
     vi.restoreAllMocks();
+  });
+
+  it('cancels a rename with Escape', () => {
+    httpTesting.expectOne('/api/documents').flush([
+      { id: 'a', title: 'IMG_9685', status: 'Ready', pageCount: 1, updatedAt: '2026-10-01T00:00:00Z' },
+    ]);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    (el.querySelector('[data-rename-document]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    (el.querySelector('[data-rename-input]') as HTMLInputElement).dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    fixture.detectChanges();
+    expect(el.querySelector('[data-rename-input]')).toBeNull();
+    expect(el.querySelector('[data-document-title]')?.textContent).toBe('IMG_9685');
   });
 
   it('shows a safe error without exposing the provider response', () => {
