@@ -37,6 +37,24 @@ public sealed class Document
         Revision++;
     }
 
+    /// <summary>Reason recorded when the owner deletes a document; only these can be restored from the bin.</summary>
+    public const string UserDeletedReason = "user_deleted";
+
+    /// <summary>Brings an owner-deleted document back with the pages that were removed together with it.</summary>
+    public void Restore(DateTimeOffset now)
+    {
+        if (RemovedAt is not { } removedAt) return;
+        if (RemovedReason != UserDeletedReason)
+            throw new InvalidOperationException("Only documents the owner deleted can be restored.");
+        foreach (var page in _pages.Where(page => page.RemovedAt == removedAt))
+            page.Restore();
+        RemovedAt = null;
+        RemovedReason = null;
+        UpdatedAt = now;
+        Revision++;
+        PageOrderRevision++;
+    }
+
     public void Rename(string title, DateTimeOffset now)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(title);

@@ -83,6 +83,47 @@ describe('DocumentListComponent', () => {
     expect((fixture.nativeElement as HTMLElement).querySelector('[data-expiry-banner]')?.textContent).toContain('within a day');
   });
 
+  it('opens Recently deleted on demand and restores a document into the list', async () => {
+    httpTesting.expectOne('/api/documents').flush([]);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    httpTesting.expectNone('/api/documents/bin');
+
+    (el.querySelector('[data-open-bin]') as HTMLButtonElement).click();
+    httpTesting.expectOne('/api/documents/bin').flush([
+      { id: 'x', title: 'Old lease', deletedAt: '2026-10-01T00:00:00Z', purgeAfter: '2026-10-31T00:00:00Z' },
+    ]);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(el.querySelector('[data-bin]')?.textContent).toContain('Old lease');
+
+    (el.querySelector('[data-restore]') as HTMLButtonElement).click();
+    httpTesting.expectOne({ method: 'POST', url: '/api/documents/x/restore' })
+      .flush({ id: 'x', title: 'Old lease', status: 'Ready', pageCount: 2, updatedAt: '2026-10-05T00:00:00Z' });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(el.querySelector('[data-bin]')?.textContent).not.toContain('Old lease');
+    expect(el.querySelector('[data-document-title]')?.textContent).toBe('Old lease');
+  });
+
+  it('explains when restoring would go over the plan document limit', async () => {
+    httpTesting.expectOne('/api/documents').flush([]);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    (el.querySelector('[data-open-bin]') as HTMLButtonElement).click();
+    httpTesting.expectOne('/api/documents/bin').flush([
+      { id: 'x', title: 'Old lease', deletedAt: '2026-10-01T00:00:00Z', purgeAfter: '2026-10-31T00:00:00Z' },
+    ]);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    (el.querySelector('[data-restore]') as HTMLButtonElement).click();
+    httpTesting.expectOne({ method: 'POST', url: '/api/documents/x/restore' })
+      .flush({ code: 'plan_limit_reached', kind: 'documents' }, { status: 429, statusText: 'Too Many Requests' });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(el.querySelector('[role="alert"]')?.textContent).toContain('document limit');
+  });
+
   it('deletes after an in-card confirmation and renames inline, without browser pop-ups', async () => {
     httpTesting.expectOne('/api/documents').flush([
       { id: 'a', title: 'IMG_9685', status: 'Ready', pageCount: 1, updatedAt: '2026-10-01T00:00:00Z' },

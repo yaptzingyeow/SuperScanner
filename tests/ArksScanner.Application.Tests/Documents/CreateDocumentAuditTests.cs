@@ -38,6 +38,12 @@ public sealed class CreateDocumentAuditTests
 
     private sealed class Repository : IDocumentRepository
     {
+        public Task<Document?> FindOwnedDeletedForUpdateAsync(string ownerUid, Guid documentId, DateTimeOffset deletedSince,
+            CancellationToken cancellationToken) => Task.FromResult<Document?>(null);
+
+        public Task<IReadOnlyList<Document>> ListDeletedByOwnerAsync(string ownerUid, DateTimeOffset deletedSince,
+            CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<Document>>([]);
+
         public Task<IDocumentTransaction> BeginTransactionAsync(CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<Document?> FindOwnedForUpdateAsync(string ownerUid, Guid documentId, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task SaveChangesAsync(CancellationToken cancellationToken) => throw new NotSupportedException();

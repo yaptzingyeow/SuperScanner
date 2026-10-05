@@ -1,5 +1,6 @@
 using System.Text.Json;
 using ArksScanner.Application.Abstractions;
+using ArksScanner.Domain.Documents;
 
 namespace ArksScanner.Application.Documents;
 
@@ -14,7 +15,7 @@ public sealed class DeleteDocument(IDocumentRepository documents, IClock clock, 
         var document = await documents.FindOwnedForUpdateAsync(ownerUid, documentId, ct)
             ?? throw new DocumentNotFoundException();
         var now = clock.UtcNow;
-        document.Remove("user_deleted", now);
+        document.Remove(Document.UserDeletedReason, now);
         await audit.AppendAsync(new AuditWriteRequest(ownerUid, "document.deleted", "document", document.Id,
             "{}", now), ct);
         await documents.SaveChangesAsync(ct);

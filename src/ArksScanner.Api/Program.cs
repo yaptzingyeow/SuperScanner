@@ -89,6 +89,7 @@ builder.Services.AddScoped<CreateDocument>();
 builder.Services.AddScoped<ListDocuments>();
 builder.Services.AddScoped<DeleteDocument>();
 builder.Services.AddScoped<RenameDocument>();
+builder.Services.AddScoped<RecycleBin>();
 builder.Services.AddScoped<ReorderPages>();
 builder.Services.AddScoped<RemovePage>();
 builder.Services.AddScoped<IUploadIntentRepository, EfUploadIntentRepository>();

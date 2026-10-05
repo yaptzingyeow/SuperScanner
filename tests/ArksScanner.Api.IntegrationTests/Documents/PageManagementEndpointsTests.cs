@@ -207,6 +207,12 @@ internal static class PageManagementHttp
 
 internal sealed class PageManagementRepository : IDocumentRepository
 {
+    public Task<Document?> FindOwnedDeletedForUpdateAsync(string ownerUid, Guid documentId, DateTimeOffset deletedSince,
+        CancellationToken cancellationToken) => Task.FromResult<Document?>(null);
+
+    public Task<IReadOnlyList<Document>> ListDeletedByOwnerAsync(string ownerUid, DateTimeOffset deletedSince,
+        CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<Document>>([]);
+
     public Document Document { get; } = PageManagementHttp.CreateDocument();
     public Task AddAsync(Document document, CancellationToken ct) => throw new NotSupportedException();
     public Task<IReadOnlyList<Document>> ListByOwnerAsync(string owner, CancellationToken ct) => throw new NotSupportedException();

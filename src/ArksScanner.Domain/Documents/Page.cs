@@ -153,6 +153,12 @@ public sealed class Page
         FailureCode = failureCode;
     }
 
+    internal void Restore()
+    {
+        RemovedAt = null;
+        RemovedByFirebaseUid = null;
+    }
+
     public void SoftRemove(string firebaseUid, DateTimeOffset now)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(firebaseUid);

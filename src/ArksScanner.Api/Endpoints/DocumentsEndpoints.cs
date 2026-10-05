@@ -16,6 +16,15 @@ public static class DocumentsEndpoints
 
         group.MapPost("/", CreateAsync);
         group.MapGet("/", ListAsync);
+        group.MapGet("/bin", async (ICurrentUser user, RecycleBin bin, CancellationToken ct) =>
+            Results.Ok(await bin.ListAsync(user.FirebaseUid, ct)));
+        group.MapPost("/{documentId:guid}/restore", async (Guid documentId, ICurrentUser user, RecycleBin bin,
+            CancellationToken ct) =>
+        {
+            try { return Results.Ok(await bin.RestoreAsync(user.FirebaseUid, documentId, ct)); }
+            catch (DocumentNotFoundException) { return Results.NotFound(); }
+            catch (PlanLimitExceededException limit) { return PlanProblem.From(limit); }
+        });
         group.MapDelete("/{documentId:guid}", async (Guid documentId, ICurrentUser user, DeleteDocument delete,
             CancellationToken ct) =>
         {

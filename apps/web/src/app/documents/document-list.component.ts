@@ -16,6 +16,14 @@ export interface DocumentSummary {
   expiresAt?: string | null;
 }
 
+/** A deleted document still restorable from the bin until purgeAfter. */
+export interface BinEntry {
+  id: string;
+  title: string;
+  deletedAt: string;
+  purgeAfter: string;
+}
+
 type LoadState = 'loading' | 'loaded' | 'error';
 
 @Component({
@@ -78,8 +86,41 @@ export class DocumentListComponent implements OnInit, OnDestroy {
     try {
       await firstValueFrom(this.http.delete(`${this.apiBaseUrl}/documents/${document.id}`));
       this.documents.update((all) => all.filter((item) => item.id !== document.id));
+      if (this.binOpen()) void this.loadBin();
     } catch {
       this.actionError.set(this.i18n.t('list.deleteFailed'));
+    }
+  }
+
+  /** Recently deleted: loaded only when opened. */
+  protected readonly binOpen = signal(false);
+  protected readonly bin = signal<readonly BinEntry[] | null>(null);
+
+  protected toggleBin(): void {
+    this.binOpen.update((open) => !open);
+    if (this.binOpen()) void this.loadBin();
+  }
+
+  private async loadBin(): Promise<void> {
+    try {
+      this.bin.set(await firstValueFrom(this.http.get<readonly BinEntry[]>(`${this.apiBaseUrl}/documents/bin`)));
+    } catch {
+      this.bin.set([]);
+      this.actionError.set(this.i18n.t('list.bin.loadFailed'));
+    }
+  }
+
+  protected async restore(entry: BinEntry): Promise<void> {
+    this.actionError.set('');
+    try {
+      const restored = await firstValueFrom(
+        this.http.post<DocumentSummary>(`${this.apiBaseUrl}/documents/${entry.id}/restore`, null));
+      this.bin.update((all) => (all ?? []).filter((item) => item.id !== entry.id));
+      this.documents.update((all) => [restored, ...all.filter((item) => item.id !== restored.id)]);
+      this.loadState.set('loaded');
+    } catch (error) {
+      const limit = (error as { status?: number }).status === 429;
+      this.actionError.set(this.i18n.t(limit ? 'list.bin.limit' : 'list.bin.restoreFailed'));
     }
   }
 

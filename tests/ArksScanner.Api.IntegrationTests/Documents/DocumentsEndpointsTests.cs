@@ -126,6 +126,49 @@ public sealed class DocumentsEndpointsTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Deleted_document_waits_in_the_bin_and_restores_for_its_owner_only()
+    {
+        using var owner = CreateAuthenticatedClient("user-a");
+        using var other = CreateAuthenticatedClient("user-b");
+        var created = await (await owner.PostAsJsonAsync("/api/documents", new { title = "Lease" }))
+            .Content.ReadFromJsonAsync<DocumentSummary>();
+        await owner.DeleteAsync($"/api/documents/{created!.Id}");
+
+        var bin = await owner.GetFromJsonAsync<JsonElement>("/api/documents/bin");
+        var entry = Assert.Single(bin.EnumerateArray());
+        Assert.Equal("Lease", entry.GetProperty("title").GetString());
+        Assert.True(entry.GetProperty("purgeAfter").GetDateTimeOffset() >
+            entry.GetProperty("deletedAt").GetDateTimeOffset().AddDays(29));
+        Assert.Empty((await other.GetFromJsonAsync<JsonElement>("/api/documents/bin")).EnumerateArray());
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await other.PostAsync($"/api/documents/{created.Id}/restore", null)).StatusCode);
+
+        Assert.Equal(HttpStatusCode.OK, (await owner.PostAsync($"/api/documents/{created.Id}/restore", null)).StatusCode);
+        Assert.Equal("Lease", Assert.Single((await owner.GetFromJsonAsync<List<DocumentSummary>>("/api/documents"))!).Title);
+        Assert.Empty((await owner.GetFromJsonAsync<JsonElement>("/api/documents/bin")).EnumerateArray());
+    }
+
+    [Fact]
+    public async Task Bin_hides_documents_past_30_days_and_documents_removed_by_retention()
+    {
+        var expired = Document.Create(Guid.NewGuid(), "user-a", "Expired", DateTimeOffset.UtcNow.AddDays(-40));
+        expired.Remove(Document.UserDeletedReason, DateTimeOffset.UtcNow.AddDays(-31));
+        var retained = Document.Create(Guid.NewGuid(), "user-a", "Retention", DateTimeOffset.UtcNow);
+        retained.Remove("retention", DateTimeOffset.UtcNow);
+        await using (var scope = _factory!.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.Documents.AddRange(expired, retained);
+            await db.SaveChangesAsync();
+        }
+        using var owner = CreateAuthenticatedClient("user-a");
+
+        Assert.Empty((await owner.GetFromJsonAsync<JsonElement>("/api/documents/bin")).EnumerateArray());
+        Assert.Equal(HttpStatusCode.NotFound, (await owner.PostAsync($"/api/documents/{expired.Id}/restore", null)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await owner.PostAsync($"/api/documents/{retained.Id}/restore", null)).StatusCode);
+    }
+
+    [Fact]
     public async Task Rename_trims_and_validates_the_title_for_the_owner_only()
     {
         using var owner = CreateAuthenticatedClient("user-a");

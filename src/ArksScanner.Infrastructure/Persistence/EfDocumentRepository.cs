@@ -29,6 +29,34 @@ public sealed class EfDocumentRepository(AppDbContext db) : IDocumentRepository
         return lockedDocument;
     }
 
+    public async Task<Document?> FindOwnedDeletedForUpdateAsync(string ownerUid, Guid documentId,
+        DateTimeOffset deletedSince, CancellationToken cancellationToken)
+    {
+        if (db.Database.CurrentTransaction is null)
+            throw new InvalidOperationException("A document mutation requires a transaction.");
+
+        var documents = await db.Documents.FromSqlInterpolated(
+            $"SELECT * FROM documents WHERE \"Id\" = {documentId} AND \"OwnerFirebaseUid\" = {ownerUid} FOR UPDATE")
+            .IgnoreQueryFilters()
+            .Where(d => d.RemovedReason == Document.UserDeletedReason && d.RemovedAt >= deletedSince)
+            .ToListAsync(cancellationToken);
+        lockedDocument = documents.SingleOrDefault();
+        if (lockedDocument is not null)
+            await db.Entry(lockedDocument).Collection(d => d.Pages).Query()
+                .Where(p => p.RemovedAt == lockedDocument.RemovedAt)
+                .Include(p => p.ActiveRevision)
+                .LoadAsync(cancellationToken);
+        return lockedDocument;
+    }
+
+    public async Task<IReadOnlyList<Document>> ListDeletedByOwnerAsync(string ownerUid, DateTimeOffset deletedSince,
+        CancellationToken cancellationToken) =>
+        await db.Documents.AsNoTracking().IgnoreQueryFilters()
+            .Where(d => d.OwnerFirebaseUid == ownerUid && d.RemovedReason == Document.UserDeletedReason
+                && d.RemovedAt >= deletedSince)
+            .OrderByDescending(d => d.RemovedAt)
+            .ToListAsync(cancellationToken);
+
     public async Task SaveChangesAsync(CancellationToken cancellationToken)
     {
         if (db.Database.CurrentTransaction is null || lockedDocument is null)
