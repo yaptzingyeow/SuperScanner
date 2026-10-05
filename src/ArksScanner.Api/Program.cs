@@ -82,6 +82,8 @@ builder.Services.AddScoped<GetDocumentExport>();
 builder.Services.AddSingleton<IClock, ArksScanner.Infrastructure.Time.SystemClock>();
 builder.Services.AddScoped<CreateDocument>();
 builder.Services.AddScoped<ListDocuments>();
+builder.Services.AddScoped<DeleteDocument>();
+builder.Services.AddScoped<RenameDocument>();
 builder.Services.AddScoped<ReorderPages>();
 builder.Services.AddScoped<RemovePage>();
 builder.Services.AddScoped<IUploadIntentRepository, EfUploadIntentRepository>();

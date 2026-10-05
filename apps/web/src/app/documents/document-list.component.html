@@ -71,6 +71,7 @@
           A document will be deleted within a day. Download it now, or upgrade to Pro to keep your documents.
         </p>
       }
+      @if (actionError()) { <p class="action-error" role="alert">{{ actionError() }}</p> }
       <ul class="document-list">
         @for (document of documents(); track document.id) {
           <li class="document-card">
@@ -88,6 +89,12 @@
               }
             </div>
             <span class="document-card__status">{{ document.status }}</span>
+            <span class="document-card__actions">
+              <button type="button" class="card-action" data-rename-document [attr.aria-label]="'Rename ' + document.title"
+                (click)="renameDocument(document)">Rename</button>
+              <button type="button" class="card-action card-action--danger" data-delete-document
+                [attr.aria-label]="'Delete ' + document.title" (click)="deleteDocument(document)">Delete</button>
+            </span>
           </li>
         }
       </ul>

@@ -83,6 +83,35 @@ describe('DocumentListComponent', () => {
     expect((fixture.nativeElement as HTMLElement).querySelector('[data-expiry-banner]')?.textContent).toContain('within a day');
   });
 
+  it('deletes a document after confirming and renames one in place', async () => {
+    httpTesting.expectOne('/api/documents').flush([
+      { id: 'a', title: 'IMG_9685', status: 'Ready', pageCount: 1, updatedAt: '2026-10-01T00:00:00Z' },
+      { id: 'b', title: 'Lease', status: 'Ready', pageCount: 2, updatedAt: '2026-10-01T00:00:00Z' },
+    ]);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+
+    (el.querySelectorAll('[data-delete-document]')[1] as HTMLButtonElement).click();
+    httpTesting.expectNone({ method: 'DELETE' });
+    (el.querySelectorAll('[data-delete-document]')[1] as HTMLButtonElement).click();
+    expect(confirm).toHaveBeenLastCalledWith('Delete “Lease”? This cannot be undone from the app.');
+    httpTesting.expectOne({ method: 'DELETE', url: '/api/documents/b' }).flush(null, { status: 204, statusText: 'No Content' });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(el.textContent).not.toContain('Lease');
+
+    vi.spyOn(window, 'prompt').mockReturnValue('  Tenancy agreement ');
+    (el.querySelector('[data-rename-document]') as HTMLButtonElement).click();
+    const patch = httpTesting.expectOne({ method: 'PATCH', url: '/api/documents/a' });
+    expect(patch.request.body).toEqual({ title: 'Tenancy agreement' });
+    patch.flush({ id: 'a', title: 'Tenancy agreement', status: 'Ready', pageCount: 1, updatedAt: '2026-10-05T00:00:00Z' });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(el.querySelector('[data-document-title]')?.textContent).toBe('Tenancy agreement');
+    vi.restoreAllMocks();
+  });
+
   it('shows a safe error without exposing the provider response', () => {
     httpTesting
       .expectOne('/api/documents')

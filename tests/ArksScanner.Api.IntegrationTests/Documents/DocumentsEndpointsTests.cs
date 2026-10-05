@@ -110,6 +110,39 @@ public sealed class DocumentsEndpointsTests : IAsyncLifetime
         Assert.Equal("A form", document.Title);
     }
 
+    [Fact]
+    public async Task Delete_removes_an_owned_document_from_the_list_and_hides_it_from_others()
+    {
+        using var owner = CreateAuthenticatedClient("user-a");
+        using var other = CreateAuthenticatedClient("user-b");
+        var created = await (await owner.PostAsJsonAsync("/api/documents", new { title = "Old lease" }))
+            .Content.ReadFromJsonAsync<DocumentSummary>();
+
+        Assert.Equal(HttpStatusCode.NotFound, (await other.DeleteAsync($"/api/documents/{created!.Id}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await owner.DeleteAsync($"/api/documents/{created.Id}")).StatusCode);
+
+        Assert.Empty((await owner.GetFromJsonAsync<List<DocumentSummary>>("/api/documents"))!);
+        Assert.Equal(HttpStatusCode.NotFound, (await owner.DeleteAsync($"/api/documents/{created.Id}")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Rename_trims_and_validates_the_title_for_the_owner_only()
+    {
+        using var owner = CreateAuthenticatedClient("user-a");
+        using var other = CreateAuthenticatedClient("user-b");
+        var created = await (await owner.PostAsJsonAsync("/api/documents", new { title = "IMG_9685" }))
+            .Content.ReadFromJsonAsync<DocumentSummary>();
+        var url = $"/api/documents/{created!.Id}";
+
+        Assert.Equal(HttpStatusCode.BadRequest, (await owner.PatchAsJsonAsync(url, new { title = "   " })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await other.PatchAsJsonAsync(url, new { title = "Mine" })).StatusCode);
+        var renamed = await owner.PatchAsJsonAsync(url, new { title = "  Tenancy agreement  " });
+
+        Assert.Equal(HttpStatusCode.OK, renamed.StatusCode);
+        Assert.Equal("Tenancy agreement", (await renamed.Content.ReadFromJsonAsync<DocumentSummary>())!.Title);
+        Assert.Equal("Tenancy agreement", Assert.Single((await owner.GetFromJsonAsync<List<DocumentSummary>>("/api/documents"))!).Title);
+    }
+
     [Theory]
     [MemberData(nameof(InvalidTitles))]
     public async Task Create_RejectsTitleOutsideOneToTwoHundredTrimmedCharacters(string? title)

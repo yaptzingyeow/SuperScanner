@@ -347,3 +347,12 @@ h1 {
   font-size: 0.8rem;
   color: #b54708;
 }
+
+.document-card__actions { display: flex; gap: 6px; }
+.card-action {
+  min-height: 32px; padding: 0 10px; border: 1px solid #d6dbd3; border-radius: 8px; background: #fff;
+  color: #2b3530; font: inherit; font-size: .8rem; cursor: pointer;
+  &:hover { background: #f2f4ef; }
+  &--danger { color: #ac3d39; }
+}
+.action-error { color: #ac3d39; font-weight: 600; }

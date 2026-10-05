@@ -37,6 +37,17 @@ public sealed class Document
         Revision++;
     }
 
+    public void Rename(string title, DateTimeOffset now)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(title);
+        var trimmed = title.Trim();
+        if (trimmed.Length > 200) throw new ArgumentException("A title has at most 200 characters.", nameof(title));
+        if (trimmed == Title) return;
+        Title = trimmed;
+        UpdatedAt = now;
+        Revision++;
+    }
+
     public static Document Create(Guid id, string ownerFirebaseUid, string title, DateTimeOffset now)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(ownerFirebaseUid);

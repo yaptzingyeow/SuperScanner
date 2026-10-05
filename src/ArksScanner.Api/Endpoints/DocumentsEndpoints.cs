@@ -16,6 +16,24 @@ public static class DocumentsEndpoints
 
         group.MapPost("/", CreateAsync);
         group.MapGet("/", ListAsync);
+        group.MapDelete("/{documentId:guid}", async (Guid documentId, ICurrentUser user, DeleteDocument delete,
+            CancellationToken ct) =>
+        {
+            try { await delete.HandleAsync(user.FirebaseUid, documentId, ct); return Results.NoContent(); }
+            catch (DocumentNotFoundException) { return Results.NotFound(); }
+        });
+        group.MapPatch("/{documentId:guid}", async (Guid documentId, CreateDocumentRequest request, ICurrentUser user,
+            RenameDocument rename, CancellationToken ct) =>
+        {
+            var title = request.Title?.Trim();
+            if (string.IsNullOrWhiteSpace(title) || title.Length > 200)
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["title"] = ["Title must contain between 1 and 200 characters."]
+                });
+            try { return Results.Ok(await rename.HandleAsync(user.FirebaseUid, documentId, title, ct)); }
+            catch (DocumentNotFoundException) { return Results.NotFound(); }
+        });
     }
 
     private static async Task<IResult> CreateAsync(
