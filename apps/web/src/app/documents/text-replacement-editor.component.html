@@ -55,7 +55,7 @@
         </label> }
         @if (mode() !== 'delete') {
         @if (warning()) { <p class="warning" role="status">{{ warning() }}</p> }
-        @if (overflow()) { <p class="warning" role="status">This text may need more space. Apply will check the exact fit before changing your page.</p> }
+        @if (overflow() && isDirty()) { <p class="warning" role="status">This text may need more space. Apply will check the exact fit before changing your page.</p> }
         <label>Search fonts
           <input aria-label="Search fonts" type="search" [ngModel]="fontSearch()"
             (ngModelChange)="fontSearch.set($event)" placeholder="Search font families" />
@@ -84,7 +84,7 @@
         @if (style(); as chosen) {
           <div class="control-grid">
             <label>Size (px) <input aria-label="Size in pixels" type="number" min="1" step="0.5"
-              [ngModel]="chosen.fontSize * imageSize().height"
+              [ngModel]="fontSizePixels(chosen.fontSize)"
               (ngModelChange)="updateFontSizePixels(+$event)" /></label>
             <label>Weight <select aria-label="Weight" [ngModel]="chosen.weight" (ngModelChange)="updateStyle('weight', +$event)">
               @for (weight of fontWeights(); track weight) {

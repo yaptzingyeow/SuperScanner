@@ -18,7 +18,8 @@ describe('TextReplacementEditorComponent', () => {
     fontWeight: 400, letterSpacing: 0, baselineAngleDegrees: 0, alignment: 'left' },
   };
 
-  async function setup(proposalError?: unknown, mode: 'replace' | 'delete' | 'add' = 'replace', historyError?: unknown) {
+  async function setup(proposalError?: unknown, mode: 'replace' | 'delete' | 'add' = 'replace', historyError?: unknown,
+    override: Partial<TextStyleProposal> = {}) {
     const fonts = { list: vi.fn().mockResolvedValue([
       { catalogueId: 'noto-sans', version: 'archive-main-regular', familyName: 'Noto Sans',
         category: 'SansSerif', weight: 400, webFamilyName: 'ArksScanner Noto Sans v1',
@@ -34,7 +35,7 @@ describe('TextReplacementEditorComponent', () => {
         webAssetUrl: '/assets/fonts/Carlito-Regular.ttf', enabled: true },
     ]), loadFace: vi.fn().mockResolvedValue(undefined) };
     const api = {
-      propose: vi.fn().mockResolvedValue(proposal),
+      propose: vi.fn().mockResolvedValue({ ...proposal, ...override }),
       history: vi.fn().mockResolvedValue({ activeRevisionId: null,
         canUndo: false, canRedo: false, entries: [] }),
       preview: vi.fn().mockResolvedValue(new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' })),
@@ -149,6 +150,32 @@ describe('TextReplacementEditorComponent', () => {
     await fixture.whenStable();
     expect(api.preview.mock.calls[0][2].style.fontVersion).toBe('archive-main-bold');
     expect(font.value).toBe('noto-sans');
+  });
+
+  it('starts tidy: single spaces, a rounded size and an honest first status', async () => {
+    const { fixture } = await setup(undefined, 'replace', undefined, {
+      originalText: 'RM  1,500 ',
+      style: { ...proposal.style, fontSizePoints: 35.250020027160 },
+    });
+    const el = fixture.nativeElement as HTMLElement;
+    expect((el.querySelector('[aria-label="Replacement text"]') as HTMLInputElement).value).toBe('RM 1,500');
+    const size = (el.querySelector('input[aria-label="Size in pixels"]') as HTMLInputElement).value;
+    expect(size.replace(/^\d+\.?/, '').length).toBeLessThanOrEqual(1);
+    expect(el.textContent).toContain('Edit the text, then select Preview exact result to check it.');
+    expect(el.textContent).not.toContain('Preview ready');
+  });
+
+  it('does not warn about space before anything has changed', async () => {
+    const { fixture } = await setup(undefined, 'replace', undefined, {
+      box: { x: .1, y: .2, width: .01, height: .06 },
+    });
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.textContent).not.toContain('check the exact fit');
+    const field = el.querySelector('[aria-label="Replacement text"]') as HTMLInputElement;
+    field.value = 'Yap Tzing Yeow Junior';
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+    fixture.detectChanges();
+    expect(el.textContent).toContain('check the exact fit');
   });
 
   it('shows a readable pixel font size and converts edits back to the stored ratio', async () => {

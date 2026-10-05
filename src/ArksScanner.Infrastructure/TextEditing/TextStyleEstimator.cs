@@ -3,6 +3,7 @@ using ImageMagick.Drawing;
 using ArksScanner.Application.Abstractions;
 using ArksScanner.Application.TextEditing;
 using ArksScanner.Domain.Ocr;
+using ArksScanner.Domain.TextEditing;
 
 namespace ArksScanner.Infrastructure.TextEditing;
 
@@ -29,24 +30,28 @@ public sealed class TextStyleEstimator(
         }
         buffer.Position = 0;
         using var image = new MagickImage(buffer);
-        var originalWidth = image.Width;
-        var originalHeight = image.Height;
-        if ((long)originalWidth * originalHeight > 40_000_000)
+        var width = (int)image.Width;
+        var height = (int)image.Height;
+        if ((long)width * height > 40_000_000)
             throw new InvalidDataException("Text style source exceeds the pixel limit.");
         image.ColorSpace = ColorSpace.sRGB;
         image.Alpha(AlphaOption.Remove);
-        image.Resize(new MagickGeometry(1024, 1024) { Greater = true });
 
         var points = words.SelectMany(word => word.Polygon).ToArray();
         var x1 = points.Min(point => point.X);
         var x2 = points.Max(point => point.X);
         var y1 = points.Min(point => point.Y);
         var y2 = points.Max(point => point.Y);
-        var rgb = image.GetPixels().ToByteArray(PixelMapping.RGB)
+        // Work on the selected words at full resolution, in the same pixels the edit is drawn on.
+        var left = Math.Clamp((int)Math.Floor(x1 * width) - 2, 0, width - 1);
+        var top = Math.Clamp((int)Math.Floor(y1 * height) - 2, 0, height - 1);
+        var cropWidth = Math.Clamp((int)Math.Ceiling(x2 * width) + 2, left + 1, width) - left;
+        var cropHeight = Math.Clamp((int)Math.Ceiling(y2 * height) + 2, top + 1, height) - top;
+        using var crop = (MagickImage)image.CloneArea(left, top, (uint)cropWidth, (uint)cropHeight);
+        var rgb = crop.GetPixels().ToByteArray(PixelMapping.RGB)
             ?? throw new InvalidDataException("The image pixels could not be read.");
-        var background = BorderMedian(rgb, (int)image.Width, (int)image.Height, x1, y1, x2, y2);
-        var foreground = ForegroundMedian(rgb, (int)image.Width, (int)image.Height,
-            x1, y1, x2, y2, background);
+        var background = BorderMedian(rgb, cropWidth, cropHeight, 0, 0, 1, 1);
+        var foreground = ForegroundMedian(rgb, cropWidth, cropHeight, 0, 0, 1, 1, background);
         var contrast = foreground is null ? 0 :
             Math.Max(Math.Abs(foreground.Value.R - background.R),
                 Math.Max(Math.Abs(foreground.Value.G - background.G),
@@ -54,14 +59,17 @@ public sealed class TextStyleEstimator(
         var color = foreground ?? (R: (byte)0, G: (byte)0, B: (byte)0);
         var colorHex = $"#{color.R:x2}{color.G:x2}{color.B:x2}";
 
-        var fontSize = Math.Clamp((y2 - y1) * originalHeight * 0.75, 3, 144);
         var angle = words.Average(word =>
-            Math.Atan2((word.Polygon[1].Y - word.Polygon[0].Y) * originalHeight,
-                (word.Polygon[1].X - word.Polygon[0].X) * originalWidth) * 180 / Math.PI);
+            Math.Atan2((word.Polygon[1].Y - word.Polygon[0].Y) * height,
+                (word.Polygon[1].X - word.Polygon[0].X) * width) * 180 / Math.PI);
         angle = Math.Clamp(angle, -45, 45);
         var phrase = string.Join(' ', words.Select(word => word.Text));
-        var observedWidth = (x2 - x1) * originalWidth;
-        var candidates = RankFonts(phrase, observedWidth, fontSize);
+        var ink = foreground is null ? null
+            : InkShape.Measure(rgb, cropWidth, cropHeight, Luma(background), Luma(foreground.Value));
+        var (candidates, fontSize) = ink is { Height: > 2, Width: > 2 }
+            ? RankByInk(phrase, ink)
+            : RankByBox(phrase, (x2 - x1) * width, Math.Clamp((y2 - y1) * height * 0.75, 3, 400));
+        fontSize = Math.Clamp(fontSize, 3, 400);
         var bestScore = candidates.Count > 0 ? candidates[0].Score : 0;
         var confidence = contrast < 12 ? 0.15 :
             Math.Clamp(0.25 + 0.35 * Math.Min(contrast / 100.0, 1) + 0.2 * bestScore, 0, 0.8);
@@ -72,14 +80,56 @@ public sealed class TextStyleEstimator(
             weight, 0, angle, "left");
     }
 
-    private IReadOnlyList<FontCandidate> RankFonts(string text, double observedWidth, double fontSize)
+    private const double ReferencePixels = 100;
+
+    /// <summary>Scales each face to the observed ink height, then scores width and stroke weight.</summary>
+    private (IReadOnlyList<FontCandidate> Candidates, double FontSize) RankByInk(string text, InkShape observed)
+    {
+        var sample = text.Length > 40 ? text[..40] : text;
+        var scored = new List<(FontCandidate Candidate, double Size)>();
+        foreach (var (face, path) in SelectableFaces())
+        {
+            try
+            {
+                var reference = RenderReference(sample, path);
+                if (reference is null || reference.Height <= 0) continue;
+                var scale = observed.Height / reference.Height;
+                var widthError = Math.Abs(reference.Width * scale - observed.Width) / observed.Width;
+                var weightError = Math.Abs(reference.Density - observed.Density) / Math.Max(observed.Density, .01);
+                var score = 1 / (1 + 4 * widthError + weightError);
+                scored.Add((new FontCandidate(face.CatalogueId, face.Version, score), ReferencePixels * scale));
+            }
+            catch (MagickException)
+            {
+                // A missing/unsupported face is never treated as an exact match.
+            }
+        }
+        if (scored.Count == 0) return (Fallback(), observed.Height * 1.4);
+        var ordered = scored.OrderByDescending(item => item.Candidate.Score)
+            .ThenBy(item => item.Candidate.CatalogueId, StringComparer.Ordinal)
+            .ThenBy(item => item.Candidate.Version, StringComparer.Ordinal).ToArray();
+        return (DistinctFamiliesFirst(ordered.Select(item => item.Candidate).ToArray()), ordered[0].Size);
+    }
+
+    private static InkShape? RenderReference(string text, string fontPath)
+    {
+        var metrics = new Drawables().Font(fontPath).FontPointSize(ReferencePixels).FontTypeMetrics(text);
+        if (metrics is null) return null;
+        var tileWidth = (int)Math.Ceiling(metrics.TextWidth) + 80;
+        var tileHeight = (int)Math.Ceiling(ReferencePixels * 2) + 40;
+        using var tile = new MagickImage(MagickColors.White, (uint)tileWidth, (uint)tileHeight);
+        new Drawables().Font(fontPath).FontPointSize(ReferencePixels).FillColor(MagickColors.Black)
+            .Text(40, 20 + metrics.Ascent, text).Draw(tile);
+        var rgb = tile.GetPixels().ToByteArray(PixelMapping.RGB)
+            ?? throw new InvalidDataException("The reference pixels could not be read.");
+        return InkShape.Measure(rgb, tileWidth, tileHeight, 255, 0);
+    }
+
+    private (IReadOnlyList<FontCandidate> Candidates, double FontSize) RankByBox(string text, double observedWidth, double fontSize)
     {
         var ranked = new List<FontCandidate>();
-        foreach (var face in catalogue.Entries.Where(entry => entry.Enabled && entry.SelectableForNewEdits))
+        foreach (var (face, path) in SelectableFaces())
         {
-            var path = Path.GetFullPath(Path.Combine(fontRoot, face.RendererAssetPath));
-            var expectedRoot = Path.GetFullPath(Path.Combine(fontRoot, "assets/fonts")) + Path.DirectorySeparatorChar;
-            if (!path.StartsWith(expectedRoot, StringComparison.OrdinalIgnoreCase)) continue;
             try
             {
                 var metrics = new Drawables().Font(path).FontPointSize(fontSize).FontTypeMetrics(text);
@@ -92,21 +142,61 @@ public sealed class TextStyleEstimator(
                 // A missing/unsupported face is never treated as an exact match.
             }
         }
-        if (ranked.Count == 0)
-        {
-            ranked.AddRange(catalogue.Entries.Where(entry => entry.Enabled && entry.SelectableForNewEdits)
-                .Select(entry => new FontCandidate(entry.CatalogueId, entry.Version, 0)));
-        }
+        if (ranked.Count == 0) return (Fallback(), fontSize);
         var ordered = ranked.OrderByDescending(candidate => candidate.Score)
             .ThenBy(candidate => candidate.CatalogueId, StringComparer.Ordinal)
             .ThenBy(candidate => candidate.Version, StringComparer.Ordinal).ToArray();
-        // Show distinct families first so the quick recommendations are useful.
+        return (DistinctFamiliesFirst(ordered), fontSize);
+    }
+
+    private IEnumerable<(FontCatalogueEntry Face, string Path)> SelectableFaces()
+    {
+        var expectedRoot = Path.GetFullPath(Path.Combine(fontRoot, "assets/fonts")) + Path.DirectorySeparatorChar;
+        foreach (var face in catalogue.Entries.Where(entry => entry.Enabled && entry.SelectableForNewEdits))
+        {
+            var path = Path.GetFullPath(Path.Combine(fontRoot, face.RendererAssetPath));
+            if (path.StartsWith(expectedRoot, StringComparison.OrdinalIgnoreCase)) yield return (face, path);
+        }
+    }
+
+    private IReadOnlyList<FontCandidate> Fallback() =>
+        catalogue.Entries.Where(entry => entry.Enabled && entry.SelectableForNewEdits)
+            .Select(entry => new FontCandidate(entry.CatalogueId, entry.Version, 0)).ToArray();
+
+    /// <summary>Show distinct families first so the quick recommendations are useful.</summary>
+    private static IReadOnlyList<FontCandidate> DistinctFamiliesFirst(FontCandidate[] ordered)
+    {
         var firstByFamily = ordered.GroupBy(candidate => candidate.CatalogueId)
             .Select(group => group.First()).Take(3).ToArray();
-        var chosen = firstByFamily.Select(candidate => (candidate.CatalogueId, candidate.Version))
-            .ToHashSet();
+        var chosen = firstByFamily.Select(candidate => (candidate.CatalogueId, candidate.Version)).ToHashSet();
         return firstByFamily.Concat(ordered.Where(candidate =>
             !chosen.Contains((candidate.CatalogueId, candidate.Version)))).ToArray();
+    }
+
+    private static double Luma((byte R, byte G, byte B) c) => 0.299 * c.R + 0.587 * c.G + 0.114 * c.B;
+
+    /// <summary>The ink of dark text: tight bounding box and how much of it is filled.</summary>
+    private sealed record InkShape(double Width, double Height, double Density)
+    {
+        public static InkShape? Measure(byte[] rgb, int width, int height, double backgroundLuma, double inkLuma)
+        {
+            var threshold = (backgroundLuma + inkLuma) / 2;
+            int left = width, top = height, right = -1, bottom = -1, count = 0;
+            for (var y = 0; y < height; y++)
+            for (var x = 0; x < width; x++)
+            {
+                var o = (y * width + x) * 3;
+                if (0.299 * rgb[o] + 0.587 * rgb[o + 1] + 0.114 * rgb[o + 2] > threshold) continue;
+                count++;
+                if (x < left) left = x;
+                if (x > right) right = x;
+                if (y < top) top = y;
+                if (y > bottom) bottom = y;
+            }
+            if (right < 0) return null;
+            double w = right - left + 1, h = bottom - top + 1;
+            return new InkShape(w, h, count / (w * h));
+        }
     }
 
     private static (byte R, byte G, byte B) BorderMedian(byte[] rgb, int width, int height,
@@ -144,7 +234,11 @@ public sealed class TextStyleEstimator(
                 background.R + background.G + background.B)
                 samples.Add(pixel);
         }
-        return samples.Count == 0 ? null : Median(samples);
+        if (samples.Count == 0) return null;
+        // Anti-aliased edges lighten the ink; the colour is the core of the strokes (darkest third).
+        var core = samples.OrderBy(pixel => pixel.R + pixel.G + pixel.B)
+            .Take(Math.Max(1, samples.Count / 3)).ToList();
+        return Median(core);
     }
 
     private static (byte R, byte G, byte B) Read(byte[] rgb, int width, int x, int y)

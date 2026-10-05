@@ -67,6 +67,10 @@ export class TextReplacementEditorComponent implements OnInit, OnDestroy {
       JSON.stringify(this.style()) !== JSON.stringify(this.initialStyle);
   });
   protected readonly imageSize = signal({ width: 1000, height: 1400 });
+  /** The size field in image pixels, to one decimal place. */
+  protected fontSizePixels(fontSize: number): number {
+    return Math.round(fontSize * this.imageSize().height * 10) / 10;
+  }
   private changedSize = false;
   private boxAdjusted = false;
   private boxPadded = false;
@@ -133,13 +137,15 @@ export class TextReplacementEditorComponent implements OnInit, OnDestroy {
     }
     this.replacement.set(selection.phrase);
     try {
-      const proposal = await this.api.propose(this.documentId(), selection.pageId,
+      let proposal = await this.api.propose(this.documentId(), selection.pageId,
         selection.ocrResultId, [...selection.wordIds]);
       if (this.destroyed) return;
       if (!proposal.style.candidates.length) {
         this.status.set('No supported font is available for this selection.');
         return;
       }
+      // OCR text can carry doubled or trailing spaces; edit a tidy phrase.
+      proposal = { ...proposal, originalText: proposal.originalText.replace(/\s+/g, ' ').trim() };
       this.proposal.set(proposal);
       this.box.set({ ...proposal.box });
       this.replacement.set(this.mode() === 'delete' ? '' : proposal.originalText);
@@ -158,7 +164,7 @@ export class TextReplacementEditorComponent implements OnInit, OnDestroy {
       });
       this.initialStyle = { ...this.style()! };
       this.initialBox = { ...proposal.box };
-      this.status.set('Preview ready. Changes have not been applied.');
+      this.status.set('Edit the text, then select Preview exact result to check it.');
       if (proposal.style.confidence < .6) this.warning.set('Low confidence font match. Review the alternatives.');
     } catch (error) {
       if (!this.destroyed) this.status.set(error instanceof HttpErrorResponse
