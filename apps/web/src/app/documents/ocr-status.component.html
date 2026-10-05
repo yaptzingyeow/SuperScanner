@@ -1,44 +1,44 @@
-<section class="ocr-card" aria-live="polite" aria-label="Text recognition status">
+<section class="ocr-card" aria-live="polite" [attr.aria-label]="i18n.t('editor.ocrStatusLabel')">
   <div class="heading">
     <span class="icon" aria-hidden="true">Aa</span>
-    <strong>Text recognition</strong>
+    <strong>{{ i18n.t('editor.textRecognition') }}</strong>
   </div>
   @if (status(); as item) {
     @switch (item.state) {
       @case ('NotRequested') {
-        <p>Make this page searchable and ready for future text editing.</p>
+        <p>{{ i18n.t('editor.makeSearchable') }}</p>
         <button type="button" [disabled]="busy()" (click)="recognize(false)">
-          {{ busy() ? 'Starting…' : 'Recognize text' }}
+          {{ busy() ? i18n.t('editor.starting') : i18n.t('editor.recognizeText') }}
         </button>
       }
       @case ('Queued') {
-        <p><span class="pulse" aria-hidden="true"></span> Waiting for text recognition…</p>
+        <p><span class="pulse" aria-hidden="true"></span> {{ i18n.t('editor.waitingOcr') }}</p>
       }
       @case ('Processing') {
-        <p><span class="pulse" aria-hidden="true"></span> Recognizing printed and handwritten text…</p>
+        <p><span class="pulse" aria-hidden="true"></span> {{ i18n.t('editor.recognizingPrintedHandwritten') }}</p>
       }
       @case ('Ready') {
-        <p class="ready"><strong>{{ item.elementCount }} text elements recognized</strong></p>
+        <p class="ready"><strong>{{ i18n.t('editor.elementsRecognized', { count: item.elementCount }) }}</strong></p>
         <div class="facts">
           @if (item.aggregateConfidence !== null && item.aggregateConfidence !== undefined) {
-            <span>{{ item.aggregateConfidence * 100 | number: '1.0-0' }}% confidence</span>
+            <span>{{ i18n.t('editor.confidencePct', { percent: (item.aggregateConfidence * 100 | number: '1.0-0') ?? '' }) }}</span>
           }
           @if (item.completedAt) {
-            <span>Completed {{ item.completedAt | date: 'medium' }}</span>
+            <span>{{ i18n.t('editor.completedAt', { date: (item.completedAt | date: 'medium') ?? '' }) }}</span>
           }
         </div>
       }
       @case ('Failed') {
-        <p>Text recognition did not finish. Your scan is unchanged.</p>
+        <p>{{ i18n.t('editor.ocrNotFinished') }}</p>
         @if (item.canRetry) {
           <button type="button" [disabled]="busy()" (click)="recognize(true)">
-            {{ busy() ? 'Retrying…' : 'Retry text recognition' }}
+            {{ busy() ? i18n.t('editor.retrying') : i18n.t('editor.retryOcr') }}
           </button>
         }
       }
     }
   } @else if (!error()) {
-    <p>Checking text recognition…</p>
+    <p>{{ i18n.t('editor.checkingOcrShort') }}</p>
   }
   @if (error()) {
     <p class="error" role="alert">{{ error() }}</p>

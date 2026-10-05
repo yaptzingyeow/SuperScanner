@@ -1,4 +1,5 @@
 import { Component, EventEmitter, Input, Output, inject, signal } from '@angular/core';
+import { I18nService } from '../core/i18n/i18n.service';
 import { UploadItemProgress } from './document.models';
 import { UploadService } from './upload.service';
 
@@ -10,6 +11,7 @@ import { UploadService } from './upload.service';
 })
 export class AddPagesDialogComponent {
   private readonly uploads = inject(UploadService);
+  protected readonly i18n = inject(I18nService);
   @Input({ required: true }) documentId = '';
   @Output() readonly closed = new EventEmitter<void>();
   @Output() readonly completed = new EventEmitter<string[]>();
@@ -35,10 +37,16 @@ export class AddPagesDialogComponent {
   }
 
   protected label(item: UploadItemProgress): string {
-    if (item.errorCode) return `${item.stage}: ${item.errorCode.replaceAll('_', ' ')}`;
+    if (item.errorCode) return `${this.stage(item.stage)}: ${item.errorCode.replaceAll('_', ' ')}`;
     if (item.stage === 'expanding' && item.discoveredPageCount) {
-      return `Creating pages ${item.createdPageCount ?? 0}/${item.discoveredPageCount}`;
+      return this.i18n.t('pages.add.creating', { created: item.createdPageCount ?? 0, total: item.discoveredPageCount });
     }
-    return item.stage;
+    return this.stage(item.stage);
+  }
+
+  private stage(stage: string): string {
+    const key = 'pages.add.stage.' + stage;
+    const text = this.i18n.t(key);
+    return text === key ? stage : text;
   }
 }

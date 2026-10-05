@@ -1,3 +1,4 @@
+import { I18nService } from '../core/i18n/i18n.service';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -77,6 +78,7 @@ export function cropGuidance(state: CropState): 'accurate' | 'verify' | 'manual'
 export class ImportReviewComponent implements OnInit, OnDestroy {
   private readonly api = inject(DocumentsApiService);
   private readonly http = inject(HttpClient);
+  protected readonly i18n = inject(I18nService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly base = inject(API_BASE_URL).replace(/\/+$/, '');
@@ -139,7 +141,10 @@ export class ImportReviewComponent implements OnInit, OnDestroy {
     return page ? this.filterOf(page) : 'Magic';
   });
   protected readonly selectedLook = computed(() => lookForFilter(this.selectedFilter()));
-  protected readonly lookHelp = computed(() => this.selectedLook()?.help ?? RETIRED_LOOK_HELP);
+  protected readonly lookHelp = computed(() => {
+    const look = this.selectedLook();
+    return this.i18n.t(look ? `pages.look.${look.id}.help` : 'pages.look.retired.help');
+  });
   protected readonly canRotate = computed(() => {
     const page = this.selected();
     return !!page && (page.canCrop || this.isBusy(page));
@@ -156,13 +161,13 @@ export class ImportReviewComponent implements OnInit, OnDestroy {
     this.pages().some((page) => this.isBusy(page)) || this.shownImports().some((item) => PENDING_IMPORT_STATES.includes(item.state)));
   protected readonly summary = computed(() => {
     const count = this.pages().length;
-    if (!this.detail()) return 'Opening your pages…';
-    if (count === 0) return this.preparing() ? 'Preparing your pages…' : 'No pages to review.';
-    const parts = [`${count} ${count === 1 ? 'page' : 'pages'}`];
+    if (!this.detail()) return this.i18n.t('pages.import.openingPages');
+    if (count === 0) return this.preparing() ? this.i18n.t('pages.import.preparingPages') : this.i18n.t('pages.import.sum.none');
+    const parts = [this.i18n.t('pages.import.sum.count', { count, pages: this.i18n.t(count === 1 ? 'pages.import.sum.page' : 'pages.import.sum.pageMany') })];
     if (this.preparing()) parts.push(this.pages().every((page) => !this.isBusy(page) || this.isRestyling(page)) &&
-      !this.shownImports().some((item) => PENDING_IMPORT_STATES.includes(item.state)) ? 'applying looks…' : 'finding edges…');
+      !this.shownImports().some((item) => PENDING_IMPORT_STATES.includes(item.state)) ? this.i18n.t('pages.import.sum.applyingLooks') : this.i18n.t('pages.import.sum.findingEdges'));
     const checks = this.checkCount();
-    if (checks > 0) parts.push(`${checks} ${checks === 1 ? 'page needs' : 'pages need'} a quick check`);
+    if (checks > 0) parts.push(this.i18n.t(checks === 1 ? 'pages.import.sum.needs1' : 'pages.import.sum.needsN', { count: checks }));
     return parts.join(' · ');
   });
   protected readonly currentImage = computed(() => {
@@ -223,16 +228,25 @@ export class ImportReviewComponent implements OnInit, OnDestroy {
     return 'Ready';
   }
 
+  /** Display text for a page chip; the PageChip value itself is the logic key. */
+  protected chipLabel(chip: PageChip): string {
+    const keys: Record<PageChip, string> = {
+      'Ready': 'Ready', 'Finding edges…': 'Finding', 'Applying look…': 'Applying', 'Check corners': 'Check',
+      'Could not import': 'Failed', 'Look will apply when ready': 'Deferred',
+    };
+    return this.i18n.t('pages.import.chip.' + keys[chip]);
+  }
+
   /** Why a page's preview is not final yet ('' when it is), shown with a spinner. */
   protected processing(page: DocumentPage): string {
     if (page.state === 'Failed') return '';
-    if (page.cropStatus === 'Detecting') return 'Finding the page edges…';
-    if (page.state === 'Importing') return 'Preparing your page…';
+    if (page.cropStatus === 'Detecting') return this.i18n.t('pages.import.proc.finding');
+    if (page.state === 'Importing') return this.i18n.t('pages.import.proc.preparing');
     const sent = this.crops()[page.id];
     // the server accepted a change the page list has not caught up with yet
     const accepted = !!sent && BUSY_CROP_STATES.includes(sent.status) && sent.revision > page.appliedCropRevision;
     if (this.pendingLooks()[page.id] || accepted || this.isBusy(page) || this.previewLoading().has(page.id)) {
-      return `Applying ${lookForFilter(this.filterOf(page))?.label ?? 'your changes'}…`;
+      return this.i18n.t('pages.import.proc.applying', { what: (() => { const look = lookForFilter(this.filterOf(page)); return look ? this.i18n.t('pages.look.' + look.id + '.label') : this.i18n.t('pages.import.proc.changes'); })() });
     }
     return '';
   }
@@ -299,7 +313,7 @@ export class ImportReviewComponent implements OnInit, OnDestroy {
     } catch {
       if (!this.destroyed && request === this.originalRequest) {
         this.compare.set(false);
-        this.error.set('Could not load the original photo. Please try again.');
+        this.error.set(this.i18n.t('pages.import.err.original'));
       }
     } finally {
       if (!this.destroyed && request === this.originalRequest) this.originalLoading.set(false);
@@ -398,7 +412,7 @@ export class ImportReviewComponent implements OnInit, OnDestroy {
   protected async close(event: Event): Promise<void> {
     event.preventDefault();
     if (this.hasDeferred()
-      && !window.confirm('Some changes are waiting for pages that are still being prepared. Leave without applying them?')) return;
+      && !window.confirm(this.i18n.t('pages.import.confirmLeave'))) return;
     await this.router.navigate(['/documents', this.documentId]);
   }
 
@@ -448,7 +462,7 @@ export class ImportReviewComponent implements OnInit, OnDestroy {
       if (this.preparing() || this.hasDeferred()) this.schedulePoll();
     } catch {
       if (this.destroyed) return;
-      this.loadError.set('Could not load your pages. Retrying…');
+      this.loadError.set(this.i18n.t('pages.import.err.loadPages'));
       this.schedulePoll(RETRY_DELAYS_MS[Math.min(this.failures++, RETRY_DELAYS_MS.length - 1)]);
     }
   }
@@ -667,7 +681,7 @@ export class ImportReviewComponent implements OnInit, OnDestroy {
     }
     this.skipped.update((current) => [...current, ...skipped]);
     if (results.some((result) => result.outcome === 'failed'))
-      this.error.set('Some pages could not be updated. Please try again.');
+      this.error.set(this.i18n.t('pages.import.err.update'));
   }
 
   protected failedImportNames(items: DocumentImport[]): string {

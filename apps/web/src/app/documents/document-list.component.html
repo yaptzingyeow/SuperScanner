@@ -13,17 +13,17 @@
 
   <div class="workspace-banner">
     <div>
-      <span class="eyebrow">MAKE ROOM FOR WHAT MATTERS</span>
-      <h2>Paperwork, beautifully<br />under control.</h2>
-      <p>Bring a document into your workspace.<br />Keep the important things together.</p>
+      <span class="eyebrow">{{ i18n.t('ws.banner.eyebrow') }}</span>
+      <h2>{{ i18n.t('ws.banner.title1') }}<br />{{ i18n.t('ws.banner.title2') }}</h2>
+      <p>{{ i18n.t('ws.banner.line1') }}<br />{{ i18n.t('ws.banner.line2') }}</p>
       <button type="button" class="banner-action" (click)="startNewScan()">
-        Upload a document <span aria-hidden="true">↗</span>
+        {{ i18n.t('ws.banner.upload') }} <span aria-hidden="true">↗</span>
       </button>
     </div>
     <div class="banner-art" aria-hidden="true">
       <div class="art-page">
-        <small>DOCUMENTS, ORGANIZED.</small><i></i><i></i><i></i
-        ><b>One less thing<br />on your mind.</b>
+        <small>{{ i18n.t('ws.banner.small') }}</small><i></i><i></i><i></i
+        ><b>{{ i18n.t('ws.banner.art1') }}<br />{{ i18n.t('ws.banner.art2') }}</b>
       </div>
       <span class="art-seal">✓</span>
     </div>
@@ -31,8 +31,8 @@
   <div class="privacy-note">
     <span class="privacy-note__icon" aria-hidden="true">◆</span>
     <div>
-      <strong>Private by default</strong>
-      <span>Your documents are only visible to your account.</span>
+      <strong>{{ i18n.t('ws.banner.privateTitle') }}</strong>
+      <span>{{ i18n.t('ws.banner.privateBody') }}</span>
     </div>
   </div>
 

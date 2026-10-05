@@ -5,33 +5,33 @@
   }
   @case ('print') {
     <section class="panel" aria-labelledby="print-title">
-      <h2 id="print-title">Print</h2>
-      <p>Prints all {{ readyCount }} ready {{ readyCount === 1 ? 'page' : 'pages' }} at their original size.</p>
+      <h2 id="print-title">{{ i18n.t('ws.print') }}</h2>
+      <p>{{ readyCount === 1 ? i18n.t('ws.printAllOne', { count: readyCount }) : i18n.t('ws.printAllMany', { count: readyCount }) }}</p>
       <app-watermark-panel />
       <button type="button" class="primary" [disabled]="busy() || !readyCount" (click)="print()">
-        {{ busy() ? 'Preparing…' : 'Print' }}
+        {{ busy() ? i18n.t('ws.preparing') : i18n.t('ws.print') }}
       </button>
       @if (!readyCount) {
-        <p class="hint">At least one Ready page is required.</p>
+        <p class="hint">{{ i18n.t('ws.exp.needReady') }}</p>
       }
     </section>
   }
   @case ('original') {
     <section class="panel" aria-labelledby="original-title">
-      <h2 id="original-title">Original file</h2>
+      <h2 id="original-title">{{ i18n.t('ws.originalFile') }}</h2>
       <p>
-        Downloads the file as it was uploaded
+        {{ i18n.t('ws.downloadsAsUploaded') }}
         @if (selectedNumber(); as n) {
-          for page {{ n }}.
+          {{ i18n.t('ws.forPageN', { n: n }) }}
         } @else {
-          for the selected page.
+          {{ i18n.t('ws.forSelectedPage') }}
         }
       </p>
       <button type="button" class="primary" [disabled]="busy() || !selectedPageId || !selectedHasOriginal()" (click)="downloadOriginal()">
-        Download original
+        {{ i18n.t('ws.downloadOriginal') }}
       </button>
       @if (selectedPageId && !selectedHasOriginal()) {
-        <p class="hint">The original file is no longer available for this page.</p>
+        <p class="hint">{{ i18n.t('ws.originalUnavailable') }}</p>
       }
     </section>
   }

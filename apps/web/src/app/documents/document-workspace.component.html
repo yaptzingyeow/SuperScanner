@@ -1,18 +1,18 @@
 <main class="workspace">
   <header class="workspace-header">
     <div class="identity">
-      <a class="back" routerLink="/documents" aria-label="Back to my documents" title="My documents">
+      <a class="back" routerLink="/documents" [attr.aria-label]="i18n.t('ws.backToDocs')" [attr.title]="i18n.t('ws.myDocuments')">
         <app-icon name="back" [size]="20" />
       </a>
       <span class="doc-badge" aria-hidden="true"><app-icon name="document" [size]="20" /></span>
       <div class="titles">
-        <h1>{{ document()?.title ?? 'Loading document…' }}</h1>
+        <h1>{{ document()?.title ?? i18n.t('ws.loadingDocument') }}</h1>
         @if (document(); as doc) {
-          <p class="meta">{{ doc.pages.length }} {{ doc.pages.length === 1 ? 'page' : 'pages' }}</p>
+          <p class="meta">{{ doc.pages.length }} {{ doc.pages.length === 1 ? i18n.t('ws.page') : i18n.t('ws.pages') }}</p>
         }
       </div>
     </div>
-    <div class="tabs" role="tablist" aria-label="Workspace">
+    <div class="tabs" role="tablist" [attr.aria-label]="i18n.t('ws.workspace')">
       @for (t of tabs; track t.id) {
         <button type="button" role="tab" [id]="'workspace-tab-' + t.id"
           [attr.aria-selected]="tab() === t.id" [attr.aria-controls]="'workspace-panel'"
@@ -29,38 +29,38 @@
 
   @switch (tab()) {
     @case ('view') {
-      <div class="toolbar" role="toolbar" aria-label="View tools" data-slot="view-toolbar">
-        <div class="group" role="group" aria-label="Pointer">
-          <span class="group-label" aria-hidden="true">Pointer</span>
+      <div class="toolbar" role="toolbar" [attr.aria-label]="i18n.t('ws.viewTools')" data-slot="view-toolbar">
+        <div class="group" role="group" [attr.aria-label]="i18n.t('ws.pointer')">
+          <span class="group-label" aria-hidden="true">{{ i18n.t('ws.pointer') }}</span>
           <div class="group-buttons">
             <button type="button" [attr.aria-pressed]="pointer() === 'select'" [class.on]="pointer() === 'select'"
-              (click)="pointer.set('select')"><app-icon name="pointer" /><span>Select text</span></button>
+              (click)="pointer.set('select')"><app-icon name="pointer" /><span>{{ i18n.t('ws.selectText') }}</span></button>
             <button type="button" [attr.aria-pressed]="pointer() === 'pan'" [class.on]="pointer() === 'pan'"
-              (click)="pointer.set('pan')"><app-icon name="hand" /><span>Pan</span></button>
+              (click)="pointer.set('pan')"><app-icon name="hand" /><span>{{ i18n.t('ws.pan') }}</span></button>
           </div>
         </div>
-        <div class="group" role="group" aria-label="Layout">
-          <span class="group-label" aria-hidden="true">Layout</span>
+        <div class="group" role="group" [attr.aria-label]="i18n.t('ws.layout')">
+          <span class="group-label" aria-hidden="true">{{ i18n.t('ws.layout') }}</span>
           <div class="group-buttons">
             @for (l of layouts; track l.id) {
               <button type="button" [attr.aria-pressed]="layout() === l.id" [class.on]="layout() === l.id"
-                (click)="layout.set(l.id)"><app-icon [name]="l.icon" /><span>{{ l.label }}</span>@if (l.isNew) {<span class="badge">New</span>}</button>
+                (click)="layout.set(l.id)"><app-icon [name]="l.icon" /><span>{{ i18n.t('ws.layout.' + l.id) }}</span>@if (l.isNew) {<span class="badge">{{ i18n.t('ws.new') }}</span>}</button>
             }
           </div>
         </div>
-        <div class="group" role="group" aria-label="Zoom">
-          <span class="group-label" aria-hidden="true">Zoom</span>
+        <div class="group" role="group" [attr.aria-label]="i18n.t('ws.zoom')">
+          <span class="group-label" aria-hidden="true">{{ i18n.t('ws.zoom') }}</span>
           <div class="group-buttons">
-            <button type="button" class="icon-only" aria-label="Zoom out" title="Zoom out" (click)="zoomBy(-zoomStep)"><app-icon name="minus" /></button>
+            <button type="button" class="icon-only" [attr.aria-label]="i18n.t('ws.zoomOut')" [attr.title]="i18n.t('ws.zoomOut')" (click)="zoomBy(-zoomStep)"><app-icon name="minus" /></button>
             <span class="zoom-value" aria-live="polite">{{ zoom() }}%</span>
-            <button type="button" class="icon-only" aria-label="Zoom in" title="Zoom in" (click)="zoomBy(zoomStep)"><app-icon name="plus" /></button>
-            <button type="button" (click)="fitWidth()"><app-icon name="fit" /><span>Fit width</span></button>
+            <button type="button" class="icon-only" [attr.aria-label]="i18n.t('ws.zoomIn')" [attr.title]="i18n.t('ws.zoomIn')" (click)="zoomBy(zoomStep)"><app-icon name="plus" /></button>
+            <button type="button" (click)="fitWidth()"><app-icon name="fit" /><span>{{ i18n.t('ws.fitWidth') }}</span></button>
           </div>
         </div>
       </div>
     }
     @case ('edit') {
-      <div class="toolbar" role="toolbar" aria-label="Edit tools" data-slot="edit-toolbar">
+      <div class="toolbar" role="toolbar" [attr.aria-label]="i18n.t('ws.editTools')" data-slot="edit-toolbar">
         <app-edit-toolbar [documentId]="id" [pageId]="selectedPageId()" [tool]="activeEditTool()" [searchOpen]="searchOpen()"
           (toolChange)="editTool.set($event)" (startTool)="startEditTool($event)" (searchToggle)="toggleSearch()"
           (pageChanged)="load()" />
@@ -69,38 +69,38 @@
         <div class="search-bar" role="search" data-slot="search-bar">
           <label class="search-field">
             <app-icon name="search" />
-            <input #searchBox type="search" aria-label="Search in document" placeholder="Search recognized text"
+            <input #searchBox type="search" [attr.aria-label]="i18n.t('ws.searchInDocument')" [attr.placeholder]="i18n.t('ws.searchPlaceholder')"
               data-slot="search" autocomplete="off" [value]="searchQuery()"
               (input)="onSearchInput($any($event.target).value)" (keydown.enter)="stepSearch(1)" />
           </label>
           <span class="search-count" data-slot="search-count" aria-live="polite">{{ searchCountLabel() }}</span>
           <div class="search-steps">
-            <button type="button" class="step" aria-label="Previous" title="Previous result"
+            <button type="button" class="step" [attr.aria-label]="i18n.t('ws.previous')" [attr.title]="i18n.t('ws.previousResult')"
               [disabled]="!searchResult().hits.length" (click)="stepSearch(-1)"><app-icon name="up" /></button>
-            <button type="button" class="step" aria-label="Next" title="Next result"
+            <button type="button" class="step" [attr.aria-label]="i18n.t('ws.next')" [attr.title]="i18n.t('ws.nextResult')"
               [disabled]="!searchResult().hits.length" (click)="stepSearch(1)"><app-icon name="down" /></button>
           </div>
           <span class="search-status" data-slot="search-status" role="status">
-            {{ recognizing() ? 'Recognizing text…' : unrecognizedLabel() }}{{ recognizeError() ? ' ' + recognizeError() : '' }}
+            {{ recognizing() ? i18n.t('ws.recognizing') : unrecognizedLabel() }}{{ recognizeError() ? ' ' + recognizeError() : '' }}
           </span>
           @if (recognizable().length && !recognizing()) {
             <button type="button" class="recognize" data-slot="recognize-for-search" (click)="recognizeForSearch()">
               <app-icon name="recognize" />
-              Recognize {{ recognizable().length === 1 ? '1 page' : recognizable().length + ' pages' }}
+              {{ recognizable().length === 1 ? i18n.t('ws.recognizeOne') : i18n.t('ws.recognizeMany', { count: recognizable().length }) }}
             </button>
           }
-          <button type="button" class="step close" aria-label="Close search" title="Close search" (click)="toggleSearch()"><app-icon name="close" /></button>
+          <button type="button" class="step close" [attr.aria-label]="i18n.t('ws.closeSearch')" [attr.title]="i18n.t('ws.closeSearch')" (click)="toggleSearch()"><app-icon name="close" /></button>
         </div>
       }
     }
     @case ('export') {
-      <div class="toolbar" role="toolbar" aria-label="Export options" data-slot="export-toolbar">
-        <div class="group" role="group" aria-label="Export as">
-          <span class="group-label" aria-hidden="true">Export as</span>
+      <div class="toolbar" role="toolbar" [attr.aria-label]="i18n.t('ws.exportOptions')" data-slot="export-toolbar">
+        <div class="group" role="group" [attr.aria-label]="i18n.t('ws.exportAs')">
+          <span class="group-label" aria-hidden="true">{{ i18n.t('ws.exportAs') }}</span>
           <div class="group-buttons">
             @for (k of exportKinds; track k.id) {
               <button type="button" [attr.aria-pressed]="exportKind() === k.id" [class.on]="exportKind() === k.id"
-                (click)="exportKind.set(k.id)"><app-icon [name]="exportIcons[k.id]" /><span>{{ k.label }}</span></button>
+                (click)="exportKind.set(k.id)"><app-icon [name]="exportIcons[k.id]" /><span>{{ i18n.t('ws.export.' + k.id) }}</span></button>
             }
           </div>
         </div>
@@ -110,16 +110,16 @@
 
   @if (hasFailedPages()) {
     <div class="notice" role="alert">
-      <p>Some pages could not be processed.</p>
+      <p>{{ i18n.t('ws.someFailed') }}</p>
       <button type="button" (click)="retry()" [disabled]="retrying()">
-        {{ retrying() ? 'Retrying…' : 'Retry failed pages' }}
+        {{ retrying() ? i18n.t('ws.retrying') : i18n.t('ws.retryFailed') }}
       </button>
     </div>
   }
   @if (error()) {
     <div class="notice error" role="alert">
       <p>{{ error() }}</p>
-      <button type="button" (click)="load()">Reload</button>
+      <button type="button" (click)="load()">{{ i18n.t('ws.reload') }}</button>
     </div>
   }
 
@@ -135,26 +135,25 @@
         (pagesAdded)="pagesAdded($event)"
       />
       @if (tab() === 'edit' && loginPrompt(); as tool) {
-        <section class="canvas login-needed" aria-label="Log in required" data-slot="login-prompt">
+        <section class="canvas login-needed" [attr.aria-label]="i18n.t('ws.loginRequired')" data-slot="login-prompt">
           <div class="login-card">
-            <h2>Log in to use {{ tool.label }}</h2>
-            <p>Editing text, adding text, signatures and ticks need an account, so your changes are saved to you.
-              Your documents stay with you when you log in.</p>
+            <h2>{{ i18n.t('ws.loginToUse', { tool: i18n.t('tool.' + tool.id) }) }}</h2>
+            <p>{{ i18n.t('ws.loginBody') }}</p>
             <div class="login-actions">
-              <button type="button" class="primary" (click)="logIn()">Log in</button>
-              <button type="button" class="secondary" (click)="loginPrompt.set(null)">Not now</button>
+              <button type="button" class="primary" (click)="logIn()">{{ i18n.t('ws.logIn') }}</button>
+              <button type="button" class="secondary" (click)="loginPrompt.set(null)">{{ i18n.t('ws.notNow') }}</button>
             </div>
           </div>
         </section>
       } @else if (tab() === 'edit' && inlineEditor()) {
-        <section class="canvas editor" aria-label="Page editor">
+        <section class="canvas editor" [attr.aria-label]="i18n.t('ws.pageEditor')">
           @for (key of [inlineKey()]; track key) {
             <app-page-text-editor [embedded]="true" [documentId]="doc.id" [pageId]="selectedPageId()" [tool]="inlineTool()"
               (changed)="load()" (closed)="closeInlineEditor()" />
           }
         </section>
       } @else {
-      <section class="canvas" aria-label="Document pages">
+      <section class="canvas" [attr.aria-label]="i18n.t('ws.documentPages')">
         <app-page-viewer
           [documentId]="doc.id"
           [pages]="doc.pages"
@@ -170,13 +169,13 @@
       }
       @switch (tab()) {
         @case ('edit') {
-          <aside class="side-panel" aria-label="Edit panel" data-slot="edit-panel">
+          <aside class="side-panel" [attr.aria-label]="i18n.t('ws.editPanel')" data-slot="edit-panel">
             <app-edit-panel [tool]="editTool()" [pageId]="selectedPageId()" [pageNumber]="selectedPageNumber()"
               (start)="startEditTool($event)" />
           </aside>
         }
         @case ('export') {
-          <aside class="side-panel" aria-label="Export panel" data-slot="export-panel">
+          <aside class="side-panel" [attr.aria-label]="i18n.t('ws.exportPanel')" data-slot="export-panel">
             <app-export-panel [documentId]="doc.id" [documentTitle]="doc.title" [pages]="doc.pages"
               [selectedPageId]="selectedPageId()" [kind]="exportKind()" [latestExport]="doc.latestExport"
               (exportChange)="exportChanged($event)" />
@@ -184,7 +183,7 @@
         }
       }
     } @else if (!error()) {
-      <p class="loading" role="status">Loading document…</p>
+      <p class="loading" role="status">{{ i18n.t('ws.loadingDocument') }}</p>
     }
   </div>
 </main>

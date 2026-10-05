@@ -1,8 +1,7 @@
-<div class="ocr-overlay" aria-label="Selectable recognized text">
+<div class="ocr-overlay" [attr.aria-label]="i18n.t('editor.selectableText')">
   @if (words().length) {
     <p id="ocr-selection-help" class="sr-only">
-      Drag across recognized words to select them. Use arrow keys to move, Shift with an arrow
-      key to extend the selection, Enter to select one word, and Escape to clear.
+      {{ i18n.t('editor.selectionHelp') }}
     </p>
     <svg
       viewBox="0 0 1 1"
@@ -38,20 +37,20 @@
         [style.top]="actionPosition().top" [style.left]="actionPosition().left"
         [style.transform]="actionPosition().transform">
         <strong class="selected-phrase">{{ selection.phrase }}</strong>
-        <span>{{ selection.wordCount }} {{ selection.wordCount === 1 ? 'word' : 'words' }}</span>
-        <span>{{ selection.averageConfidence * 100 | number: '1.0-0' }}% confidence</span>
-        <span>{{ selection.textType }}</span>
+        <span>{{ i18n.t(selection.wordCount === 1 ? 'editor.oneWord' : 'editor.manyWords', { count: selection.wordCount }) }}</span>
+        <span>{{ i18n.t('editor.confidencePct', { percent: (selection.averageConfidence * 100 | number: '1.0-0') ?? '' }) }}</span>
+        <span>{{ i18n.t('editor.type' + selection.textType) }}</span>
         @if (selection.textType === 'Printed') {
           <button type="button" data-testid="edit-selection" (click)="requestEdit()">
-            Edit selected text
+            {{ i18n.t('editor.editSelectedText') }}
           </button>
-          <button type="button" data-testid="delete-selection" (click)="requestEdit('delete')">Delete selected text</button>
+          <button type="button" data-testid="delete-selection" (click)="requestEdit('delete')">{{ i18n.t('editor.deleteSelectedText') }}</button>
         } @else {
-          <span>Handwritten text editing is not available yet.</span>
+          <span>{{ i18n.t('editor.handwritingUnavailable') }}</span>
         }
       </aside>
     }
   } @else {
-    <p class="empty-selection">No selectable text detected</p>
+    <p class="empty-selection">{{ i18n.t('editor.noSelectableText') }}</p>
   }
 </div>

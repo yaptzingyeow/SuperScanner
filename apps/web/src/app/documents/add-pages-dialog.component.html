@@ -8,13 +8,13 @@
   >
     <header>
       <div>
-        <p>Add to document</p>
-        <h2 id="add-pages-title">Add pages</h2>
+        <p>{{ i18n.t('pages.add.eyebrow') }}</p>
+        <h2 id="add-pages-title">{{ i18n.t('pages.add.title') }}</h2>
       </div>
-      <button type="button" aria-label="Close add pages" (click)="closed.emit()">×</button>
+      <button type="button" [attr.aria-label]="i18n.t('pages.add.close')" (click)="closed.emit()">×</button>
     </header>
     <label class="picker"
-      ><span>Choose photos or PDFs</span><small>Select more than one file if needed.</small
+      ><span>{{ i18n.t('pages.add.choose') }}</span><small>{{ i18n.t('pages.add.more') }}</small
       ><input
         type="file"
         multiple
@@ -22,7 +22,7 @@
         (change)="choose($event)"
     /></label>
     @if (selected().length && !items().length) {
-      <p>{{ selected().length }} {{ selected().length === 1 ? 'file' : 'files' }} selected</p>
+      <p>{{ i18n.t('pages.add.selected', { count: selected().length, files: i18n.t(selected().length === 1 ? 'pages.add.file' : 'pages.add.files') }) }}</p>
     }
     @if (items().length) {
       <ul aria-live="polite">
@@ -38,14 +38,14 @@
       </ul>
     }
     <footer>
-      <button type="button" (click)="closed.emit()">Cancel</button
+      <button type="button" (click)="closed.emit()">{{ i18n.t('pages.add.cancel') }}</button
       ><button
         class="primary"
         type="button"
         [disabled]="!selected().length || running()"
         (click)="add()"
       >
-        {{ running() ? 'Adding…' : 'Add selected files' }}
+        {{ running() ? i18n.t('pages.add.adding') : i18n.t('pages.add.addSelected') }}
       </button>
     </footer>
   </section>

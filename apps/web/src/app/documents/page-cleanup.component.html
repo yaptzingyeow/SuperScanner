@@ -1,37 +1,37 @@
 <main class="cleanup-shell">
-  <a [routerLink]="['/documents', documentId]" [queryParams]="workspaceQuery">← Cancel cleanup</a>
-  <h1>Clean page</h1>
+  <a [routerLink]="['/documents', documentId]" [queryParams]="workspaceQuery">{{ i18n.t('pages.clean.cancel') }}</a>
+  <h1>{{ i18n.t('pages.clean.title') }}</h1>
   <p>{{ notice() }}</p>
   @if (error()) { <p role="alert" class="error">{{ error() }}</p> }
   @if (originalUrl()) {
-    <div class="toolbar" aria-label="Page view controls">
-      <button type="button" [disabled]="zoom() <= 1" (click)="zoomOut()">− Zoom out</button>
-      <span>Zoom {{ zoom() * 100 }}%</span>
-      <button type="button" [disabled]="zoom() >= 3" (click)="zoomIn()">+ Zoom in</button>
-      <button type="button" [attr.aria-pressed]="panMode()" (click)="panMode.set(!panMode())">{{ panMode() ? 'Pan page on' : 'Pan page' }}</button>
+    <div class="toolbar" [attr.aria-label]="i18n.t('pages.clean.viewControls')">
+      <button type="button" [disabled]="zoom() <= 1" (click)="zoomOut()">{{ i18n.t('pages.clean.zoomOut') }}</button>
+      <span>{{ i18n.t('pages.clean.zoom', { percent: zoom() * 100 }) }}</span>
+      <button type="button" [disabled]="zoom() >= 3" (click)="zoomIn()">{{ i18n.t('pages.clean.zoomIn') }}</button>
+      <button type="button" [attr.aria-pressed]="panMode()" (click)="panMode.set(!panMode())">{{ panMode() ? i18n.t('pages.clean.panOn') : i18n.t('pages.clean.pan') }}</button>
     </div>
-    <div class="toolbar" aria-label="Cleanup tools">
-      <button type="button" [attr.aria-pressed]="tool() === 'rectangle'" (click)="tool.set('rectangle'); panMode.set(false)">Rectangle</button>
-      <button type="button" [attr.aria-pressed]="tool() === 'brush'" (click)="tool.set('brush'); panMode.set(false)">Brush</button>
-      <button type="button" [attr.aria-pressed]="tool() === 'erase'" (click)="tool.set('erase'); panMode.set(false)">Erase selection</button>
+    <div class="toolbar" [attr.aria-label]="i18n.t('pages.clean.tools')">
+      <button type="button" [attr.aria-pressed]="tool() === 'rectangle'" (click)="tool.set('rectangle'); panMode.set(false)">{{ i18n.t('pages.clean.rectangle') }}</button>
+      <button type="button" [attr.aria-pressed]="tool() === 'brush'" (click)="tool.set('brush'); panMode.set(false)">{{ i18n.t('pages.clean.brush') }}</button>
+      <button type="button" [attr.aria-pressed]="tool() === 'erase'" (click)="tool.set('erase'); panMode.set(false)">{{ i18n.t('pages.clean.erase') }}</button>
       @if (tool() === 'brush') {
-        <label>Brush size
+        <label>{{ i18n.t('pages.clean.brushSize') }}
           <select [value]="brushRadius()" (change)="brushRadius.set(+$any($event.target).value)">
-            <option value="0.003">Fine</option><option value="0.008">Medium</option><option value="0.015">Wide</option>
+            <option value="0.003">{{ i18n.t('pages.clean.fine') }}</option><option value="0.008">{{ i18n.t('pages.clean.medium') }}</option><option value="0.015">{{ i18n.t('pages.clean.wide') }}</option>
           </select>
         </label>
       }
     </div>
     <button type="button" [disabled]="finding() || !!operation()" (click)="findHoles()">
-      {{ finding() ? 'Finding holes…' : 'Find punch holes' }}
+      {{ finding() ? i18n.t('pages.clean.finding') : i18n.t('pages.clean.findHoles') }}
     </button>
     <div class="comparison">
-      <section><h2>Original</h2>
+      <section><h2>{{ i18n.t('pages.clean.original') }}</h2>
         <div class="viewport"><div class="stage" #stage [style.width.%]="zoom() * 100"
           [class.panning]="panMode()" (pointerdown)="begin($event, stage)"
           (pointermove)="move($event, stage)" (pointerup)="end($event, stage)"
           (pointercancel)="cancel($event, stage)">
-          <img [src]="originalUrl()" (load)="onImageLoad($event)" alt="Original page for cleanup" draggable="false" />
+          <img [src]="originalUrl()" (load)="onImageLoad($event)" [alt]="i18n.t('pages.clean.originalAlt')" draggable="false" />
           @for (box of boxes(); track $index) { <div class="mask" [style.left]="boxStyle(box).left" [style.top]="boxStyle(box).top"
             [style.width]="boxStyle(box).width" [style.height]="boxStyle(box).height"></div> }
           @if (drawing(); as box) { <div class="mask drawing" [style.left]="boxStyle(box).left" [style.top]="boxStyle(box).top"
@@ -50,20 +50,20 @@
           </svg>
         </div></div>
       </section>
-      @if (previewUrl()) { <section><h2>Preview — not yet applied</h2><img [src]="previewUrl()" alt="Cleanup preview" /></section> }
+      @if (previewUrl()) { <section><h2>{{ i18n.t('pages.clean.previewNotApplied') }}</h2><img [src]="previewUrl()" [alt]="i18n.t('pages.clean.previewAlt')" /></section> }
     </div>
     @if ((boxes().length || strokes().length) && !operation()) {
-      <div class="areas"><h2>Selected areas</h2>
-        <button type="button" (click)="undoSelection()">Undo selection</button>
-        <button type="button" (click)="clearSelection()">Clear all</button>
-        @for (box of boxes(); track $index) { <button type="button" (click)="remove($index)">Remove area {{ $index + 1 }}</button> }
-        @for (stroke of strokes(); track $index) { <button type="button" (click)="removeStroke($index)">Remove brush stroke {{ $index + 1 }}</button> }
+      <div class="areas"><h2>{{ i18n.t('pages.clean.selected') }}</h2>
+        <button type="button" (click)="undoSelection()">{{ i18n.t('pages.clean.undo') }}</button>
+        <button type="button" (click)="clearSelection()">{{ i18n.t('pages.clean.clearAll') }}</button>
+        @for (box of boxes(); track $index) { <button type="button" (click)="remove($index)">{{ i18n.t('pages.clean.removeArea', { n: $index + 1 }) }}</button> }
+        @for (stroke of strokes(); track $index) { <button type="button" (click)="removeStroke($index)">{{ i18n.t('pages.clean.removeStroke', { n: $index + 1 }) }}</button> }
       </div>
     }
     <div class="actions">
-      @if (!operation()) { <button type="button" [disabled]="!(boxes().length || strokes().length) || busy() || finding()" (click)="preview()">Preview cleanup</button> }
-      @if (operation()) { <button type="button" (click)="discard()" [disabled]="busy()">Discard preview</button> }
-      @if (previewUrl()) { <button class="primary" type="button" [disabled]="busy()" (click)="apply()">Apply to page</button> }
+      @if (!operation()) { <button type="button" [disabled]="!(boxes().length || strokes().length) || busy() || finding()" (click)="preview()">{{ i18n.t('pages.clean.previewCleanup') }}</button> }
+      @if (operation()) { <button type="button" (click)="discard()" [disabled]="busy()">{{ i18n.t('pages.clean.discard') }}</button> }
+      @if (previewUrl()) { <button class="primary" type="button" [disabled]="busy()" (click)="apply()">{{ i18n.t('pages.clean.apply') }}</button> }
     </div>
-  } @else if (!error()) { <p role="status">Loading page…</p> }
+  } @else if (!error()) { <p role="status">{{ i18n.t('pages.clean.loading') }}</p> }
 </main>

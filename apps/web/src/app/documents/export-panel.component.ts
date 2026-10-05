@@ -1,4 +1,5 @@
 import { errorMessage } from '../plans/limit-message';
+import { I18nService } from '../core/i18n/i18n.service';
 import { Component, EventEmitter, Input, OnDestroy, Output, inject, signal } from '@angular/core';
 import { DocumentExport, DocumentPage } from './document.models';
 import { DocumentsApiService } from './documents-api.service';
@@ -31,6 +32,7 @@ const EXTENSIONS: Record<string, string> = {
 })
 export class ExportPanelComponent implements OnDestroy {
   private readonly api = inject(DocumentsApiService);
+  protected readonly i18n = inject(I18nService);
   private readonly watermarks = inject(WatermarkStore);
   @Input({ required: true }) documentId = '';
   @Input() documentTitle = 'document';
@@ -96,9 +98,9 @@ export class ExportPanelComponent implements OnDestroy {
       if (item.state !== 'Ready') throw new Error('not ready');
       const blob = await this.api.downloadExport(this.documentId, item.id);
       await this.printFn(blob);
-      this.announcement.set('Print dialog opened.');
+      this.announcement.set(this.i18n.t('ws.printOpened'));
     } catch (error) {
-      this.error.set(errorMessage(error, 'We could not prepare the document for printing. Please try again.'));
+      this.error.set(errorMessage(error, this.i18n.t('ws.printFailed'), (key, params) => this.i18n.t(key, params)));
     } finally {
       this.busy.set(false);
     }
@@ -116,9 +118,9 @@ export class ExportPanelComponent implements OnDestroy {
       link.download = 'original' + (EXTENSIONS[blob.type] ?? '.bin');
       link.click();
       setTimeout(() => URL.revokeObjectURL(url), 60000);
-      this.announcement.set('Original download started.');
+      this.announcement.set(this.i18n.t('ws.originalStarted'));
     } catch {
-      this.error.set('Could not download the original. Please try again.');
+      this.error.set(this.i18n.t('ws.originalFailed'));
     } finally {
       this.busy.set(false);
     }

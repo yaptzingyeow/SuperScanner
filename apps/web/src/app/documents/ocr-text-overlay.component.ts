@@ -1,14 +1,6 @@
+import { I18nService } from '../core/i18n/i18n.service';
 import { DecimalPipe } from '@angular/common';
-import {
-  Component,
-  OnChanges,
-  OnDestroy,
-  SimpleChanges,
-  computed,
-  input,
-  output,
-  signal,
-} from '@angular/core';
+import { Component, OnChanges, OnDestroy, SimpleChanges, computed, input, output, signal, inject } from '@angular/core';
 import { OcrPoint, PageOcr } from './document.models';
 import {
   SelectionRegion,
@@ -34,6 +26,7 @@ export interface OcrEditSelection {
   styleUrl: './ocr-text-overlay.component.scss',
 })
 export class OcrTextOverlayComponent implements OnChanges, OnDestroy {
+  protected readonly i18n = inject(I18nService);
   readonly pageId = input.required<string>();
   readonly ocr = input.required<PageOcr>();
   readonly highlightWordIds = input<readonly string[]>([]);

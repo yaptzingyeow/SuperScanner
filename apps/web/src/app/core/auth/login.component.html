@@ -1,18 +1,18 @@
 <main class="auth-page">
   <section class="auth-card" aria-labelledby="auth-heading">
-    <a class="back" routerLink="/">← Back to scanner</a>
-    <p class="eyebrow">OPTIONAL ACCOUNT</p>
-    <h1 id="auth-heading">{{ registerMode() ? 'Create your account' : 'Sign in' }}</h1>
-    <p class="intro">Save your workspace and prepare for future premium features.</p>
+    <a class="back" routerLink="/">{{ i18n.t('pages.login.back') }}</a>
+    <p class="eyebrow">{{ i18n.t('pages.login.eyebrow') }}</p>
+    <h1 id="auth-heading">{{ registerMode() ? i18n.t('pages.login.create') : i18n.t('pages.login.signIn') }}</h1>
+    <p class="intro">{{ i18n.t('pages.login.intro') }}</p>
     <div class="social-actions">
       <button type="button" class="social-button" (click)="signInWithGoogle()" [disabled]="busy()">
         <span class="google-icon" aria-hidden="true">G</span>
-        Continue with Google
+        {{ i18n.t('pages.login.google') }}
       </button>
     </div>
-    <div class="divider"><span>or use email</span></div>
+    <div class="divider"><span>{{ i18n.t('pages.login.orEmail') }}</span></div>
     <form (ngSubmit)="submitEmail()">
-      <label for="email">Email address</label>
+      <label for="email">{{ i18n.t('pages.login.email') }}</label>
       <input
         id="email"
         name="email"
@@ -21,7 +21,7 @@
         required
         [(ngModel)]="email"
       />
-      <label for="password">Password</label>
+      <label for="password">{{ i18n.t('pages.login.password') }}</label>
       <input
         id="password"
         name="password"
@@ -31,20 +31,20 @@
         [(ngModel)]="password"
       />
       <button type="submit" class="primary" [disabled]="busy()">
-        {{ registerMode() ? 'Create account' : 'Sign in with email' }}
+        {{ registerMode() ? i18n.t('pages.login.createBtn') : i18n.t('pages.login.emailBtn') }}
       </button>
     </form>
     <button type="button" class="mode" (click)="toggleMode()">
-      {{ registerMode() ? 'Already have an account? Sign in' : 'New here? Create an account' }}
+      {{ registerMode() ? i18n.t('pages.login.haveAccount') : i18n.t('pages.login.newHere') }}
     </button>
     @if (error()) {
       <p class="error" role="alert">{{ error() }}</p>
     }
     @if (busy()) {
-      <p class="busy" role="status">Opening secure sign-in…</p>
+      <p class="busy" role="status">{{ i18n.t('pages.login.busy') }}</p>
     }
-    <p class="privacy">Scanning remains free without an account.</p>
-    <p class="maker">Arks Scanner is made by
+    <p class="privacy">{{ i18n.t('pages.login.free') }}</p>
+    <p class="maker">{{ i18n.t('pages.login.maker') }}
       <a href="https://arksoft.dev/" target="_blank" rel="noopener noreferrer">ArkSoft</a></p>
   </section>
 </main>

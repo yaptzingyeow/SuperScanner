@@ -1,3 +1,4 @@
+import { I18nService } from '../core/i18n/i18n.service';
 import { Component, HostListener, OnDestroy, OnInit, computed, effect, input, output, signal, inject, untracked } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
@@ -19,6 +20,7 @@ import { coversText } from './text-scripts';
   styleUrl: './text-replacement-editor.component.scss',
 })
 export class TextReplacementEditorComponent implements OnInit, OnDestroy {
+  protected readonly i18n = inject(I18nService);
   readonly mode = input<'replace' | 'delete' | 'add'>('replace');
   readonly documentId = input.required<string>();
   readonly selection = input.required<TextEditSelection>();
@@ -56,7 +58,7 @@ export class TextReplacementEditorComponent implements OnInit, OnDestroy {
     if (!next) return;
     untracked(() => {
       this.chooseFont(next.catalogueId);
-      this.scriptNotice.set(`Switched to ${next.familyName} so these characters can be written.`);
+      this.scriptNotice.set(this.i18n.t('editor.switchedFont', { font: next.familyName }));
     });
   });
   protected readonly fontWeights = computed(() => this.fontFaces()
@@ -68,7 +70,7 @@ export class TextReplacementEditorComponent implements OnInit, OnDestroy {
   protected fontsInCategory(category: FontFaceEntry['category']): FontFaceEntry[] {
     return this.visibleFontFamilies().filter((face) => face.category === category);
   }
-  protected readonly status = signal('Loading style proposal…');
+  protected readonly status = signal(this.i18n.t('editor.loadingProposal'));
   protected readonly warning = signal('');
   protected readonly submitting = signal(false);
   protected readonly done = signal(false);
@@ -126,7 +128,7 @@ export class TextReplacementEditorComponent implements OnInit, OnDestroy {
     void this.fonts.list().then((faces) => {
       if (!this.destroyed) this.fontFaces.set(faces);
     }).catch(() => {
-      if (!this.destroyed) this.warning.set('Font catalogue unavailable. Recommended fonts remain available.');
+      if (!this.destroyed) this.warning.set(this.i18n.t('editor.fontCatalogueUnavailable'));
     });
     if (this.mode() === 'add') {
       try {
@@ -149,11 +151,11 @@ export class TextReplacementEditorComponent implements OnInit, OnDestroy {
         this.style.set(style);
         this.initialBox = { ...box };
         this.initialStyle = { ...style };
-        this.status.set('Enter text, drag the transparent box, then preview the exact result.');
+        this.status.set(this.i18n.t('editor.addStatus'));
       } catch (error) {
         if (!this.destroyed) this.status.set(error instanceof HttpErrorResponse && error.status === 401
-          ? 'Sign in to add text on this page.'
-          : 'Could not start adding text. Please try again.');
+          ? this.i18n.t('editor.signInAdd')
+          : this.i18n.t('editor.errStartAdd'));
       }
       return;
     }
@@ -163,7 +165,7 @@ export class TextReplacementEditorComponent implements OnInit, OnDestroy {
         selection.ocrResultId, [...selection.wordIds]);
       if (this.destroyed) return;
       if (!proposal.style.candidates.length) {
-        this.status.set('No supported font is available for this selection.');
+        this.status.set(this.i18n.t('editor.noSupportedFont'));
         return;
       }
       // OCR text can carry doubled or trailing spaces; edit a tidy phrase.
@@ -186,17 +188,17 @@ export class TextReplacementEditorComponent implements OnInit, OnDestroy {
       });
       this.initialStyle = { ...this.style()! };
       this.initialBox = { ...proposal.box };
-      this.status.set('Edit the text, then select Preview exact result to check it.');
-      if (proposal.style.confidence < .6) this.warning.set('Low confidence font match. Review the alternatives.');
+      this.status.set(this.i18n.t('editor.editStatus'));
+      if (proposal.style.confidence < .6) this.warning.set(this.i18n.t('editor.lowConfidence'));
     } catch (error) {
       if (!this.destroyed) this.status.set(error instanceof HttpErrorResponse
         ? error.status === 503 && error.error?.code === 'text_edit_disabled'
-          ? 'Text editing is disabled on this server. An administrator must enable it before edits can be applied.'
-          : error.status === 401 ? 'Sign in to edit text on this page.'
-          : error.status === 409 ? 'This page changed. Close the editor and select the words again.'
-          : error.status === 422 ? 'This text selection cannot be edited. Select printed words and try again.'
-          : 'Could not load the text editor. Please try again.'
-        : 'Could not load the text editor. Please try again.');
+          ? this.i18n.t('editor.errDisabled')
+          : error.status === 401 ? this.i18n.t('editor.signInEdit')
+          : error.status === 409 ? this.i18n.t('editor.pageChanged')
+          : error.status === 422 ? this.i18n.t('editor.errSelection422')
+          : this.i18n.t('editor.errLoadEditor')
+        : this.i18n.t('editor.errLoadEditor'));
     }
   }
 
@@ -212,7 +214,7 @@ export class TextReplacementEditorComponent implements OnInit, OnDestroy {
       this.style.update((current) => current && ({
         ...current, fontId: face.catalogueId, fontVersion: face.version, weight: face.weight,
       }));
-      void this.fonts.loadFace(face).catch(() => this.warning.set('Font preview unavailable; the server font remains selectable.'));
+      void this.fonts.loadFace(face).catch(() => this.warning.set(this.i18n.t('editor.fontPreviewUnavailable')));
       this.idempotencyKey = '';
       this.clearPreview();
       return;
@@ -250,7 +252,7 @@ export class TextReplacementEditorComponent implements OnInit, OnDestroy {
       if (field !== 'weight') return { ...current, [field]: value };
       const face = this.fontFaces().find((item) => item.catalogueId === current.fontId && item.weight === value);
       if (face) {
-        void this.fonts.loadFace(face).catch(() => this.warning.set('Font preview unavailable; the server font remains selectable.'));
+        void this.fonts.loadFace(face).catch(() => this.warning.set(this.i18n.t('editor.fontPreviewUnavailable')));
         return { ...current, weight: value as number, fontVersion: face.version };
       }
       const candidate = this.proposal()?.style.candidates.find((item) =>
@@ -332,7 +334,7 @@ export class TextReplacementEditorComponent implements OnInit, OnDestroy {
 
   protected adjustPlacement(): void {
     this.clearPreview();
-    this.status.set('Adjust the text or placement box, then preview the result again.');
+    this.status.set(this.i18n.t('editor.adjustStatus'));
   }
 
   private padInitialBox(box: TextEditBox, width: number, height: number): TextEditBox {
@@ -360,7 +362,7 @@ export class TextReplacementEditorComponent implements OnInit, OnDestroy {
 
   protected cancel(): void {
     if (this.submitting()) return;
-    if (this.isDirty() && !window.confirm('Discard your unapplied text changes?')) return;
+    if (this.isDirty() && !window.confirm(this.i18n.t('editor.confirmDiscardText'))) return;
     this.closed.emit();
   }
 
@@ -370,34 +372,34 @@ export class TextReplacementEditorComponent implements OnInit, OnDestroy {
         /[\r\n]/u.test(this.replacement())) return;
     this.clearPreview();
     this.previewing.set(true);
-    this.status.set('Rendering an exact preview. Your page is unchanged…');
+    this.status.set(this.i18n.t('editor.renderingExact'));
     const request = this.buildRequest();
     const signature = JSON.stringify(request);
     try {
       const blob = await this.api.preview(this.documentId(), this.selection().pageId, request);
       if (this.destroyed) return;
       if (signature !== JSON.stringify(this.buildRequest())) {
-        this.status.set('The draft changed while rendering. Preview it again.');
+        this.status.set(this.i18n.t('editor.draftChanged'));
         return;
       }
       this.clearPreview();
       this.previewUrl.set(URL.createObjectURL(blob));
       this.previewedSignature = signature;
-      this.status.set('Review the exact result, then select Apply change to save it.');
+      this.status.set(this.i18n.t('editor.reviewExact'));
     } catch (error) {
       if (this.destroyed) return;
       const code = await this.errorCode(error);
       this.status.set(code === 'text_edit_font_unsupported'
-        ? 'This font cannot write some of these characters. Choose a font for this language.'
+        ? this.i18n.t('editor.errFontUnsupportedPreview')
         : code === 'text_edit_unsafe_background'
-        ? 'We could not clear the original ink without risking other page content. Select different words. Your page is unchanged.'
+        ? this.i18n.t('editor.errUnsafeBgSelect')
         : code === 'text_edit_placement_overlap'
-          ? 'The new letters would cover nearby text. Move or resize the transparent placement box, or use a smaller font.'
+          ? this.i18n.t('editor.errOverlapPreview')
           : code === 'text_edit_overflow'
-            ? 'The replacement does not fit. Use a smaller font or widen the placement box.'
+            ? this.i18n.t('editor.errOverflowPreview')
             : code === 'text_selection_stale'
-              ? 'This page changed. Close the editor and select the words again.'
-              : 'The preview could not be rendered. Your page is unchanged.');
+              ? this.i18n.t('editor.pageChanged')
+              : this.i18n.t('editor.errPreviewFailed'));
     } finally {
       if (!this.destroyed) this.previewing.set(false);
     }
@@ -444,12 +446,12 @@ export class TextReplacementEditorComponent implements OnInit, OnDestroy {
         (this.mode() !== 'delete' && !text.trim()) || /[\r\n]/u.test(text) || !this.canApplyPreview()) return;
     this.submitting.set(true);
     this.failed.set(false);
-    this.status.set('Checking text fit…');
+    this.status.set(this.i18n.t('editor.checkingFit'));
     const request = this.buildRequest();
     try {
       const accepted = await this.api.apply(this.documentId(), this.selection().pageId, request);
       if (this.destroyed) return;
-      this.status.set('Rendering your change…');
+      this.status.set(this.i18n.t('editor.renderingChange'));
       void this.poll(accepted.editId);
     } catch (error) {
       if (this.destroyed) return;
@@ -457,12 +459,12 @@ export class TextReplacementEditorComponent implements OnInit, OnDestroy {
       this.failed.set(true);
       const code = error instanceof HttpErrorResponse ? error.error?.code : undefined;
       this.status.set(code === 'text_edit_overflow'
-        ? 'The text does not fit the replacement box, even after automatic fitting. Use a smaller font or widen the box. Your page is unchanged.'
+        ? this.i18n.t('editor.errOverflowApply')
           : code === 'text_selection_invalid'
-          ? 'The selected OCR words cannot be edited safely. Select the words again. Your page is unchanged.'
+          ? this.i18n.t('editor.errSelectionInvalid')
           : error instanceof HttpErrorResponse && error.status === 409
-            ? 'This page changed. Close the editor and select the words again.'
-            : 'We could not apply this change. Review the box and try again.');
+            ? this.i18n.t('editor.pageChanged')
+            : this.i18n.t('editor.errApply'));
     }
   }
 
@@ -472,22 +474,22 @@ export class TextReplacementEditorComponent implements OnInit, OnDestroy {
       const result = await this.api.get(this.documentId(), this.selection().pageId, editId);
       if (this.destroyed) return;
       if (result.state === 'Succeeded') {
-        this.status.set('Change applied. Refreshing page…');
+        this.status.set(this.i18n.t('editor.changeApplied'));
         this.done.set(true);
         this.submitting.set(false);
         this.completed.emit();
       } else if (result.state === 'Failed') {
         this.status.set(result.failureCode === 'text_edit_overflow'
-          ? 'The text does not fit the replacement box. Use a smaller font or widen the box. The previous page is unchanged.'
+          ? this.i18n.t('editor.errOverflowFail')
           : result.failureCode === 'text_edit_unsafe_background'
-            ? 'We could not clear the original ink without risking other page content. Try a different word selection. The previous page is unchanged.'
+            ? this.i18n.t('editor.errUnsafeBgFail')
             : result.failureCode === 'text_edit_placement_overlap'
-              ? 'The new letters would cover nearby text. Move or resize the transparent placement box, or use a smaller font. The previous page is unchanged.'
+              ? this.i18n.t('editor.errOverlapFail')
             : result.failureCode === 'text_edit_font_unsupported'
-              ? 'This font cannot write some of these characters. Choose a font for this language and try again. The previous page is unchanged.'
+              ? this.i18n.t('editor.errFontUnsupportedFail')
             : result.failureCode === 'text_edit_font_unavailable'
-              ? 'This font is unavailable for rendering. Choose another font and try again. The previous page is unchanged.'
-              : 'Rendering failed. The previous page is unchanged.');
+              ? this.i18n.t('editor.errFontUnavailable')
+              : this.i18n.t('editor.errRenderFailed'));
         this.submitting.set(false);
         this.failed.set(true);
         this.proposal.update((current) => current && ({

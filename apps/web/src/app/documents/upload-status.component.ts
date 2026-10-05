@@ -1,5 +1,6 @@
 import { Component, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { I18nService } from '../core/i18n/i18n.service';
 import { DocumentsApiService, UploadStatusDto } from './documents-api.service';
 
 type StatusView = UploadStatusDto | { state: 'Loading' | 'LoadError'; uploadId: string };
@@ -13,6 +14,7 @@ type StatusView = UploadStatusDto | { state: 'Loading' | 'LoadError'; uploadId: 
 export class UploadStatusComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly api = inject(DocumentsApiService);
+  protected readonly i18n = inject(I18nService);
   protected readonly status = signal<StatusView>({ state: 'Loading', uploadId: '' });
   private timer?: ReturnType<typeof setTimeout>;
   protected readonly documentId = this.route.snapshot.paramMap.get('documentId') ?? '';

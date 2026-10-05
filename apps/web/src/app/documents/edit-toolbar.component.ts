@@ -11,10 +11,10 @@ const TOOL_ICONS: Record<EditToolId, IconName> = {
   crop: 'crop', clean: 'clean', text: 'text', add: 'addText', sign: 'signature', mark: 'tick', ocr: 'recognize',
 };
 /** Toolbar groups, in display order. Search text joins the Text group (it needs recognized text). */
-const TOOL_GROUPS: readonly { label: string; ids: readonly EditToolId[] }[] = [
-  { label: 'Page', ids: ['crop', 'clean'] },
-  { label: 'Text', ids: ['ocr', 'text', 'add'] },
-  { label: 'Sign & mark', ids: ['sign', 'mark'] },
+const TOOL_GROUPS: readonly { label: string; key: 'page' | 'text' | 'signMark'; ids: readonly EditToolId[] }[] = [
+  { label: 'Page', key: 'page', ids: ['crop', 'clean'] },
+  { label: 'Text', key: 'text', ids: ['ocr', 'text', 'add'] },
+  { label: 'Sign & mark', key: 'signMark', ids: ['sign', 'mark'] },
 ];
 
 /** Navigates to the editor that implements a tool, for the selected page. */
@@ -53,6 +53,7 @@ export class EditToolbarComponent implements OnChanges {
   protected readonly icons = TOOL_ICONS;
   protected readonly groups = TOOL_GROUPS.map((group) => ({
     label: group.label,
+    key: group.key,
     tools: group.ids.map((id) => EDIT_TOOLS.find((tool) => tool.id === id)!),
   }));
   protected readonly i18n = inject(I18nService);
@@ -93,7 +94,7 @@ export class EditToolbarComponent implements OnChanges {
       const history = await this.textEdits.history(this.documentId, pageId);
       if (run === this.generation) this.history.set(history);
     } catch {
-      if (run === this.generation && report) this.historyError.set('Edit history is not available right now.');
+      if (run === this.generation && report) this.historyError.set(this.i18n.t('ws.historyUnavailable'));
     }
   }
 
@@ -107,14 +108,14 @@ export class EditToolbarComponent implements OnChanges {
       .map((e) => ({
         revisionId: e.resultRevisionId!,
         label: !e.originalText?.trim()
-          ? `Added ${quote(e.replacementText)}`
+          ? this.i18n.t('ws.historyAdded', { text: quote(e.replacementText) })
           : e.replacementText?.trim()
-            ? `Replaced ${quote(e.originalText)} with ${quote(e.replacementText)}`
-            : `Deleted ${quote(e.originalText)}`,
+            ? this.i18n.t('ws.historyReplaced', { original: quote(e.originalText), replacement: quote(e.replacementText) })
+            : this.i18n.t('ws.historyDeleted', { text: quote(e.originalText) }),
         at: e.completedAt ?? e.queuedAt ?? null,
       }))
       .reverse();
-    const original = h.originalRevisionId ? [{ revisionId: h.originalRevisionId, label: 'Original page', at: null }] : [];
+    const original = h.originalRevisionId ? [{ revisionId: h.originalRevisionId, label: this.i18n.t('ws.originalPage'), at: null }] : [];
     return [...edits, ...original].map((v) => ({ ...v, current: v.revisionId === h.activeRevisionId }));
   });
 
@@ -126,10 +127,10 @@ export class EditToolbarComponent implements OnChanges {
     this.historyError.set('');
     try {
       this.history.set(await this.textEdits.jumpTo(this.documentId, pageId, revisionId, history.activeRevisionId));
-      this.announcement.set('Page version restored.');
+      this.announcement.set(this.i18n.t('ws.versionRestored'));
       this.pageChanged.emit();
     } catch {
-      this.historyError.set('The page changed or the action failed. Reload history and try again.');
+      this.historyError.set(this.i18n.t('ws.historyFailed'));
     } finally {
       this.historyBusy.set(false);
     }
@@ -144,10 +145,10 @@ export class EditToolbarComponent implements OnChanges {
     this.historyError.set('');
     try {
       this.history.set(await this.textEdits.switchRevision(this.documentId, pageId, direction, history.activeRevisionId));
-      this.announcement.set(direction === 'undo' ? 'Text change undone.' : 'Text change restored.');
+      this.announcement.set(this.i18n.t(direction === 'undo' ? 'ws.textUndone' : 'ws.textRestored'));
       this.pageChanged.emit();
     } catch {
-      this.historyError.set('The page changed or the action failed. Reload history and try again.');
+      this.historyError.set(this.i18n.t('ws.historyFailed'));
     } finally {
       this.historyBusy.set(false);
     }
@@ -158,13 +159,13 @@ export class EditToolbarComponent implements OnChanges {
   selector: 'app-edit-panel',
   standalone: true,
   template: `
-    <p class="kicker">Edit{{ pageNumber() ? ' · page ' + pageNumber() : '' }}</p>
-    <h2>{{ current().title }}</h2>
-    <p class="body">{{ current().body }}</p>
+    <p class="kicker">{{ pageNumber() ? i18n.t('ws.editKickerPage', { page: pageNumber()! }) : i18n.t('ws.editKicker') }}</p>
+    <h2>{{ i18n.t('ws.tool.' + current().id + '.title') }}</h2>
+    <p class="body">{{ i18n.t('ws.tool.' + current().id + '.body') }}</p>
     <ol>
-      @for (step of current().steps; track $index) { <li>{{ step }}</li> }
+      @for (n of [1, 2, 3]; track n) { <li>{{ i18n.t('ws.tool.' + current().id + '.s' + n) }}</li> }
     </ol>
-    <button type="button" class="action" [disabled]="!pageId()" (click)="start.emit(current())">{{ current().action }}</button>
+    <button type="button" class="action" [disabled]="!pageId()" (click)="start.emit(current())">{{ i18n.t('ws.tool.' + current().id + '.action') }}</button>
   `,
   styles: [`
     :host { display: block; }
@@ -179,6 +180,7 @@ export class EditToolbarComponent implements OnChanges {
   `],
 })
 export class EditPanelComponent {
+  protected readonly i18n = inject(I18nService);
   readonly tool = input<EditToolId>('crop');
   readonly pageId = input<string | null>(null);
   readonly pageNumber = input<number | null>(null);

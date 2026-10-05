@@ -1,4 +1,5 @@
-import { Component, ElementRef, OnDestroy, ViewChild, output, signal } from '@angular/core';
+import { I18nService } from '../core/i18n/i18n.service';
+import { Component, ElementRef, OnDestroy, ViewChild, output, signal, inject } from '@angular/core';
 import { canvasPng, prepareSignature } from './signature-image';
 
 interface Point { x: number; y: number }
@@ -8,6 +9,7 @@ interface Point { x: number; y: number }
   templateUrl: './signature-creator.component.html', styleUrl: './signature-creator.component.scss',
 })
 export class SignatureCreatorComponent implements OnDestroy {
+  protected readonly i18n = inject(I18nService);
   private drawing?: ElementRef<HTMLCanvasElement>;
   @ViewChild('drawing') set drawingElement(element: ElementRef<HTMLCanvasElement> | undefined) {
     this.drawing = element;
@@ -36,7 +38,7 @@ export class SignatureCreatorComponent implements OnDestroy {
     const file = input.files?.[0]; input.value = '';
     if (!file) return;
     if (!['image/png', 'image/jpeg'].includes(file.type) || file.size > 5 * 1024 * 1024) {
-      this.error.set('Choose a PNG or JPEG image smaller than 5 MB.'); return;
+      this.error.set(this.i18n.t('editor.errChooseImage')); return;
     }
     this.source = file;
     if (this.originalUrl()) URL.revokeObjectURL(this.originalUrl());
@@ -59,7 +61,7 @@ export class SignatureCreatorComponent implements OnDestroy {
       if (this.previewUrl()) URL.revokeObjectURL(this.previewUrl());
       this.preview = blob; this.previewUrl.set(URL.createObjectURL(blob));
     } catch (error) {
-      if (generation === this.generation && !this.destroyed) this.error.set(error instanceof Error ? error.message : 'Could not prepare signature.');
+      if (generation === this.generation && !this.destroyed) this.error.set(error instanceof Error ? error.message : this.i18n.t('editor.errPrepareSig'));
     } finally { if (generation === this.generation && !this.destroyed) this.busy.set(false); }
   }
   protected canConfirm(): boolean {
@@ -122,7 +124,7 @@ export class SignatureCreatorComponent implements OnDestroy {
       context.drawImage(source, left, top, cropped.width, cropped.height, 0, 0, cropped.width, cropped.height);
       const blob = await canvasPng(cropped);
       if (!this.destroyed) this.confirmed.emit(blob);
-    } catch { this.error.set('Could not prepare the drawing. Please try again.'); }
+    } catch { this.error.set(this.i18n.t('editor.errPrepareDrawing')); }
     finally { if (!this.destroyed) this.busy.set(false); }
   }
   ngOnDestroy(): void {

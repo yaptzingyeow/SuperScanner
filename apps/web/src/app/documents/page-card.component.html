@@ -1,21 +1,21 @@
 <article
   class="page-card"
-  [attr.aria-label]="'Page ' + page.position + ', ' + stateLabel(page.state)"
+  [attr.aria-label]="i18n.t('pages.card.pageAria', { n: page.position, state: stateLabel(page.state) })"
 >
   <div class="thumbnail">
     @if (thumbnailUrl) {
       <div class="preview-surface">
-        <img [src]="thumbnailUrl" [alt]="'Thumbnail of page ' + page.position" />
+        <img [src]="thumbnailUrl" [alt]="i18n.t('pages.card.thumb', { n: page.position })" />
       </div>
     } @else {
-      <div class="preview-pending"><span>▧</span><small>Preview pending</small></div>
+      <div class="preview-pending"><span>▧</span><small>{{ i18n.t('pages.card.preview') }}</small></div>
     }
     <span class="page-number">{{ page.position }}</span>
     <button
       class="drag-handle"
       type="button"
-      title="Drag to reorder"
-      aria-label="Drag page to reorder"
+      [attr.title]="i18n.t('pages.card.drag')"
+      [attr.aria-label]="i18n.t('pages.card.dragAria')"
       cdkDragHandle
     >
       ⠿
@@ -23,43 +23,43 @@
   </div>
   <div class="card-body">
     <div class="status-row">
-      <strong>Page {{ page.position }}</strong
+      <strong>{{ i18n.t('pages.card.page', { n: page.position }) }}</strong
       ><span class="status" [attr.data-state]="page.state">{{ stateLabel(page.state) }}</span>
     </div>
     @if (page.appliedFilter || page.filter) {
-      <p class="filter">Filter: {{ page.appliedFilter || page.filter }}</p>
+      <p class="filter">{{ i18n.t('pages.card.filter', { name: page.appliedFilter || page.filter || '' }) }}</p>
     }
     <div class="primary-actions">
       @if (page.canCrop) {
-        <a [routerLink]="['/documents', documentId, 'pages', page.id, 'crop']">Crop & filters</a>
+        <a [routerLink]="['/documents', documentId, 'pages', page.id, 'crop']">{{ i18n.t('pages.card.crop') }}</a>
       }
       @if (page.state === 'Ready' && page.hasPreview) {
-        <a [routerLink]="['/documents', documentId, 'pages', page.id, 'clean']">Clean page</a>
+        <a [routerLink]="['/documents', documentId, 'pages', page.id, 'clean']">{{ i18n.t('pages.card.clean') }}</a>
         <a class="edit-text-action" data-testid="open-text-editor"
-          [routerLink]="['/documents', documentId, 'pages', page.id, 'text']">✎ Edit text</a>
+          [routerLink]="['/documents', documentId, 'pages', page.id, 'text']">{{ i18n.t('pages.card.editText') }}</a>
       }
       @if (page.hasOriginal) {
-        <button type="button" (click)="downloadOriginal.emit()">Original</button>
+        <button type="button" (click)="downloadOriginal.emit()">{{ i18n.t('pages.card.original') }}</button>
       }
     </div>
-    <div class="order-actions" aria-label="Page order controls">
+    <div class="order-actions" [attr.aria-label]="i18n.t('pages.card.orderControls')">
       <button
         type="button"
         [disabled]="first"
         (click)="movePage.emit(-1)"
-        [attr.aria-label]="'Move page ' + page.position + ' earlier'"
+        [attr.aria-label]="i18n.t('pages.card.moveEarlier', { n: page.position })"
       >
-        ← Earlier
+        {{ i18n.t('pages.card.earlier') }}
       </button>
       <button
         type="button"
         [disabled]="last"
         (click)="movePage.emit(1)"
-        [attr.aria-label]="'Move page ' + page.position + ' later'"
+        [attr.aria-label]="i18n.t('pages.card.moveLater', { n: page.position })"
       >
-        Later →
+        {{ i18n.t('pages.card.later') }}
       </button>
     </div>
-    <button class="remove" type="button" (click)="removePage.emit()">Remove page</button>
+    <button class="remove" type="button" (click)="removePage.emit()">{{ i18n.t('pages.card.remove') }}</button>
   </div>
 </article>

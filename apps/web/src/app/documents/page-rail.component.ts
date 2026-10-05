@@ -1,3 +1,4 @@
+import { I18nService } from '../core/i18n/i18n.service';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import {
@@ -18,6 +19,7 @@ import { DocumentsApiService } from './documents-api.service';
 })
 export class PageRailComponent implements OnChanges, OnDestroy {
   private readonly http = inject(HttpClient);
+  protected readonly i18n = inject(I18nService);
   private readonly api = inject(DocumentsApiService);
   private readonly base = inject(API_BASE_URL).replace(/\/+$/, '');
   @Input({ required: true }) documentId = '';
@@ -62,20 +64,20 @@ export class PageRailComponent implements OnChanges, OnDestroy {
 
   protected async remove(page: DocumentPage): Promise<void> {
     if (this.busy()) return;
-    if (!window.confirm(`Remove page ${page.position} from this document?`)) return;
+    if (!window.confirm(this.i18n.t('pages.rail.confirm', { n: page.position }))) return;
     this.error.set('');
     try {
       await this.api.removePage(this.documentId, page.id);
       this.pagesChanged.emit(await this.api.getDocument(this.documentId));
-      this.message.set(`Page ${page.position} was removed.`);
+      this.message.set(this.i18n.t('pages.rail.removed', { n: page.position }));
     } catch {
-      this.error.set('We could not remove this page. Please try again.');
+      this.error.set(this.i18n.t('pages.rail.err.remove'));
     }
   }
 
   protected onAdded(uploadIds: string[]): void {
     this.showAdd.set(false);
-    this.message.set('New pages were added to the document.');
+    this.message.set(this.i18n.t('pages.rail.added'));
     this.pagesAdded.emit(uploadIds);
   }
 
@@ -91,7 +93,7 @@ export class PageRailComponent implements OnChanges, OnDestroy {
         pageIds: list.map((p) => p.id),
       });
       this.pagesChanged.emit(updated);
-      this.message.set('Page order saved.');
+      this.message.set(this.i18n.t('pages.rail.saved'));
     } catch (error) {
       if (error instanceof HttpErrorResponse && error.status === 409) {
         try {
@@ -99,10 +101,10 @@ export class PageRailComponent implements OnChanges, OnDestroy {
         } catch {
           this.ordered.set(previous);
         }
-        this.message.set('Page order changed in another session. The latest order has been restored.');
+        this.message.set(this.i18n.t('pages.rail.changed'));
       } else {
         this.ordered.set(previous);
-        this.error.set('We could not save the page order. Please try again.');
+        this.error.set(this.i18n.t('pages.rail.err.save'));
       }
     } finally {
       this.busy.set(false);

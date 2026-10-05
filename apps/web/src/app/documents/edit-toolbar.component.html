@@ -1,24 +1,24 @@
 @for (group of groups; track group.label) {
-  <div class="group" role="group" [attr.aria-label]="group.label + ' tools'">
-    <span class="group-label" aria-hidden="true">{{ group.label }}</span>
+  <div class="group" role="group" [attr.aria-label]="i18n.t('ws.groupTools', { group: i18n.t('ws.group.' + group.key) })">
+    <span class="group-label" aria-hidden="true">{{ i18n.t('ws.group.' + group.key) }}</span>
     <div class="group-buttons">
       @for (t of group.tools; track t.id) {
         <button type="button" [class.on]="tool === t.id" [attr.aria-pressed]="tool === t.id"
           [disabled]="!pageId" (click)="choose(t)" [attr.aria-label]="i18n.t('tool.' + t.id)"><app-icon [name]="icons[t.id]" /><span>{{ i18n.t('tool.' + t.id) }}</span></button>
       }
-      @if (group.label === 'Text') {
+      @if (group.key === 'text') {
         <button type="button" [class.on]="searchOpen" [attr.aria-expanded]="searchOpen"
           (click)="searchToggle.emit()" [attr.aria-label]="i18n.t('tool.search')"><app-icon name="search" /><span>{{ i18n.t('tool.search') }}</span></button>
       }
     </div>
   </div>
 }
-<div class="group" role="group" aria-label="Page history">
-  <span class="group-label" aria-hidden="true">History</span>
+<div class="group" role="group" [attr.aria-label]="i18n.t('ws.pageHistory')">
+  <span class="group-label" aria-hidden="true">{{ i18n.t('tool.history') }}</span>
   <div class="group-buttons">
-    <button type="button" class="icon-only" data-testid="undo-edit" title="Undo" aria-label="Undo"
+    <button type="button" class="icon-only" data-testid="undo-edit" [attr.title]="i18n.t('ws.undo')" [attr.aria-label]="i18n.t('ws.undo')"
       [disabled]="!history()?.canUndo || historyBusy()" (click)="switchRevision('undo')"><app-icon name="undo" /></button>
-    <button type="button" class="icon-only" data-testid="redo-edit" title="Redo" aria-label="Redo"
+    <button type="button" class="icon-only" data-testid="redo-edit" [attr.title]="i18n.t('ws.redo')" [attr.aria-label]="i18n.t('ws.redo')"
       [disabled]="!history()?.canRedo || historyBusy()" (click)="switchRevision('redo')"><app-icon name="redo" /></button>
     <button type="button" [class.on]="historyOpen()" [attr.aria-expanded]="historyOpen()" [disabled]="!pageId"
       (click)="toggleHistory()" [attr.aria-label]="i18n.t('tool.history')"><app-icon name="history" /><span>{{ i18n.t('tool.history') }}</span></button>
@@ -27,10 +27,10 @@
 @if (historyOpen() && history(); as h) {
   <div class="history-panel">
     @if (versions().length < 2) {
-      <p class="history-note" role="status">No saved changes on this page yet.</p>
+      <p class="history-note" role="status">{{ i18n.t('ws.noSavedChanges') }}</p>
     } @else {
     <p class="history-note" role="status">
-      {{ versions().length }} versions of this page. Choose one to go back to it.
+      {{ i18n.t('ws.versionsOfPage', { count: versions().length }) }}
     </p>
     <ol class="history-list">
       @for (v of versions(); track v.revisionId) {
@@ -39,7 +39,7 @@
             [disabled]="v.current || historyBusy()" (click)="jumpTo(v.revisionId)">
             <span>{{ v.label }}</span>
             @if (v.at) { <span class="history-time"> · {{ v.at | date: 'MMM d, h:mm a' }}</span> }
-            @if (v.current) { <span class="history-time"> · current</span> }
+            @if (v.current) { <span class="history-time"> · {{ i18n.t('ws.current') }}</span> }
           </button>
         </li>
       }

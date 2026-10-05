@@ -1,9 +1,11 @@
-import { Component, input, output } from '@angular/core';
+import { I18nService } from '../core/i18n/i18n.service';
+import { Component, input, output, inject } from '@angular/core';
 import { PageMarkDraft, PageMarkKind } from './page-mark.models';
 
 @Component({ selector: 'app-page-mark-tools', standalone: true,
   templateUrl: './page-mark-tools.component.html', styleUrl: './page-mark-tools.component.scss' })
 export class PageMarkToolsComponent {
+  protected readonly i18n = inject(I18nService);
   protected readonly presets = [
     { name: 'Black', hex: '#000000' },
     { name: 'Blue', hex: '#2563EB' },

@@ -4,7 +4,7 @@
     [style.left.%]="sourceArea().left" [style.top.%]="sourceArea().top"
     [style.width.%]="sourceArea().width" [style.height.%]="sourceArea().height"></div> }
   <div class="replacement" data-testid="replacement-box" tabindex="0"
-    role="group" aria-label="Replacement preview box. Arrow keys move, Shift and arrow keys resize."
+    role="group" [attr.aria-label]="i18n.t('editor.replacementBoxLabel')"
     [style.left.%]="current().x * 100" [style.top.%]="current().y * 100"
     [style.width.%]="current().width * 100" [style.height.%]="current().height * 100"
     (pointerdown)="begin($event, 'move')" (keydown)="keydown($event)">
@@ -19,9 +19,9 @@
     </span>
     @for (handle of handles; track handle) {
       <span class="handle" [class]="'handle ' + handle" [attr.data-handle]="handle"
-        [attr.aria-label]="'Resize ' + handle" (pointerdown)="begin($event, handle)"></span>
+        [attr.aria-label]="i18n.t('editor.resizeHandle', { handle: handle })" (pointerdown)="begin($event, handle)"></span>
     }
   </div>
-  <span class="preview-label">Placement guide</span>
-  @if (collision()) { <span class="collision" role="status">Other text overlaps this transparent guide. Only actual new letters that cover other words will be blocked.</span> }
+  <span class="preview-label">{{ i18n.t('editor.placementGuide') }}</span>
+  @if (collision()) { <span class="collision" role="status">{{ i18n.t('editor.collision') }}</span> }
 </div>

@@ -1,3 +1,4 @@
+import { I18nService } from '../core/i18n/i18n.service';
 import { HttpClient } from '@angular/common/http';
 import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -16,6 +17,7 @@ interface RepairOperation { operationId: string; state: 'Queued' | 'Ready' | 'Fa
 })
 export class PageCleanupComponent implements OnInit, OnDestroy {
   private readonly http = inject(HttpClient);
+  protected readonly i18n = inject(I18nService);
   private readonly api = inject(DocumentsApiService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -39,7 +41,7 @@ export class PageCleanupComponent implements OnInit, OnDestroy {
   readonly panMode = signal(false);
   readonly brushViewHeight = signal(1000);
   readonly error = signal('');
-  readonly notice = signal('Drag a small rectangle around a hole or unwanted mark. Review before applying.');
+  readonly notice = signal(this.i18n.t('pages.clean.notice.initial'));
   private sourceRevisionId: string | null = null;
   private sourceCropRevision: number | null = null;
   private start: [number, number] | null = null;
@@ -78,7 +80,7 @@ export class PageCleanupComponent implements OnInit, OnDestroy {
       const blob = await firstValueFrom(this.http.get(`${this.url}/preview`, { responseType: 'blob' }));
       if (this.destroyed) return;
       this.originalUrl.set(URL.createObjectURL(blob));
-    } catch { this.error.set('Could not open this page for cleanup. Reload and try again.'); }
+    } catch { this.error.set(this.i18n.t('pages.clean.err.open')); }
   }
   private point(event: PointerEvent, stage: HTMLElement): [number, number] {
     const bounds = stage.getBoundingClientRect();
@@ -98,7 +100,7 @@ export class PageCleanupComponent implements OnInit, OnDestroy {
     const point = this.point(event, stage);
     if (this.tool() === 'erase') { this.eraseAt(point); return; }
     if (this.boxes().length + this.strokes().length >= 20) {
-      this.error.set('Limit reached: remove an area before adding another.');
+      this.error.set(this.i18n.t('pages.clean.err.limit'));
       return;
     }
     if (this.tool() === 'brush') {
@@ -151,7 +153,7 @@ export class PageCleanupComponent implements OnInit, OnDestroy {
         (box[2] - box[0]) * (box[3] - box[1]) <= .03 && this.boxes().length < 20) {
       this.boxes.update(items => [...items, box]);
       this.selectionOrder.push({ kind: 'box', value: box });
-    } else this.error.set('Choose a small area, no more than 3% of the page.');
+    } else this.error.set(this.i18n.t('pages.clean.err.small'));
     this.start = null;
     this.drawing.set(null);
   }
@@ -202,11 +204,11 @@ export class PageCleanupComponent implements OnInit, OnDestroy {
     this.finding.set(true); this.error.set('');
     try {
       const started = await firstValueFrom(this.http.post<RepairOperation>(`${this.url}/repair/suggestions`, {}));
-      this.notice.set('Looking for possible punch holes. Suggestions will not change the page.');
+      this.notice.set(this.i18n.t('pages.clean.notice.looking'));
       this.pollSuggestions(started.operationId);
     } catch {
       this.finding.set(false);
-      this.error.set('Could not detect holes. You can still draw small areas manually.');
+      this.error.set(this.i18n.t('pages.clean.err.detect'));
     }
   }
   private pollSuggestions(id: string): void {
@@ -216,7 +218,7 @@ export class PageCleanupComponent implements OnInit, OnDestroy {
         if (this.destroyed) return;
         if (status.state === 'Queued') { this.pollSuggestions(id); return; }
         this.finding.set(false);
-        if (status.state !== 'Ready') { this.error.set('Hole detection failed. Draw areas manually.'); return; }
+        if (status.state !== 'Ready') { this.error.set(this.i18n.t('pages.clean.err.holesFailed')); return; }
         const found = (status.candidates ?? []).filter(box => box.length === 4 &&
           box.every(Number.isFinite) && box[0] >= 0 && box[1] >= 0 &&
           box[2] <= 1 && box[3] <= 1 && box[0] < box[2] && box[1] < box[3]);
@@ -224,10 +226,10 @@ export class PageCleanupComponent implements OnInit, OnDestroy {
         this.boxes.update(existing => [...existing, ...accepted]);
         this.selectionOrder.push(...accepted.map(value => ({ kind: 'box' as const, value })));
         this.notice.set(found.length ?
-          `Found ${found.length} possible holes. Remove any incorrect areas before previewing.` :
-          'No confident holes found. You can draw small areas manually.');
+          this.i18n.t('pages.clean.notice.found', { count: found.length }) :
+          this.i18n.t('pages.clean.notice.none'));
       } catch {
-        if (!this.destroyed) { this.finding.set(false); this.error.set('Could not load suggestions. Draw areas manually.'); }
+        if (!this.destroyed) { this.finding.set(false); this.error.set(this.i18n.t('pages.clean.err.suggestions')); }
       }
     }, 1200);
   }
@@ -239,7 +241,7 @@ export class PageCleanupComponent implements OnInit, OnDestroy {
     if (!this.boxes().length && !this.strokes().length || this.busy() || this.finding() || this.operation()) return;
     if (this.boxes().reduce((area, box) => area +
         (box[2] - box[0]) * (box[3] - box[1]), 0) > .05) {
-      this.error.set('Selected areas cover more than 5% of the page. Remove or shrink some areas.');
+      this.error.set(this.i18n.t('pages.clean.err.cover'));
       return;
     }
     this.busy.set(true); this.error.set('');
@@ -248,9 +250,9 @@ export class PageCleanupComponent implements OnInit, OnDestroy {
         { sourceRevisionId: this.sourceRevisionId, sourceCropRevision: this.sourceCropRevision,
           rectangles: this.boxes(), strokes: this.strokes() }));
       this.operation.set(result);
-      this.notice.set('Preparing a private preview. Your page has not changed.');
+      this.notice.set(this.i18n.t('pages.clean.notice.preparing'));
       this.poll(result.operationId, ++this.previewGeneration);
-    } catch { this.error.set('Could not prepare cleanup. Reload the page and try again.'); }
+    } catch { this.error.set(this.i18n.t('pages.clean.err.prepare')); }
     finally { this.busy.set(false); }
   }
   private poll(id: string, generation: number): void {
@@ -260,14 +262,14 @@ export class PageCleanupComponent implements OnInit, OnDestroy {
         if (this.destroyed || generation !== this.previewGeneration) return;
         this.operation.set(status);
         if (status.state === 'Queued') { this.poll(id, generation); return; }
-        if (status.state !== 'Ready') { this.error.set('Cleanup preview failed. Adjust the area and try again.'); return; }
+        if (status.state !== 'Ready') { this.error.set(this.i18n.t('pages.clean.err.previewFailed')); return; }
         const blob = await firstValueFrom(this.http.get(`${this.url}/repair/previews/${id}/image`, { responseType: 'blob' }));
         if (this.destroyed || generation !== this.previewGeneration) return;
         this.previewUrl.set(URL.createObjectURL(blob));
-        this.notice.set('Compare the preview with the original. Apply only if all text and lines are intact.');
+        this.notice.set(this.i18n.t('pages.clean.notice.compare'));
       } catch {
         if (!this.destroyed && generation === this.previewGeneration)
-          this.error.set('Could not load the preview. Try again.');
+          this.error.set(this.i18n.t('pages.clean.err.loadPreview'));
       }
     }, 1200);
   }
@@ -286,7 +288,7 @@ export class PageCleanupComponent implements OnInit, OnDestroy {
     try {
       await firstValueFrom(this.http.post(`${this.url}/repair/previews/${operation.operationId}/apply`, {}));
       await this.router.navigate(['/documents', this.documentId], { queryParams: this.workspaceQuery });
-    } catch { this.error.set('Page changed or could not be saved. The original page is unchanged.'); }
+    } catch { this.error.set(this.i18n.t('pages.clean.err.apply')); }
     finally { this.busy.set(false); }
   }
 }

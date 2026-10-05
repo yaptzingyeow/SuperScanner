@@ -3,7 +3,7 @@ import { registerLocaleData } from '@angular/common';
 import localeAr from '@angular/common/locales/ar';
 import localeMs from '@angular/common/locales/ms';
 import localeZh from '@angular/common/locales/zh';
-import { ApplicationConfig, LOCALE_ID, inject, provideBrowserGlobalErrorListeners } from '@angular/core';
+import { ApplicationConfig, LOCALE_ID, inject, provideAppInitializer, provideBrowserGlobalErrorListeners } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { routes } from './app.routes';
 import { securityInterceptor } from './core/api/security.interceptor';
@@ -24,6 +24,8 @@ export const appConfig: ApplicationConfig = {
     provideHttpClient(withInterceptors([securityInterceptor])),
     environment.e2e ? provideE2eSecurity(environment.apiBaseUrl) : provideFirebaseSecurity(),
     { provide: SIGNED_UPLOAD_CLIENT, useExisting: HttpSignedUploadClient },
+    // The chosen language's text loads before the first screen (English is built in).
+    provideAppInitializer(() => inject(I18nService).ready()),
     // Dates and numbers follow the chosen app language.
     { provide: LOCALE_ID, useFactory: () => localeFor(inject(I18nService).language()) },
   ],

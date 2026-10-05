@@ -119,7 +119,7 @@ export class DocumentWorkspaceComponent implements OnInit, OnDestroy {
   protected readonly searchCountLabel = computed(() => {
     if (!this.searchActive()) return '';
     const total = this.searchResult().hits.length;
-    return total ? (this.effectiveIndex() + 1) + ' of ' + total : 'No results';
+    return total ? this.i18n.t('ws.searchOf', { n: this.effectiveIndex() + 1, total }) : this.i18n.t('ws.noResults');
   });
   private selectedForQuery = '';
   protected readonly highlights = computed<Record<string, string[]>>(() => {
@@ -144,8 +144,8 @@ export class DocumentWorkspaceComponent implements OnInit, OnDestroy {
   protected readonly unrecognizedLabel = computed(() => {
     const pages = this.document()?.pages ?? [];
     const ids = new Set(this.searchResult().unrecognizedPageIds);
-    const names = pages.filter((p) => ids.has(p.id)).map((p) => 'Page ' + p.position);
-    return names.length ? names.join(', ') + ' not recognized yet' : '';
+    const names = pages.filter((p) => ids.has(p.id)).map((p) => this.i18n.t('ws.pageN', { n: p.position }));
+    return names.length ? this.i18n.t('ws.notRecognizedYet', { pages: names.join(', ') }) : '';
   });
 
   readonly selectedPageId = computed(() => {
@@ -190,7 +190,7 @@ export class DocumentWorkspaceComponent implements OnInit, OnDestroy {
       this.schedulePoll(doc);
     } catch {
       if (!this.destroyed && generation === this.generation)
-        this.error.set('We could not load this document. Please try again.');
+        this.error.set(this.i18n.t('ws.loadFailed'));
     }
   }
 
@@ -339,12 +339,12 @@ export class DocumentWorkspaceComponent implements OnInit, OnDestroy {
       } catch (error) {
         failed = true;
         const problem = planLimitOf(error);
-        if (problem) limit = limitMessage(problem);
+        if (problem) limit = limitMessage(problem, (key, params) => this.i18n.t(key, params));
       }
     }));
     void this.plans.refresh();
     if (this.destroyed) return;
-    if (failed) this.recognizeError.set(limit || 'Some pages could not start recognition. Try again.');
+    if (failed) this.recognizeError.set(limit || this.i18n.t('ws.recognizeStartFailed'));
     this.pollOcr();
   }
 
@@ -387,7 +387,7 @@ export class DocumentWorkspaceComponent implements OnInit, OnDestroy {
       await firstValueFrom(this.http.post(`${this.base}/documents/${this.id}/retry-preview`, {}));
       await this.load();
     } catch {
-      this.error.set('Could not restart processing. Please try again.');
+      this.error.set(this.i18n.t('ws.restartFailed'));
     } finally {
       this.retrying.set(false);
     }

@@ -5,6 +5,7 @@ import {
 import { WatermarkStore } from './watermark.store';
 import { PlanService } from '../plans/plan.service';
 import { limitMessage, watermarksUsedUp } from '../plans/limit-message';
+import { I18nService } from '../core/i18n/i18n.service';
 
 /** Export-tab controls for the user's own watermark, with a live page preview. */
 @Component({
@@ -16,11 +17,12 @@ import { limitMessage, watermarksUsedUp } from '../plans/limit-message';
 export class WatermarkPanelComponent {
   protected readonly store = inject(WatermarkStore);
   private readonly plans = inject(PlanService);
+  protected readonly i18n = inject(I18nService);
   /** At the daily limit the switch is off and explains why; plain export still works. */
   protected readonly limitNote = computed(() => {
     const meter = this.plans.watermarks();
     return meter && watermarksUsedUp(meter)
-      ? limitMessage({ code: 'plan_limit_reached', kind: 'watermark', limit: meter.limit, used: meter.used, resetsAt: null })
+      ? limitMessage({ code: 'plan_limit_reached', kind: 'watermark', limit: meter.limit, used: meter.used, resetsAt: null }, (key, params) => this.i18n.t(key, params))
       : '';
   });
   protected readonly fonts = WATERMARK_FONTS;

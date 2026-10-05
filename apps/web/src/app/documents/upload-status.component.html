@@ -2,29 +2,28 @@
   <div class="status-card">
     @if (status().state === 'Loading') {
       <span class="status-icon status-icon--working" aria-hidden="true"></span>
-      <h1 id="status-heading">Checking your scan</h1>
-      <p>Loading the latest secure status…</p>
+      <h1 id="status-heading">{{ i18n.t('pages.status.checking') }}</h1>
+      <p>{{ i18n.t('pages.status.loading') }}</p>
     } @else if (status().state === 'AwaitingUpload' || status().state === 'PendingValidation') {
       <span class="status-icon status-icon--working" aria-hidden="true"></span>
-      <h1 id="status-heading">Validating securely</h1>
+      <h1 id="status-heading">{{ i18n.t('pages.status.validating') }}</h1>
       <p>
-        We’re checking the file type, integrity, and safety. You can leave this page and return
-        later.
+        {{ i18n.t('pages.status.validatingBody') }}
       </p>
     } @else if (status().state === 'Accepted') {
       <span class="status-icon status-icon--success" aria-hidden="true">✓</span>
-      <h1 id="status-heading">Upload accepted</h1>
-      <p>Scan accepted. Your original file passed validation and is ready for processing.</p>
-      <a [routerLink]="['/documents', documentId]">Open document preview</a>
+      <h1 id="status-heading">{{ i18n.t('pages.status.accepted') }}</h1>
+      <p>{{ i18n.t('pages.status.acceptedBody') }}</p>
+      <a [routerLink]="['/documents', documentId]">{{ i18n.t('pages.status.openPreview') }}</a>
     } @else if (status().state === 'Rejected') {
       <span class="status-icon status-icon--error" aria-hidden="true">!</span>
-      <h1 id="status-heading">This scan could not be accepted</h1>
-      <p>For your safety, the file was removed. Check the format and try a different file.</p>
+      <h1 id="status-heading">{{ i18n.t('pages.status.rejected') }}</h1>
+      <p>{{ i18n.t('pages.status.rejectedBody') }}</p>
     } @else {
       <span class="status-icon status-icon--error" aria-hidden="true">!</span>
-      <h1 id="status-heading">Status unavailable</h1>
-      <p>We could not load this scan’s status. Please try again later.</p>
+      <h1 id="status-heading">{{ i18n.t('pages.status.unavailable') }}</h1>
+      <p>{{ i18n.t('pages.status.unavailableBody') }}</p>
     }
-    <a routerLink="/documents">Back to documents</a>
+    <a routerLink="/documents">{{ i18n.t('pages.status.back') }}</a>
   </div>
 </section>

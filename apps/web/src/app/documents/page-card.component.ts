@@ -1,4 +1,5 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
+import { I18nService } from '../core/i18n/i18n.service';
 import { CdkDragHandle } from '@angular/cdk/drag-drop';
 import { RouterLink } from '@angular/router';
 import { DocumentPage } from './document.models';
@@ -11,6 +12,7 @@ import { DocumentPage } from './document.models';
   styleUrl: './page-card.component.scss',
 })
 export class PageCardComponent {
+  protected readonly i18n = inject(I18nService);
   @Input({ required: true }) page!: DocumentPage;
   @Input({ required: true }) documentId = '';
   @Input() thumbnailUrl?: string;
@@ -21,6 +23,9 @@ export class PageCardComponent {
   @Output() readonly downloadOriginal = new EventEmitter<void>();
 
   protected stateLabel(state: string): string {
-    return state.replace(/([a-z])([A-Z])/g, '$1 $2');
+    const label = state.replace(/([a-z])([A-Z])/g, '$1 $2');
+    const key = 'pages.state.' + label.replace(/ /g, '');
+    const text = this.i18n.t(key);
+    return text === key ? label : text;
   }
 }

@@ -1,29 +1,29 @@
-<section class="mark-toolbar" aria-label="Check and cross mark controls">
-  <div class="mark-heading"><strong>Tick / Cross</strong><span>Place a transparent mark without text recognition.</span></div>
-  @if (placing()) { <p role="status">Click a checkbox on the page to place your mark. You can zoom first.</p> }
+<section class="mark-toolbar" [attr.aria-label]="i18n.t('editor.markControls')">
+  <div class="mark-heading"><strong>{{ i18n.t('editor.tickCrossTitle') }}</strong><span>{{ i18n.t('editor.markHeadingDesc') }}</span></div>
+  @if (placing()) { <p role="status">{{ i18n.t('editor.clickCheckbox') }}</p> }
   @if (draft(); as mark) {
     <div class="mark-fields">
-      <label>Mark <select [value]="mark.kind" [disabled]="busy()" (change)="kind.emit($any($event.target).value)">
-        <option value="Check">✓ Tick</option><option value="Cross">× Cross</option></select></label>
-      <div class="mark-colors" role="group" aria-label="Quick mark colors">
+      <label>{{ i18n.t('editor.mark') }} <select [value]="mark.kind" [disabled]="busy()" (change)="kind.emit($any($event.target).value)">
+        <option value="Check">{{ i18n.t('editor.tick') }}</option><option value="Cross">{{ i18n.t('editor.cross') }}</option></select></label>
+      <div class="mark-colors" role="group" [attr.aria-label]="i18n.t('editor.quickColors')">
         @for (swatch of presets; track swatch.name) {
           <button type="button" class="mark-swatch" [class.selected]="mark.color.toUpperCase() === swatch.hex"
             [attr.data-testid]="'mark-color-' + swatch.name.toLowerCase()"
-            [attr.aria-label]="swatch.name + ' mark'" [attr.aria-pressed]="mark.color.toUpperCase() === swatch.hex"
+            [attr.aria-label]="i18n.t('editor.markSwatch', { color: i18n.t('editor.color' + swatch.name) })" [attr.aria-pressed]="mark.color.toUpperCase() === swatch.hex"
             [style.background-color]="swatch.hex" [disabled]="busy()" (click)="color.emit(swatch.hex)"></button>
         }
       </div>
-      <label>Custom color <input type="color" [value]="mark.color" [disabled]="busy()" (change)="colorChanged($event)" /></label>
-      <label>Size {{ size() }}% <input type="range" min="50" max="300" step="10" [value]="size()" [disabled]="busy()" (input)="sizeChanged($event)" /></label>
-      <label>Thickness {{ (mark.strokeWidth * 100).toFixed(0) }}% <input type="range" min="2" max="20" step="1" [value]="mark.strokeWidth * 100" [disabled]="busy()" (input)="strokeChanged($event)" /></label>
+      <label>{{ i18n.t('editor.customColor') }} <input type="color" [value]="mark.color" [disabled]="busy()" (change)="colorChanged($event)" /></label>
+      <label>{{ i18n.t('editor.sizeLabel', { value: size() }) }} <input type="range" min="50" max="300" step="10" [value]="size()" [disabled]="busy()" (input)="sizeChanged($event)" /></label>
+      <label>{{ i18n.t('editor.thickness', { value: (mark.strokeWidth * 100).toFixed(0) }) }} <input type="range" min="2" max="20" step="1" [value]="mark.strokeWidth * 100" [disabled]="busy()" (input)="strokeChanged($event)" /></label>
     </div>
-    <div class="mark-actions"><button type="button" class="primary" data-testid="save-mark" [disabled]="busy()" (click)="save.emit()">{{ busy() ? 'Saving…' : 'Save mark' }}</button>
-      <button type="button" [disabled]="busy()" (click)="cancel.emit()">Cancel</button></div>
+    <div class="mark-actions"><button type="button" class="primary" data-testid="save-mark" [disabled]="busy()" (click)="save.emit()">{{ busy() ? i18n.t('editor.saving') : i18n.t('editor.saveMark') }}</button>
+      <button type="button" [disabled]="busy()" (click)="cancel.emit()">{{ i18n.t('editor.cancel') }}</button></div>
   } @else if (selected()) {
-    <button type="button" [disabled]="busy()" (click)="edit.emit()">Move / style</button>
-    <button type="button" data-testid="duplicate-mark" [disabled]="busy()" (click)="duplicate.emit()">Duplicate mark</button>
-    <button type="button" [disabled]="busy()" (click)="remove.emit()">Delete selected mark</button>
+    <button type="button" [disabled]="busy()" (click)="edit.emit()">{{ i18n.t('editor.moveStyle') }}</button>
+    <button type="button" data-testid="duplicate-mark" [disabled]="busy()" (click)="duplicate.emit()">{{ i18n.t('editor.duplicateMark') }}</button>
+    <button type="button" [disabled]="busy()" (click)="remove.emit()">{{ i18n.t('editor.deleteSelectedMark') }}</button>
   }
-  <div class="mark-actions"><button type="button" data-testid="undo-mark" [disabled]="busy() || !canUndo()" (click)="undo.emit()">Undo mark</button>
-    <button type="button" data-testid="redo-mark" [disabled]="busy() || !canRedo()" (click)="redo.emit()">Redo mark</button></div>
+  <div class="mark-actions"><button type="button" data-testid="undo-mark" [disabled]="busy() || !canUndo()" (click)="undo.emit()">{{ i18n.t('editor.undoMark') }}</button>
+    <button type="button" data-testid="redo-mark" [disabled]="busy() || !canRedo()" (click)="redo.emit()">{{ i18n.t('editor.redoMark') }}</button></div>
 </section>

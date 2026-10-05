@@ -1,3 +1,4 @@
+import { I18nService } from '../core/i18n/i18n.service';
 import { Component, OnInit, OnDestroy, inject, signal, computed } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -17,6 +18,7 @@ const fullImage = (): Point[] => [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }
 })
 export class CropEditorComponent implements OnInit, OnDestroy {
   private readonly http = inject(HttpClient);
+  protected readonly i18n = inject(I18nService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   protected readonly documentId = this.route.snapshot.paramMap.get('documentId')!;
@@ -50,7 +52,7 @@ export class CropEditorComponent implements OnInit, OnDestroy {
   protected readonly pendingChanges = signal(false);
   // Smart clean and Clean content are no longer offered; pages saved with them keep rendering.
   protected readonly filterDescription = computed(() =>
-    this.filters.find(item => item.id === this.filter())?.description ?? RETIRED_LOOK_HELP);
+    this.filters.some(item => item.id === this.filter()) ? this.i18n.t('pages.crop.filter.' + this.filter() + '.desc') : this.i18n.t('pages.look.retired.help'));
   protected readonly filterPreview = computed(() => ({
     Magic: 'none', Original: 'none', Document: 'contrast(1.08) saturate(.9)',
     Bright: 'brightness(1.2) contrast(1.05)', Grayscale: 'grayscale(1)',
@@ -109,7 +111,7 @@ export class CropEditorComponent implements OnInit, OnDestroy {
       if (this.destroyed) return;
       this.sourceUrl.set(URL.createObjectURL(blob));
       await this.reload();
-    } catch { this.error.set('The crop editor is unavailable. Only accepted JPG and PNG photos can be adjusted.'); }
+    } catch { this.error.set(this.i18n.t('pages.crop.err.unavailable')); }
   }
   protected async reload(): Promise<void> {
     clearTimeout(this.timer);
@@ -119,7 +121,7 @@ export class CropEditorComponent implements OnInit, OnDestroy {
       this.applyCropState(state);
       if (!this.filterDirty) this.filter.set(state.filter ?? 'Document');
       if (!this.dirty) this.points.set(state.points?.map(p => ({ ...p })) ?? fullImage());
-      if (state.status === 'Failed') this.error.set('The crop could not be processed. Adjust the corners and apply again, or retry Auto detect.');
+      if (state.status === 'Failed') this.error.set(this.i18n.t('pages.crop.err.failed'));
       if (state.status === 'Ready' && this.applying) { this.applying = false; this.cropMode.set(false); }
       if (state.status === 'Ready' && state.appliedFilter === this.filter() &&
           this.actualResultFilter() && !this.filterDirty && !this.dirty &&
@@ -128,7 +130,7 @@ export class CropEditorComponent implements OnInit, OnDestroy {
       if (state.status === 'Detecting' || state.status === 'Processing')
         this.timer = setTimeout(() => void this.reload(), 1500);
       else this.queueSelectedFilter();
-    } catch { if (!this.destroyed) this.error.set('Could not read the crop status. Reload and try again.'); }
+    } catch { if (!this.destroyed) this.error.set(this.i18n.t('pages.crop.err.status')); }
   }
   protected reset(): void { if (this.busy()) return; this.clearResult(); this.points.set(fullImage()); this.dirty = true; this.pendingChanges.set(true); this.error.set(''); }
   /** Current page rotation in degrees clockwise (0, 90, 180 or 270). */
@@ -154,8 +156,8 @@ export class CropEditorComponent implements OnInit, OnDestroy {
     } catch (error) {
       this.autoSavePending = false;
       this.error.set(error instanceof HttpErrorResponse && error.status === 409
-        ? 'This crop was changed in another session. Reload before applying your changes.'
-        : 'Could not save this crop. Check the corners and try again.');
+        ? this.i18n.t('pages.crop.err.conflict')
+        : this.i18n.t('pages.crop.err.save'));
     } finally { this.submitting.set(false); this.queueSelectedFilter(); }
   }
   protected begin(event: PointerEvent, index: number, stage: HTMLElement): void {
@@ -220,7 +222,7 @@ export class CropEditorComponent implements OnInit, OnDestroy {
       this.showOriginal.set(false);
     } catch {
       if (!this.destroyed && request === this.resultRequest)
-        this.resultError.set('Your scan was saved, but its preview could not load. Reload the result.');
+        this.resultError.set(this.i18n.t('pages.crop.err.preview'));
     } finally {
       if (!this.destroyed && request === this.resultRequest) this.resultLoading.set(false);
     }

@@ -7,6 +7,7 @@ import { WatermarkStore } from './watermark.store';
 import { PlanService } from '../plans/plan.service';
 import { UsageLineComponent } from '../plans/usage-line.component';
 import { errorMessage, watermarksUsedUp } from '../plans/limit-message';
+import { I18nService } from '../core/i18n/i18n.service';
 
 @Component({
   selector: 'app-export-status',
@@ -17,6 +18,7 @@ import { errorMessage, watermarksUsedUp } from '../plans/limit-message';
 })
 export class ExportStatusComponent implements OnInit, OnChanges, OnDestroy {
   private readonly api = inject(DocumentsApiService);
+  protected readonly i18n = inject(I18nService);
   private readonly watermarks = inject(WatermarkStore);
   protected readonly plans = inject(PlanService);
   @Input({ required: true }) documentId = '';
@@ -54,16 +56,22 @@ export class ExportStatusComponent implements OnInit, OnChanges, OnDestroy {
     return this.pages.length - this.readyCount;
   }
 
+  protected stateLabel(state: string): string {
+    const key = 'ws.state.' + state;
+    const text = this.i18n.t(key);
+    return text === key ? state : text;
+  }
+
   protected searchabilityCopy(item: DocumentExport): string {
     switch (item.searchability) {
       case 'Searchable':
         return item.readyPageCount === 1
-          ? 'The page has searchable text.'
-          : `All ${item.readyPageCount} pages have searchable text.`;
+          ? this.i18n.t('ws.exp.searchOne')
+          : this.i18n.t('ws.exp.searchAll', { count: item.readyPageCount });
       case 'PartiallySearchable':
-        return `${item.searchablePageCount} of ${item.readyPageCount} pages have searchable text.`;
+        return this.i18n.t('ws.exp.searchPartial', { searchable: item.searchablePageCount, ready: item.readyPageCount });
       default:
-        return 'Image-only PDF. Text cannot be searched or selected.';
+        return this.i18n.t('ws.exp.imageOnly');
     }
   }
 
@@ -77,7 +85,8 @@ export class ExportStatusComponent implements OnInit, OnChanges, OnDestroy {
 
   async generate(): Promise<void> {
     if (!this.readyCount || this.busy()) return;
-    const message = `${this.readyCount} ready ${this.readyCount === 1 ? 'page' : 'pages'} will be included. ${this.excludedCount} ${this.excludedCount === 1 ? 'page' : 'pages'} will be excluded. Generate the PDF?`;
+    const t = (key: string) => this.i18n.t(key);
+    const message = `${this.readyCount} ${this.readyCount === 1 ? t('ws.exp.readyOne') : t('ws.exp.readyMany')} ${this.excludedCount} ${this.excludedCount === 1 ? t('ws.exp.exclOne') : t('ws.exp.exclMany')} ${t('ws.exp.confirm')}`;
     if (!window.confirm(message)) return;
     this.busy.set(true);
     this.error.set('');
@@ -90,10 +99,10 @@ export class ExportStatusComponent implements OnInit, OnChanges, OnDestroy {
       );
       this.current.set(created);
       this.exportChange.emit(created);
-      this.announcement.set('PDF generation started.');
+      this.announcement.set(this.i18n.t('ws.exp.started'));
       if (this.pending(created)) this.schedulePoll(created.id, 3000);
     } catch (error) {
-      this.error.set(errorMessage(error, 'We could not start the PDF export. Please try again.'));
+      this.error.set(errorMessage(error, this.i18n.t('ws.exp.startFailed'), (key, params) => this.i18n.t(key, params)));
     } finally {
       this.busy.set(false);
       void this.plans.refresh();
@@ -113,9 +122,9 @@ export class ExportStatusComponent implements OnInit, OnChanges, OnDestroy {
       anchor.download = `${this.safeName(this.documentTitle)}.pdf`;
       anchor.click();
       setTimeout(() => URL.revokeObjectURL(url), 0);
-      this.announcement.set('PDF download started.');
+      this.announcement.set(this.i18n.t('ws.exp.downloadStarted'));
     } catch {
-      this.error.set('We could not download the PDF. Please try again.');
+      this.error.set(this.i18n.t('ws.exp.downloadFailed'));
     } finally {
       this.busy.set(false);
     }
@@ -139,11 +148,11 @@ export class ExportStatusComponent implements OnInit, OnChanges, OnDestroy {
       if (changed) {
         this.announcement.set(updated.state === 'Ready'
           ? this.readyAnnouncement(updated)
-          : `PDF export is ${updated.state}.`);
+          : this.i18n.t('ws.exp.exportIs', { state: this.stateLabel(updated.state) }));
       }
       if (this.pending(updated)) this.schedulePoll(exportId, 3000);
     } catch {
-      if (!this.destroyed) this.error.set('We could not refresh the PDF status. Please try again.');
+      if (!this.destroyed) this.error.set(this.i18n.t('ws.exp.statusFailed'));
     }
   }
 
@@ -165,12 +174,12 @@ export class ExportStatusComponent implements OnInit, OnChanges, OnDestroy {
     }
   }
   private readyAnnouncement(item: DocumentExport): string {
-    if (item.searchability === 'ImageOnly') return 'PDF is ready. It is image-only.';
+    if (item.searchability === 'ImageOnly') return this.i18n.t('ws.exp.readyImageOnly');
     if (item.searchability === 'Searchable')
       return item.readyPageCount === 1
-        ? 'PDF is ready. The page is searchable.'
-        : `PDF is ready. All ${item.readyPageCount} pages are searchable.`;
-    return `PDF is ready. ${item.searchablePageCount} of ${item.readyPageCount} pages are searchable.`;
+        ? this.i18n.t('ws.exp.readyOnePage')
+        : this.i18n.t('ws.exp.readyAll', { count: item.readyPageCount });
+    return this.i18n.t('ws.exp.readyPartial', { searchable: item.searchablePageCount, ready: item.readyPageCount });
   }
   private safeName(value: string): string {
     return (

@@ -1,3 +1,4 @@
+import { I18nService } from '../core/i18n/i18n.service';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { Component, EventEmitter, Input, OnDestroy, OnInit, Output, inject, signal } from '@angular/core';
 import { PageOcr } from './document.models';
@@ -11,6 +12,7 @@ import { DocumentsApiService } from './documents-api.service';
   styleUrl: './ocr-status.component.scss',
 })
 export class OcrStatusComponent implements OnInit, OnDestroy {
+  protected readonly i18n = inject(I18nService);
   private readonly api = inject(DocumentsApiService);
   @Input({ required: true }) documentId = '';
   @Input({ required: true }) pageId = '';
@@ -38,7 +40,7 @@ export class OcrStatusComponent implements OnInit, OnDestroy {
       this.schedule(next);
     } catch {
       if (!this.destroyed)
-        this.error.set('Text recognition is not available right now. Please try again.');
+        this.error.set(this.i18n.t('editor.errOcrUnavailable'));
     } finally {
       if (!this.destroyed) this.busy.set(false);
     }
@@ -55,7 +57,7 @@ export class OcrStatusComponent implements OnInit, OnDestroy {
       this.schedule(next);
     } catch {
       if (!this.destroyed) {
-        this.error.set('We could not refresh text recognition. Please try again.');
+        this.error.set(this.i18n.t('editor.errOcrRefresh'));
         const current = this.status();
         if (current) this.schedule(current);
       }

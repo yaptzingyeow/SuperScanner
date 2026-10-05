@@ -1,3 +1,4 @@
+import { I18nService } from '../core/i18n/i18n.service';
 import { HttpClient } from '@angular/common/http';
 import { Component, HostListener, OnDestroy, OnInit, ViewChild, inject, input, output, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -32,6 +33,7 @@ import { errorMessage } from '../plans/limit-message';
   host: { '[class.embedded]': 'embedded()' },
 })
 export class PageTextEditorComponent implements OnInit, OnDestroy {
+  protected readonly i18n = inject(I18nService);
   @ViewChild(TextReplacementEditorComponent) private editor?: TextReplacementEditorComponent;
   private readonly route = inject(ActivatedRoute);
   private readonly api = inject(DocumentsApiService);
@@ -124,7 +126,7 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
 
   canLeave(): boolean {
     if (this.markBusy()) return false;
-    return !(this.editor?.isDirty() || this.signatureDraft() || this.signatureCreatorOpen() || this.markDraft()) || window.confirm('Discard your unsaved page changes?');
+    return !(this.editor?.isDirty() || this.signatureDraft() || this.signatureCreatorOpen() || this.markDraft()) || window.confirm(this.i18n.t('editor.confirmDiscardPage'));
   }
 
   @HostListener('window:beforeunload', ['$event'])
@@ -155,7 +157,7 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
       await Promise.all([this.refreshOcr(), this.refreshSignatures(), this.refreshMarks()]);
       this.startRequestedTool();
     } catch {
-      if (!this.destroyed) this.error.set('Could not open this page for text editing. Try again.');
+      if (!this.destroyed) this.error.set(this.i18n.t('editor.errOpenPage'));
     } finally {
       if (!this.destroyed) this.loading.set(false);
     }
@@ -184,7 +186,7 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
       this.ocr.set(next);
       this.schedule(next);
     } catch (error) {
-      if (!this.destroyed) this.error.set(errorMessage(error, 'Text recognition could not start. Try again.'));
+      if (!this.destroyed) this.error.set(errorMessage(error, this.i18n.t('editor.errOcrStart')));
     } finally {
       if (!this.destroyed) this.busy.set(false);
       void this.plans.refresh();
@@ -270,7 +272,7 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
 
   protected openSignatureCreator(): void {
     if (this.signatureBusy()) return;
-    if (this.editor?.isDirty() && !window.confirm('Discard your unapplied text changes?')) return;
+    if (this.editor?.isDirty() && !window.confirm(this.i18n.t('editor.confirmDiscardText'))) return;
     if (!this.leaveSignatureTool()) return;
     if (!this.leaveMarkTool()) return;
     this.closeTextEdit(); this.signatureError.set(''); this.signatureNotice.set(''); this.signatureCreatorOpen.set(true);
@@ -296,13 +298,13 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
       this.signatureRequestId = crypto.randomUUID(); this.signatureBlob = blob; this.signatureTarget = undefined;
       this.signatureDraft.set({ id: 'draft', box: { x: Math.max(0, Math.min(1 - width, centerX - width / 2)),
         y: Math.max(0, Math.min(1 - height, centerY - height / 2)), width, height }, imageAspectRatio: aspect, localImageUrl: url });
-      this.selectedSignatureId.set('draft'); this.signatureCreatorOpen.set(false); this.signatureNotice.set('Drag to place your signature, then Save.');
-    } catch { this.signatureError.set('Could not open this signature. Choose another image.'); URL.revokeObjectURL(url); this.signatureUrls.delete(url); }
+      this.selectedSignatureId.set('draft'); this.signatureCreatorOpen.set(false); this.signatureNotice.set(this.i18n.t('editor.sigDragPlace'));
+    } catch { this.signatureError.set(this.i18n.t('editor.errSigOpen')); URL.revokeObjectURL(url); this.signatureUrls.delete(url); }
   }
 
   protected selectSignature(id: string): void {
     if (this.signatureBusy() || this.signatureDraft()?.id === id) return;
-    if (this.signatureDraft() && !window.confirm('Discard your unsaved signature placement?')) return;
+    if (this.signatureDraft() && !window.confirm(this.i18n.t('editor.confirmDiscardSigPlacement'))) return;
     this.cancelSignature(); this.selectedSignatureId.set(id); this.signatureError.set('');
   }
   protected selectedSignature(): SignatureView | undefined { return this.signatures().find(signature => signature.id === this.selectedSignatureId()); }
@@ -310,7 +312,7 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
     const signature = this.selectedSignature(); if (!signature || this.signatureBusy()) return;
     this.signatureTarget = signature; this.signatureBlob = undefined;
     this.signatureDraft.set({ ...signature, box: { ...signature.box } });
-    this.signatureNotice.set('Drag to move; use the corner handles to resize. Save when ready.');
+    this.signatureNotice.set(this.i18n.t('editor.sigDragMove'));
   }
   protected changeSignatureBox(change: { id: string; box: SignatureBox }): void {
     const draft = this.signatureDraft(); if (draft?.id === change.id && !this.signatureBusy()) this.signatureDraft.set({ ...draft, box: change.box });
@@ -340,23 +342,23 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
       if (this.destroyed) return;
       this.signatures.update(signatures => [...signatures.filter(signature => signature.id !== dto.id), { ...dto, localImageUrl: draft.localImageUrl }]);
       this.signatureDraft.set(null); this.signatureBlob = undefined; this.signatureTarget = undefined;
-      this.selectedSignatureId.set(dto.id); this.signatureNotice.set('Signature saved. Export a new PDF to include it.'); this.releaseSignatureUrls();
+      this.selectedSignatureId.set(dto.id); this.signatureNotice.set(this.i18n.t('editor.sigSaved')); this.releaseSignatureUrls();
     } catch (error) {
       if (!this.destroyed) this.signatureError.set((error as { status?: number }).status === 409
-        ? 'This signature changed elsewhere. Your draft is still here. Reload saved signatures, then review and Save again.'
-        : 'Signature could not be saved. Your draft is still here. Try Save again.');
+        ? this.i18n.t('editor.errSigChanged')
+        : this.i18n.t('editor.errSigSave'));
     } finally { if (!this.destroyed) this.signatureBusy.set(false); }
   }
   protected async deleteSignature(): Promise<void> {
     const signature = this.selectedSignature();
-    if (!signature || this.signatureBusy() || !window.confirm('Delete this signature from this page?')) return;
+    if (!signature || this.signatureBusy() || !window.confirm(this.i18n.t('editor.confirmDeleteSig'))) return;
     this.signatureBusy.set(true); this.signatureError.set('');
     try {
       await this.signatureApi.delete(this.documentId, this.pageId, signature.id, signature.revision);
       if (this.destroyed) return;
       this.signatures.update(signatures => signatures.filter(candidate => candidate.id !== signature.id));
-      this.selectedSignatureId.set(null); this.signatureNotice.set('Signature deleted. Your original scan is unchanged.'); this.releaseSignatureUrls();
-    } catch { if (!this.destroyed) this.signatureError.set('Could not delete the signature. Reload saved signatures and try again.'); }
+      this.selectedSignatureId.set(null); this.signatureNotice.set(this.i18n.t('editor.sigDeleted')); this.releaseSignatureUrls();
+    } catch { if (!this.destroyed) this.signatureError.set(this.i18n.t('editor.errSigDelete')); }
     finally { if (!this.destroyed) this.signatureBusy.set(false); }
   }
   protected async refreshSignatures(): Promise<void> {
@@ -374,17 +376,17 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
       if (this.signatureTarget) {
         const current = views.find(signature => signature.id === this.signatureTarget!.id);
         if (current) this.signatureTarget = current;
-        else { this.signatureError.set('This saved signature was deleted elsewhere. Cancel this placement to continue.'); return; }
+        else { this.signatureError.set(this.i18n.t('editor.errSigDeletedElsewhere')); return; }
       }
       this.signatureError.set(''); this.releaseSignatureUrls();
     } catch {
       for (const url of created) { URL.revokeObjectURL(url); this.signatureUrls.delete(url); }
-      if (!this.destroyed && generation === this.signatureGeneration) this.signatureError.set('Could not load saved signatures. Try Reload saved signatures.');
+      if (!this.destroyed && generation === this.signatureGeneration) this.signatureError.set(this.i18n.t('editor.errSigLoad'));
     }
   }
   private leaveSignatureTool(): boolean {
     if (this.signatureBusy()) return false;
-    if (this.signatureDraft() && !window.confirm('Discard your unsaved signature placement?')) return false;
+    if (this.signatureDraft() && !window.confirm(this.i18n.t('editor.confirmDiscardSigPlacement'))) return false;
     this.cancelSignature(); this.signatureCreatorOpen.set(false); this.selectedSignatureId.set(null); return true;
   }
   private releaseSignatureUrls(): void {
@@ -396,7 +398,7 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
   protected beginMarkPlacement(): void {
     if (this.markBusy() || !this.leaveSignatureTool()) return;
     if (!this.leaveMarkTool()) return;
-    if (this.editor?.isDirty() && !window.confirm('Discard your unapplied text changes?')) return;
+    if (this.editor?.isDirty() && !window.confirm(this.i18n.t('editor.confirmDiscardText'))) return;
     this.closeTextEdit(); this.markError.set(''); this.markNotice.set('');
     this.markTarget = undefined; this.markDraft.set(null); this.selectedMarkId.set(null);
     this.placingMark.set(true);
@@ -412,23 +414,23 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
       this.markDraft.set({ id: prior?.id ?? 'draft', kind: prior?.kind ?? 'Check', box,
         color: prior?.color ?? '#000000', strokeWidth: prior?.strokeWidth ?? .08 });
       this.selectedMarkId.set('draft'); this.placingMark.set(false);
-      this.markNotice.set('Drag to position your mark, adjust color or size, then Save.');
+      this.markNotice.set(this.i18n.t('editor.markDragPosition'));
       // The mark controls appear above the page; bring the new mark back into view.
       requestAnimationFrame(() => document.querySelector<HTMLElement>('app-page-mark-overlay .mark.editable')
         ?.scrollIntoView?.({ block: 'center', behavior: 'smooth' }));
-    } catch { this.markError.set('This mark cannot fit at that position.'); }
+    } catch { this.markError.set(this.i18n.t('editor.errMarkFit')); }
   }
   protected selectedMark(): PageMarkDto | undefined { return this.marks().find(mark => mark.id === this.selectedMarkId()); }
   protected selectMark(id: string): void {
     if (this.markBusy() || this.markDraft()?.id === id) return;
-    if (this.markDraft() && !window.confirm('Discard your unsaved mark changes?')) return;
+    if (this.markDraft() && !window.confirm(this.i18n.t('editor.confirmDiscardMark'))) return;
     this.cancelMark(); this.selectedMarkId.set(id);
   }
   protected editMark(): void {
     const mark = this.selectedMark(); if (!mark || this.markBusy()) return;
     this.markTarget = mark; this.markDraft.set({ ...mark, box: { ...mark.box } });
     this.markNeedsOverwriteConfirmation = false; this.markTargetMissing = false; this.markAwaitingReload = false;
-    this.markNotice.set('Drag to move, use the corner handles to resize, then Save.');
+    this.markNotice.set(this.i18n.t('editor.markDragMove'));
   }
   protected duplicateMark(): void {
     const mark = this.selectedMark(); if (!mark || this.markBusy()) return;
@@ -438,7 +440,7 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
     this.markDraft.set({ id: 'draft', kind: mark.kind, box: { ...mark.box },
       color: mark.color, strokeWidth: mark.strokeWidth });
     this.selectedMarkId.set('draft'); this.placingMark.set(false); this.markError.set('');
-    this.markNotice.set('Duplicate ready. Drag it to another position, then Save. The original stays in place.');
+    this.markNotice.set(this.i18n.t('editor.markDuplicateReady'));
   }
   protected changeMarkBox(change: { id: string; box: SignatureBox }): void {
     const draft = this.markDraft();
@@ -456,7 +458,7 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
   protected changeMarkSize(percent: number): void {
     const draft = this.markDraft(); if (!draft || !Number.isFinite(percent)) return;
     try { this.markDraft.set({ ...draft, box: markSizeBox(draft.box, percent / (draft.box.width / .025 * 100)) }); }
-    catch { this.markError.set('The mark is too large for this page.'); }
+    catch { this.markError.set(this.i18n.t('editor.errMarkTooLarge')); }
   }
   protected cancelMark(): void {
     if (this.markBusy()) return;
@@ -467,14 +469,14 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
   protected async saveMark(): Promise<void> {
     const draft = this.markDraft(); if (!draft || this.markBusy()) return;
     if (this.markTargetMissing) {
-      this.markError.set('This mark was removed elsewhere. Cancel this draft, then place a new mark.');
+      this.markError.set(this.i18n.t('editor.errMarkRemoved'));
       return;
     }
     if (this.markAwaitingReload) {
-      this.markError.set('Reload saved marks before trying Save again. Your draft is safe.');
+      this.markError.set(this.i18n.t('editor.errMarkReloadFirst'));
       return;
     }
-    if (this.markNeedsOverwriteConfirmation && !window.confirm('This mark changed elsewhere. Save your draft over its current version?')) return;
+    if (this.markNeedsOverwriteConfirmation && !window.confirm(this.i18n.t('editor.confirmOverwriteMark'))) return;
     this.markBusy.set(true); this.markError.set('');
     try {
       let before = this.markTarget ?? null;
@@ -488,7 +490,7 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
         const created = await this.markApi.create(this.documentId, this.pageId, submitted, this.markRequestId);
         if (created.isDeleted) {
           this.markTargetMissing = true;
-          this.markError.set('This mark was removed elsewhere. Cancel this draft, then place a new mark.');
+          this.markError.set(this.i18n.t('editor.errMarkRemoved'));
           return;
         }
         if (!this.sameMarkAppearance(created, submitted)) {
@@ -498,7 +500,7 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
           this.selectedMarkId.set(created.id);
           this.markNeedsOverwriteConfirmation = true;
           this.markHistory.clear(); this.syncMarkHistory();
-          this.markError.set('This mark changed elsewhere. Review your draft; Save will ask before replacing the current version.');
+          this.markError.set(this.i18n.t('editor.errMarkChangedReview'));
           return;
         }
         if (this.sameMarkAppearance(draft, submitted)) dto = created;
@@ -518,15 +520,15 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
       this.markDraft.set(null); this.markTarget = undefined; this.markCreateAttempt = undefined; this.selectedMarkId.set(dto.id);
       this.markNeedsOverwriteConfirmation = false; this.markTargetMissing = false; this.markAwaitingReload = false;
       this.markHistory.record(before, dto); this.syncMarkHistory();
-      this.markNotice.set('Mark saved. Export a new PDF to include it.');
+      this.markNotice.set(this.i18n.t('editor.markSaved'));
     } catch (error) {
       if ((error as { status?: number }).status === 409 && this.markTarget) {
         this.markNeedsOverwriteConfirmation = true;
         this.markAwaitingReload = true;
       }
       if (!this.destroyed) this.markError.set((error as { status?: number }).status === 409
-        ? 'This mark changed elsewhere. Your draft is safe. Reload saved marks and review it.'
-        : 'Mark could not be saved. Your draft is still here. Try Save again.');
+        ? this.i18n.t('editor.errMarkChangedSafe')
+        : this.i18n.t('editor.errMarkSave'));
     } finally { if (!this.destroyed) this.markBusy.set(false); }
   }
   private sameMarkAppearance(a: PageMarkDraft, b: PageMarkDraft): boolean {
@@ -543,8 +545,8 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
       this.marks.update(marks => marks.filter(candidate => candidate.id !== mark.id));
       if (this.selectedMarkId() === mark.id) this.selectedMarkId.set(null);
       this.markHistory.record(mark, null); this.syncMarkHistory();
-      this.markNotice.set('Mark removed. Your original scan is unchanged.');
-    } catch { if (!this.destroyed) this.markError.set('Could not remove the mark. Reload saved marks and try again.'); }
+      this.markNotice.set(this.i18n.t('editor.markRemoved'));
+    } catch { if (!this.destroyed) this.markError.set(this.i18n.t('editor.errMarkRemove')); }
     finally { if (!this.destroyed) this.markBusy.set(false); }
   }
   protected async refreshMarks(): Promise<void> {
@@ -559,13 +561,13 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
             this.markTarget = current;
             this.markTargetMissing = false;
             this.markAwaitingReload = false;
-            if (this.markNeedsOverwriteConfirmation) this.markNotice.set('This mark changed elsewhere. Review your draft; Save will ask before replacing the current version.');
+            if (this.markNeedsOverwriteConfirmation) this.markNotice.set(this.i18n.t('editor.errMarkChangedReview'));
           } else this.markTargetMissing = true;
         }
         this.markHistory.clear(); this.syncMarkHistory();
-        this.markError.set(this.markTargetMissing ? 'This mark was removed elsewhere. Cancel this draft, then place a new mark.' : '');
+        this.markError.set(this.markTargetMissing ? this.i18n.t('editor.errMarkRemoved') : '');
       }
-    } catch { if (!this.destroyed) this.markError.set('Could not load saved marks. Try Reload saved marks.'); }
+    } catch { if (!this.destroyed) this.markError.set(this.i18n.t('editor.errMarkLoad')); }
   }
   private syncMarkHistory(): void {
     this.markCanUndo.set(this.markHistory.canUndo); this.markCanRedo.set(this.markHistory.canRedo);
@@ -598,17 +600,17 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
     this.markBusy.set(true); this.markError.set('');
     try {
       await this.markHistory[direction]((target, id, requestId) => this.applyMarkHistory(target, id, requestId));
-      this.markNotice.set(direction === 'undo' ? 'Mark change undone.' : 'Mark change restored.');
+      this.markNotice.set(direction === 'undo' ? this.i18n.t('editor.markUndone') : this.i18n.t('editor.markRestored'));
     } catch (error) {
       if ((error as { status?: number }).status === 409) {
         await this.refreshMarks(); this.markHistory.clear();
-        this.markError.set('This page changed elsewhere. Saved marks were reloaded; old Undo history was cleared.');
-      } else this.markError.set('Could not change this mark. Your Undo history is unchanged. Try again.');
+        this.markError.set(this.i18n.t('editor.errMarkStale'));
+      } else this.markError.set(this.i18n.t('editor.errMarkChange'));
     } finally { this.syncMarkHistory(); this.markBusy.set(false); }
   }
   private leaveMarkTool(): boolean {
     if (this.markBusy()) return false;
-    if (this.markDraft() && !window.confirm('Discard your unsaved mark changes?')) return false;
+    if (this.markDraft() && !window.confirm(this.i18n.t('editor.confirmDiscardMark'))) return false;
     this.cancelMark(); this.selectedMarkId.set(null); return true;
   }
 
@@ -623,7 +625,7 @@ export class PageTextEditorComponent implements OnInit, OnDestroy {
       this.ocr.set(next);
       this.schedule(next);
     } catch {
-      if (!this.destroyed) this.error.set('Could not check text recognition. Try again.');
+      if (!this.destroyed) this.error.set(this.i18n.t('editor.errOcrCheck'));
     }
   }
 

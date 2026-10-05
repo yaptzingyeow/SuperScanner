@@ -1,4 +1,5 @@
-import { Component, OnChanges, SimpleChanges, computed, input, output, signal } from '@angular/core';
+import { I18nService } from '../core/i18n/i18n.service';
+import { Component, OnChanges, SimpleChanges, computed, input, output, signal, inject } from '@angular/core';
 import { OcrPoint } from './document.models';
 import { TextEditBox, TextEditStyle } from './text-edit.models';
 
@@ -13,6 +14,7 @@ type Gesture = { pointerId: number; kind: 'move' | Handle; origin: TextEditBox;
   styleUrl: './text-replacement-overlay.component.scss',
 })
 export class TextReplacementOverlayComponent implements OnChanges {
+  protected readonly i18n = inject(I18nService);
   readonly box = input.required<TextEditBox>();
   readonly text = input.required<string>();
   readonly style = input.required<TextEditStyle>();

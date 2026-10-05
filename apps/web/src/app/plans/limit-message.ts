@@ -8,13 +8,19 @@ export function planLimitOf(error: unknown): PlanLimitProblem | null {
   return body?.code === 'plan_limit_reached' && typeof body.limit === 'number' ? (body as PlanLimitProblem) : null;
 }
 
-export function limitMessage(problem: PlanLimitProblem): string {
+/** A translate function such as I18nService.t; without one, messages are in English. */
+export type Translate = (key: string, params?: Record<string, string | number>) => string;
+
+export function limitMessage(problem: PlanLimitProblem, t?: Translate): string {
   switch (problem.kind) {
     case 'ocr':
+      if (t) return t('ws.limit.ocr', { limit: problem.limit });
       return `You've used today's ${problem.limit} free OCR pages — upgrade to Pro or come back tomorrow.`;
     case 'watermark':
+      if (t) return t('ws.limit.watermark', { limit: problem.limit });
       return `You've used today's ${problem.limit} free watermark exports — upgrade to Pro or come back tomorrow.`;
     default:
+      if (t) return t('ws.limit.documents', { limit: problem.limit });
       return `The Free plan keeps up to ${problem.limit} documents. Delete some or upgrade to Pro.`;
   }
 }
@@ -25,7 +31,7 @@ export function watermarksUsedUp(meter: { used: number; limit: number } | null):
 }
 
 /** The limit message for a plan-limit failure, otherwise the fallback. */
-export function errorMessage(error: unknown, fallback: string): string {
+export function errorMessage(error: unknown, fallback: string, t?: Translate): string {
   const problem = planLimitOf(error);
-  return problem ? limitMessage(problem) : fallback;
+  return problem ? limitMessage(problem, t) : fallback;
 }
