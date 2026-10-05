@@ -33,6 +33,19 @@ export class PlanService {
 
   readonly isAdmin = computed(() => this.plan()?.isAdmin === true);
 
+  /** The current privacy notice has not been accepted yet. */
+  readonly needsPrivacyConsent = computed(() => {
+    const plan = this.plan();
+    return !!plan?.currentPrivacyVersion && plan.privacyConsentVersion !== plan.currentPrivacyVersion;
+  });
+
+  async acceptPrivacy(): Promise<void> {
+    const version = this.plan()?.currentPrivacyVersion;
+    if (!this.http || !version) return;
+    await firstValueFrom(this.http.post(`${this.baseUrl}/me/consent`, { version }));
+    this.plan.update((plan) => plan && { ...plan, privacyConsentVersion: version });
+  }
+
   async refresh(): Promise<void> {
     if (!this.http) return;
     try {

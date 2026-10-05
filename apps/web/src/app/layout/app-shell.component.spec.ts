@@ -64,7 +64,8 @@ describe('AppShellComponent', () => {
   });
 
   it('account menu shows plan and coming-soon upgrade', () => {
-    const plans = { label: signal('Free'), isAdmin: signal(false), refresh: vi.fn().mockResolvedValue(undefined) };
+    const plans = { label: signal('Free'), isAdmin: signal(false), refresh: vi.fn().mockResolvedValue(undefined),
+      needsPrivacyConsent: signal(false) };
     TestBed.configureTestingModule({
       imports: [AppShellComponent],
       providers: [
@@ -90,5 +91,48 @@ describe('AppShellComponent', () => {
     fixture.detectChanges();
     expect(root.querySelector('[data-plan-label]')?.textContent?.trim()).toBe('Pro (forever)');
     expect(root.querySelector('[data-upgrade]')).toBeNull();
+  });
+
+  it('asks a signed-in person once to accept the current privacy notice', async () => {
+    const plans = {
+      label: signal('Free'), isAdmin: signal(false), refresh: vi.fn().mockResolvedValue(undefined),
+      needsPrivacyConsent: signal(true), acceptPrivacy: vi.fn().mockResolvedValue(undefined),
+    };
+    TestBed.configureTestingModule({
+      imports: [AppShellComponent],
+      providers: [
+        provideRouter([]),
+        { provide: PlanService, useValue: plans },
+        { provide: AuthService, useValue: { user$: of({ email: 'user@example.com', isAnonymous: false }), signOut: vi.fn(), ensureGuest: vi.fn() } },
+      ],
+    });
+    const fixture = TestBed.createComponent(AppShellComponent);
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+    const banner = root.querySelector('[data-privacy-consent]');
+    expect(banner?.textContent).toContain('Your documents are private');
+    expect(banner?.querySelector('a[href="/privacy"]')).not.toBeNull();
+
+    (banner!.querySelector('[data-accept-privacy]') as HTMLButtonElement).click();
+    expect(plans.acceptPrivacy).toHaveBeenCalled();
+    plans.needsPrivacyConsent.set(false);
+    fixture.detectChanges();
+    expect(root.querySelector('[data-privacy-consent]')).toBeNull();
+  });
+
+  it('links to Privacy & your data from the account menu', () => {
+    TestBed.configureTestingModule({
+      imports: [AppShellComponent],
+      providers: [
+        provideRouter([]),
+        { provide: AuthService, useValue: { user$: of({ email: 'user@example.com', isAnonymous: false }), signOut: vi.fn(), ensureGuest: vi.fn() } },
+      ],
+    });
+    const fixture = TestBed.createComponent(AppShellComponent);
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+    (root.querySelector('button[aria-label="Open account menu"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(root.querySelector('.account-menu a[href="/privacy"]')?.textContent).toContain('Privacy & your data');
   });
 });

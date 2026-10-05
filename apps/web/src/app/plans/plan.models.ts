@@ -8,6 +8,10 @@ export interface MePlan {
   proForever: boolean;
   brandStamp: boolean;
   isAdmin?: boolean;
+  timeZone?: string | null;
+  locale?: string | null;
+  privacyConsentVersion?: string | null;
+  currentPrivacyVersion?: string;
   limits: {
     ocrPagesPerDay: number | null;
     watermarkExportsPerDay: number | null;

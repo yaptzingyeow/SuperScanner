@@ -20,6 +20,10 @@ export class AppShellComponent {
     void this.plans.refresh();
   }
 
+  protected acceptPrivacy(): void {
+    void this.plans.acceptPrivacy();
+  }
+
   protected toggleMenu(): void {
     this.menuOpen.update((value) => !value);
     if (this.menuOpen()) void this.plans.refresh();

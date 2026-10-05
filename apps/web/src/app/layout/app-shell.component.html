@@ -53,6 +53,7 @@
                   <button type="button" class="account-menu__upgrade" data-upgrade disabled>Pro is coming soon</button>
                 }
               }
+              <a routerLink="/privacy" (click)="menuOpen.set(false)">Privacy &amp; your data</a>
               <button type="button" data-sign-out (click)="signOut()">Sign out</button>
             </div>
           }
@@ -61,6 +62,16 @@
     </div>
   </header>
 
+  @if (!(auth.user$ | async)?.isAnonymous && plans.needsPrivacyConsent()) {
+    <aside class="consent" data-privacy-consent role="region" aria-label="Privacy notice">
+      <p>
+        <strong>Your documents are private to you.</strong> We store your scans and their recognized text to run Arks Scanner,
+        use Google services for sign-in and text recognition, and never sell your data. You can download or delete your data at any time.
+        <a routerLink="/privacy">Privacy &amp; your data</a>
+      </p>
+      <button type="button" data-accept-privacy (click)="acceptPrivacy()">I understand</button>
+    </aside>
+  }
   <main id="main-content">
     <router-outlet />
   </main>
