@@ -347,7 +347,7 @@ export class ImportReviewComponent implements OnInit, OnDestroy {
     const page = this.selected();
     if (!page?.canCrop) return;
     await this.router.navigate(['/documents', this.documentId, 'pages', page.id, 'crop'], {
-      queryParams: { returnTo: 'import', ...(this.uploadIds() ? { uploads: [...this.uploadIds()!].join(',') } : {}) },
+      queryParams: { returnTo: 'import', corners: '1', ...(this.uploadIds() ? { uploads: [...this.uploadIds()!].join(',') } : {}) },
     });
   }
 

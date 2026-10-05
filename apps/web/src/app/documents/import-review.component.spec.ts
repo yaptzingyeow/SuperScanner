@@ -361,7 +361,7 @@ describe('ImportReviewComponent', () => {
     await flush();
 
     expect(navigate).toHaveBeenCalledWith(['/documents', 'doc-1', 'pages', 'p2', 'crop'],
-      { queryParams: { returnTo: 'import', uploads: 'up-1' } });
+      { queryParams: { returnTo: 'import', corners: '1', uploads: 'up-1' } });
   });
 
   it('shows every page when no uploads parameter is given and flags pages that need a corner check', async () => {

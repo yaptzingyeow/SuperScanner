@@ -190,4 +190,26 @@ describe('CropEditorComponent return target', () => {
     await component.finish();
     expect(navigate).toHaveBeenCalledWith(['/documents', 'document-1', 'import'], { queryParams: { uploads: 'up-1,up-2', checked: 'page-1' } });
   });
+
+  it('opens straight into corner adjustment when asked to adjust corners', () => {
+    TestBed.configureTestingModule({
+      imports: [CropEditorComponent],
+      providers: [
+        provideHttpClient(),
+        provideRouter([]),
+        { provide: API_BASE_URL, useValue: '/api' },
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: {
+              paramMap: { get: (name: string) => name === 'documentId' ? 'document-1' : 'page-1' },
+              queryParamMap: { get: (name: string) => ({ returnTo: 'import', corners: '1' } as Record<string, string>)[name] ?? null },
+            },
+          },
+        },
+      ],
+    });
+    const component = TestBed.createComponent(CropEditorComponent).componentInstance as unknown as { cropMode(): boolean };
+    expect(component.cropMode()).toBe(true);
+  });
 });

@@ -44,7 +44,8 @@ export class CropEditorComponent implements OnInit, OnDestroy {
   ];
   protected readonly filter = signal<ScanFilter>('Document');
   protected readonly actualResultFilter = computed(() => true);
-  protected readonly cropMode = signal(false);
+  /** Opened from "Adjust corners": start with the corner handles showing. */
+  protected readonly cropMode = signal(this.route.snapshot.queryParamMap?.get('corners') === '1');
   protected readonly zoom = signal(1);
   protected readonly pendingChanges = signal(false);
   // Smart clean and Clean content are no longer offered; pages saved with them keep rendering.
