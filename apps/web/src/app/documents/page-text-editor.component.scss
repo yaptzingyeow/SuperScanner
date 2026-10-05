@@ -45,8 +45,8 @@ app-ocr-text-overlay { position: absolute; inset: 0; }
 }
 
 // Mark controls stay reachable while the page scrolls under them.
-.mark-dock {
+// Pinned only while a mark is being placed or adjusted, so its Save stays reachable.
+.mark-dock--active {
   position: sticky; top: 0; z-index: 5;
   background: var(--color-background, #f6f5f1);
-  &:empty { display: none; }
 }

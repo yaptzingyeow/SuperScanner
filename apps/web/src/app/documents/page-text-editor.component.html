@@ -22,7 +22,7 @@
       <button type="button" class="primary" data-testid="add-mark" [disabled]="markBusy()" (click)="beginMarkPlacement()">✓ Tick / × Cross</button></div>
     }
     @if (markError()) { <p role="alert" class="error">{{ markError() }}</p><button type="button" [disabled]="markBusy()" (click)="refreshMarks()">Reload saved marks</button> }
-    <div class="mark-dock">
+    <div class="mark-dock" [class.mark-dock--active]="placingMark() || !!markDraft()">
     @if (markNotice()) { <p role="status">{{ markNotice() }}</p> }
     @if (placingMark() || markDraft() || selectedMarkId() || marks().length || markCanUndo() || markCanRedo()) {
       <app-page-mark-tools [draft]="markDraft()" [selected]="!!selectedMark()" [placing]="placingMark()" [busy]="markBusy()"

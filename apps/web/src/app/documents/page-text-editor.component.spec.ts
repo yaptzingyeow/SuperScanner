@@ -111,9 +111,16 @@ describe('PageTextEditorComponent', () => {
     fixture.detectChanges();
     await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
 
-    expect(fixture.nativeElement.querySelector('.mark-dock app-page-mark-tools')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('.mark-dock.mark-dock--active app-page-mark-tools')).toBeTruthy();
     expect(scroll).toHaveBeenCalledWith(expect.objectContaining({ block: 'center' }));
     expect((scroll.mock.contexts[0] as HTMLElement).closest('app-page-mark-overlay')).toBeTruthy();
+  });
+
+  it('does not pin the mark controls over the page when only saved marks exist', async () => {
+    const { fixture } = setup(notRequested, [], [{ id: 'mark-1', pageId: 'page-1', kind: 'Check',
+      box: { x: .4, y: .4, width: .03, height: .03 }, color: '#000000', strokeWidth: .08, revision: 0 }]);
+    await vi.waitFor(() => { fixture.detectChanges(); expect(fixture.nativeElement.querySelector('app-page-mark-tools')).toBeTruthy(); });
+    expect(fixture.nativeElement.querySelector('.mark-dock--active')).toBeNull();
   });
 
   it('duplicates a selected mark with the same style, then saves its moved copy without changing the original', async () => {

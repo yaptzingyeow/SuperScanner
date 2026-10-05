@@ -15,15 +15,18 @@ public sealed class TextStyleEstimatorTests
     [InlineData("LiberationSans-Regular.ttf", "liberation-sans", 400, 53)]
     [InlineData("LiberationSans-Regular.ttf", "liberation-sans", 400, 28)]
     [InlineData("LiberationSerif-Bold.ttf", "liberation-serif", 700, 44)]
+    [InlineData("Poppins-Regular.ttf", "poppins", 400, 46)]
+    [InlineData("Carlito-Regular.ttf", "carlito", 400, 50)]
+    [InlineData("Merriweather-Regular.ttf", "merriweather", 400, 40)]
     public async Task Picks_the_printed_font_and_its_real_pixel_size_from_a_padded_ocr_box(
         string file, string expectedFont, int expectedWeight, double size)
     {
         var root = RepositoryRoot();
-        var (png, box) = Render("RM 1,500", Path.Combine(root, "assets", "fonts", file), size);
+        var (png, box) = Render("Monthly rent: RM 1,500", Path.Combine(root, "assets", "fonts", file), size);
         var estimator = new TextStyleEstimator(new Store(png),
             BundledFontCatalogue.Load(Path.Combine(root, "assets", "fonts", "manifest.json")), root);
 
-        var estimate = await estimator.EstimateAsync("page.png", [Word("RM 1,500", box)], default);
+        var estimate = await estimator.EstimateAsync("page.png", [Word("Monthly rent: RM 1,500", box)], default);
 
         Assert.Equal(expectedFont, estimate.Candidates[0].CatalogueId);
         Assert.Equal(expectedWeight, estimate.FontWeight);
