@@ -64,6 +64,11 @@
               "extractLicenses": false,
               "sourceMap": true
             },
+            "test": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true
+            },
             "e2e": {
               "optimization": false,
               "extractLicenses": false,
@@ -102,6 +107,7 @@
         "test": {
           "builder": "@angular/build:unit-test",
           "options": {
+            "buildTarget": "web:build:test",
             "runnerConfig": "vitest-base.config.ts"
           }
         }

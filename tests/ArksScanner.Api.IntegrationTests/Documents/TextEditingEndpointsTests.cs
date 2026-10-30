@@ -33,7 +33,7 @@ public sealed class TextEditingEndpointsTests
         var json = await response.Content.ReadAsStringAsync();
         using var document = System.Text.Json.JsonDocument.Parse(json);
         var faces = document.RootElement.EnumerateArray().ToArray();
-        Assert.Equal(30, faces.Select(face => face.GetProperty("familyName").GetString()).Distinct().Count());
+        Assert.Equal(42, faces.Select(face => face.GetProperty("familyName").GetString()).Distinct().Count());
         Assert.All(faces, face =>
         {
             Assert.True(face.GetProperty("enabled").GetBoolean());
