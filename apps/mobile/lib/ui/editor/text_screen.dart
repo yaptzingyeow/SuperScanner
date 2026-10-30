@@ -252,11 +252,14 @@ class _TextScreenState extends State<TextScreen> {
         if (!didPop) Navigator.pop(context, _changed);
       },
       child: Scaffold(
+        // While an edit is open the page needs every pixel: no undo/redo, mode switch or hint.
         appBar: AppBar(title: Text(l.toolText), actions: [
-          IconButton(tooltip: l.undo, onPressed: _busy || !(_history?.canUndo ?? false) ? null : () => _undoRedo(true),
-              icon: const Icon(Icons.undo)),
-          IconButton(tooltip: l.redo, onPressed: _busy || !(_history?.canRedo ?? false) ? null : () => _undoRedo(false),
-              icon: const Icon(Icons.redo)),
+          if (_draft == null) ...[
+            IconButton(tooltip: l.undo, onPressed: _busy || !(_history?.canUndo ?? false) ? null : () => _undoRedo(true),
+                icon: const Icon(Icons.undo)),
+            IconButton(tooltip: l.redo, onPressed: _busy || !(_history?.canRedo ?? false) ? null : () => _undoRedo(false),
+                icon: const Icon(Icons.redo)),
+          ],
         ]),
         body: _error != null
             ? Center(child: Text(friendlyError(context, _error!)))
@@ -264,25 +267,26 @@ class _TextScreenState extends State<TextScreen> {
                 ? const Center(child: CircularProgressIndicator())
                 : Column(children: [
                     if (_busy || ocr.isWorking) const LinearProgressIndicator(),
-                    Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: SegmentedButton<_Mode>(
-                        segments: [
-                          ButtonSegment(value: _Mode.replace, icon: const Icon(Icons.find_replace), label: Text(l.replaceText)),
-                          ButtonSegment(value: _Mode.add, icon: const Icon(Icons.text_fields), label: Text(l.addText)),
-                        ],
-                        selected: {_mode},
-                        onSelectionChanged: (value) => setState(() {
-                          _mode = value.first;
-                          _selected.clear();
-                          _draft = null;
-                        }),
+                    if (_draft == null) ...[
+                      Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: SegmentedButton<_Mode>(
+                          segments: [
+                            ButtonSegment(value: _Mode.replace, icon: const Icon(Icons.find_replace), label: Text(l.replaceText)),
+                            ButtonSegment(value: _Mode.add, icon: const Icon(Icons.text_fields), label: Text(l.addText)),
+                          ],
+                          selected: {_mode},
+                          onSelectionChanged: (value) => setState(() {
+                            _mode = value.first;
+                            _selected.clear();
+                          }),
+                        ),
                       ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Text(_draft?.isAdd ?? false ? l.moveTextHint : _hint(context, ocr), textAlign: TextAlign.center),
-                    ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Text(_hint(context, ocr), textAlign: TextAlign.center),
+                      ),
+                    ],
                     Expanded(
                       child: Stack(children: [
                         Positioned.fill(
@@ -317,10 +321,13 @@ class _TextScreenState extends State<TextScreen> {
                                 else if (_draft case final draft?)
                                   Positioned.fromRect(
                                     rect: PageStage.toRect(rect, draft.box).inflate(2),
+                                    // The replacement covers the old words, as in the server render.
                                     child: IgnorePointer(
                                       child: DecoratedBox(
                                         decoration: BoxDecoration(
+                                            color: draft.text == draft.originalText ? null : Colors.white.withValues(alpha: .9),
                                             border: Border.all(color: Theme.of(context).colorScheme.primary, width: 2)),
+                                        child: draft.text == draft.originalText ? null : _draftText(draft, rect),
                                       ),
                                     ),
                                   ),
@@ -474,9 +481,6 @@ class _TextEditorPanelState extends State<_TextEditorPanel> {
       .where((f) => f.catalogueId == _draft.style.fontId && f.version == _draft.style.fontVersion)
       .firstOrNull;
 
-  /// The real weight of the chosen face; heavier weights are thickened like the server (2 × 0.009 em per 100).
-  int get _faceWeight => _face?.weight ?? 400;
-
   Future<void> _loadFont() async {
     final face = _face;
     if (face != null && await context.read<FontService>().load(face) && mounted) {
@@ -566,6 +570,9 @@ class _TextEditorPanelState extends State<_TextEditorPanel> {
     final isReplace = _draft.wordIds.isNotEmpty;
     final canApply = !_busy && (isReplace || _text.text.trim().isNotEmpty);
     final surface = Theme.of(context).colorScheme.surface;
+    final media = MediaQuery.of(context);
+    final typing = media.viewInsets.bottom > 0;
+    final available = media.size.height - media.viewInsets.bottom - media.padding.top - kToolbarHeight;
     final header = Row(children: [
       IconButton(tooltip: l.cancel, onPressed: _busy ? null : () => widget.onClose(false), icon: const Icon(Icons.close)),
       const Spacer(),
@@ -603,11 +610,14 @@ class _TextEditorPanelState extends State<_TextEditorPanel> {
                 ]),
               )
             : ConstrainedBox(
-                constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * .55),
-                child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                // Share of the space left between the app bar and the keyboard, so the header never scrolls away.
+                constraints: BoxConstraints(maxHeight: available * (typing ? .5 : .6)),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: header),
+                  Flexible(
+                    child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
-          header,
           if (_showOpacity)
             Row(children: [
               Text(l.panelTransparency),
@@ -620,16 +630,20 @@ class _TextEditorPanelState extends State<_TextEditorPanel> {
               ),
             ]),
           if (_busy) const LinearProgressIndicator(),
-          if (isReplace) Text(l.originalText(_draft.originalText), style: Theme.of(context).textTheme.bodySmall),
-          const SizedBox(height: 8),
-          _LivePreview(text: _text.text.isEmpty ? ' ' : _text.text, style: style, family: _face?.webFamilyName,
-              faceWeight: _faceWeight),
-          const SizedBox(height: 8),
+          if (isReplace && !typing) Text(l.originalText(_draft.originalText), style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: 4),
+          // The text is drawn on the page itself, so the panel only needs the box to type in.
           TextField(
             controller: _text,
             autofocus: true,
             maxLength: 4000,
-            decoration: InputDecoration(labelText: isReplace ? l.replacementText : l.newText, border: const OutlineInputBorder()),
+            textInputAction: TextInputAction.done,
+            decoration: InputDecoration(
+              labelText: isReplace ? l.replacementText : l.newText,
+              border: const OutlineInputBorder(),
+              isDense: true,
+              counterText: '',
+            ),
             onChanged: (value) {
               setState(() {
                 _draft.text = value;
@@ -638,6 +652,8 @@ class _TextEditorPanelState extends State<_TextEditorPanel> {
               widget.onDraftChanged();
             },
           ),
+          // While typing only the text box shows; the rest returns when the keyboard closes.
+          if (!typing) ...[
           Row(children: [
             Text(l.size),
             Expanded(
@@ -727,8 +743,11 @@ class _TextEditorPanelState extends State<_TextEditorPanel> {
             const SizedBox(width: 8),
             Expanded(child: FilledButton(onPressed: canApply ? _apply : null, child: Text(l.apply))),
           ]),
+          ],
         ]),
-                ),
+                    ),
+                  ),
+                ]),
               ),
       ),
     );
@@ -740,49 +759,4 @@ class _TextEditorPanelState extends State<_TextEditorPanel> {
         'Handwriting' => l.fontHandwriting,
         _ => l.fontSans,
       };
-}
-
-/// Live guide: the text in the chosen font, thickened like the server when the weight is above the real face.
-class _LivePreview extends StatelessWidget {
-  const _LivePreview({required this.text, required this.style, required this.family, required this.faceWeight});
-
-  final String text;
-  final TextStyleSpec style;
-  final String? family;
-  final int faceWeight;
-
-  @override
-  Widget build(BuildContext context) {
-    const size = 28.0;
-    final steps = ((style.weight - faceWeight) / 100).floor().clamp(0, 8);
-    final color = parseHex(style.colorHex);
-    final base = TextStyle(
-      fontFamily: family,
-      fontSize: size,
-      letterSpacing: style.letterSpacing * size,
-      decoration: style.strikethrough ? TextDecoration.lineThrough : null,
-      decorationColor: color,
-    );
-    final align = [TextAlign.left, TextAlign.center, TextAlign.right][style.alignment];
-    return Container(
-      height: 56,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: style.colorHex.toUpperCase() == '#FFFFFF' ? Colors.black87 : Colors.white,
-        border: Border.all(color: Colors.black12),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Stack(children: [
-        if (steps > 0)
-          Text(text, maxLines: 1, overflow: TextOverflow.fade, softWrap: false, textAlign: align,
-              style: base.copyWith(foreground: Paint()
-                ..style = PaintingStyle.stroke
-                ..strokeWidth = 2 * .009 * steps * size
-                ..color = color)),
-        Text(text, maxLines: 1, overflow: TextOverflow.fade, softWrap: false, textAlign: align,
-            style: base.copyWith(color: color)),
-      ]),
-    );
-  }
 }

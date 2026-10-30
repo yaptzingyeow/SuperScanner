@@ -9,8 +9,10 @@ import 'package:arks_scanner/services/local_store.dart';
 import 'package:arks_scanner/l10n/app_localizations.dart';
 import 'package:arks_scanner/services/upload_service.dart';
 import 'package:arks_scanner/ui/common.dart';
+import 'package:arks_scanner/ui/export_options_sheet.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -65,6 +67,13 @@ Map<String, dynamic> _page(String id, int position, {String state = 'Ready', Str
       'filter': 'Magic',
       'appliedFilter': 'Magic',
     };
+
+/// Pumps a few frames; pumpAndSettle would wait forever on a progress spinner.
+Future<void> _settle(WidgetTester tester) async {
+  for (var i = 0; i < 5; i++) {
+    await tester.pump(const Duration(milliseconds: 100));
+  }
+}
 
 void main() {
   group('ApiClient', () {
@@ -161,6 +170,93 @@ void main() {
     expect(friendlyError(context, const SocketException('down')),
         "Can't reach the server. Check your internet connection and try again.\nError code: SocketException");
     expect(friendlyError(context, const ApiException(503)), endsWith('Error code: HTTP 503'));
+  });
+
+  group('watermark', () {
+    test('export sends the watermark the way the server validates it', () async {
+      late Map<String, dynamic> sent;
+      final client = MockClient((request) async {
+        sent = jsonDecode(request.body) as Map<String, dynamic>;
+        return http.Response(jsonEncode({'id': 'e', 'state': 'Queued'}), 202);
+      });
+      final api = DocumentsApi(ApiClient(baseUrl: 'https://api.test/api', tokens: _Tokens(), client: client));
+      await api.createExport('d',
+          watermark: const WatermarkSettings(text: '  COPY  ', fontId: 'oswald', bold: true, color: '#c62828'));
+      expect(sent['watermark'], {
+        'text': 'COPY', 'layout': 'Single', 'fontId': 'oswald', 'bold': false, 'color': '#C62828', 'opacity': .25,
+        'sizePercent': 8.0, 'angleDegrees': 35.0, 'spacing': 1.5, 'position': 'Center',
+      }, reason: 'trimmed, no bold for a font without a bold face, upper-case colour');
+
+      await api.createExport('d');
+      expect(sent.containsKey('watermark'), isFalse);
+    });
+
+    test('the last watermark is remembered, and bad saved values fall back to defaults', () async {
+      final dir = await Directory.systemTemp.createTemp('wm');
+      addTearDown(() => dir.delete(recursive: true));
+      final file = File('${dir.path}/settings/watermark.json');
+      final exports = ExportService(DocumentsApi(ApiClient(baseUrl: 'https://api.test/api', tokens: _Tokens(),
+          client: MockClient((_) async => http.Response('', 500)))), LocalStore(dir), watermarkFile: file);
+      expect((await exports.lastWatermark()).enabled, isFalse);
+
+      await exports.rememberWatermark(const WatermarkSettings(text: 'DRAFT', layout: 'Tiled', opacity: .5), enabled: true);
+      final last = await exports.lastWatermark();
+      expect(last.enabled, isTrue);
+      expect(last.settings.text, 'DRAFT');
+      expect(last.settings.isTiled, isTrue);
+      expect(last.settings.opacity, .5);
+
+      final odd = WatermarkSettings.fromJson({'text': '', 'opacity': 7, 'layout': 'Diagonal', 'color': 'red'});
+      expect([odd.text, odd.opacity, odd.layout, odd.color], ['FOR GOVERNMENT USE ONLY', .25, 'Single', '#C62828']);
+    });
+  });
+
+  testWidgets('export options sheet: watermark on, repeated, more options, then export returns the settings',
+      (tester) async {
+    // Real file access only completes inside runAsync in a widget test.
+    final dir = (await tester.runAsync(() => Directory.systemTemp.createTemp('wm-ui')))!;
+    addTearDown(() => dir.delete(recursive: true));
+    final exports = ExportService(DocumentsApi(ApiClient(baseUrl: 'https://api.test/api', tokens: _Tokens(),
+        client: MockClient((_) async => http.Response('', 500)))), LocalStore(dir),
+        watermarkFile: File('${dir.path}/watermark.json'));
+    final png = base64Decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jh1QAAAAASUVORK5CYII=');
+    ({WatermarkSettings? watermark})? result;
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(Provider.value(
+      value: exports,
+      child: MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Builder(builder: (context) => Scaffold(
+          body: TextButton(
+            onPressed: () async => result = await showExportOptions(context, action: 'Share', firstPage: () async => png),
+            child: const Text('open'),
+          ),
+        )),
+      ),
+    ));
+    await tester.runAsync(() async {
+      await tester.tap(find.text('open'));
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    });
+    await _settle(tester);
+    await tester.tap(find.text('Add a watermark'));
+    await _settle(tester);
+    await tester.tap(find.text('Repeated'));
+    await tester.tap(find.text('DRAFT'));
+    await _settle(tester);
+    await tester.scrollUntilVisible(find.text('More options'), 200, scrollable: find.byType(Scrollable).last);
+    await tester.tap(find.text('More options'));
+    await _settle(tester);
+    await tester.scrollUntilVisible(find.widgetWithText(FilledButton, 'Share'), 200, scrollable: find.byType(Scrollable).last);
+    await tester.runAsync(() async {
+      await tester.tap(find.widgetWithText(FilledButton, 'Share'));
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+    });
+    await _settle(tester);
+    expect(result?.watermark?.text, 'DRAFT');
+    expect(result?.watermark?.isTiled, isTrue);
   });
 
   group('models', () {

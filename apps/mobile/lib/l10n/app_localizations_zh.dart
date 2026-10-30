@@ -311,6 +311,87 @@ class AppLocalizationsZh extends AppLocalizations {
   String get errGeneric => '出了点问题，请重试。';
 
   @override
+  String get exportOptions => '导出选项';
+
+  @override
+  String get addWatermark => '添加水印';
+
+  @override
+  String get watermarkSubtitle => '在每一页加盖，例如“仅限政府使用”。';
+
+  @override
+  String get wmText => '文字';
+
+  @override
+  String get wmQuickText => '快捷文字';
+
+  @override
+  String get wmOnce => '单个';
+
+  @override
+  String get wmRepeated => '重复';
+
+  @override
+  String get wmPosition => '位置';
+
+  @override
+  String get wmTop => '顶部';
+
+  @override
+  String get wmCenter => '居中';
+
+  @override
+  String get wmBottom => '底部';
+
+  @override
+  String get wmFont => '字体';
+
+  @override
+  String get wmBold => '粗体';
+
+  @override
+  String get wmColour => '颜色';
+
+  @override
+  String get wmTransparency => '透明度';
+
+  @override
+  String get wmSize => '大小';
+
+  @override
+  String get wmAngle => '角度';
+
+  @override
+  String get wmSpacing => '间距';
+
+  @override
+  String get wmReset => '恢复默认';
+
+  @override
+  String get wmPreviewNote => '第 1 页预览。PDF 将使用所选字体。';
+
+  @override
+  String get wmPresetGovernment => '仅供政府使用';
+
+  @override
+  String get wmPresetIc => '仅供身份证核验使用';
+
+  @override
+  String get wmPresetConfidential => '机密';
+
+  @override
+  String get wmPresetCopy => '副本';
+
+  @override
+  String get wmPresetDraft => '草稿';
+
+  @override
+  String get wmPresetSample => '样本';
+
+  @override
+  String get errWatermark => '无法使用此水印。请使用 1–120 个普通文字字符。';
+
+  @override
   String get errNoConnection => '无法连接服务器。请检查网络连接后重试。';
 
   @override

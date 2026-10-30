@@ -65,7 +65,7 @@ Future<void> main() async {
       Provider.value(value: edits),
       Provider(create: (_) => FontService(edits, AppConfig.webBaseUrl)),
       Provider(create: (_) => UploadService(documents)),
-      Provider(create: (_) => ExportService(documents, store)),
+      Provider(create: (_) => ExportService(documents, store, watermarkFile: File('$support/settings/watermark.json'))),
       ChangeNotifierProvider(create: (_) => SessionState(documents)),
     ],
     child: const ArksScannerApp(),

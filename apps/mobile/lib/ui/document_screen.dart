@@ -15,6 +15,7 @@ import '../services/export_service.dart';
 import '../services/session_state.dart';
 import '../services/upload_service.dart';
 import 'common.dart';
+import 'export_options_sheet.dart';
 
 /// A document on the server while it is being edited: pages appear as they finish processing.
 class DocumentScreen extends StatefulWidget {
@@ -124,27 +125,48 @@ class _DocumentScreenState extends State<DocumentScreen> {
     });
   }
 
-  Future<Uint8List> _pdf() => context.read<ExportService>().buildPdf(widget.documentId);
+  Future<Uint8List> _pdf(WatermarkSettings? watermark) =>
+      context.read<ExportService>().buildPdf(widget.documentId, watermark: watermark);
 
-  Future<void> _share() => _run(context.l.processing, () async {
-        final bytes = await _pdf();
-        final file = File('${(await getTemporaryDirectory()).path}/${_safeName(_document!.title)}.pdf');
-        await file.writeAsBytes(bytes, flush: true);
-        await SharePlus.instance.share(ShareParams(files: [XFile(file.path, mimeType: 'application/pdf')],
-            subject: _document!.title));
-      });
+  /// Export options (watermark) before an export; null when the user cancelled.
+  Future<({WatermarkSettings? watermark})?> _options(String action) {
+    final document = _document!;
+    final first = document.pages.where((page) => page.hasPreview).firstOrNull;
+    return showExportOptions(context, action: action, firstPage: () async {
+      if (first == null) throw StateError('no page');
+      return _api.pageImage(document.id, first.id, 'preview');
+    });
+  }
 
-  Future<void> _print() => _run(context.l.processing, () async {
-        final bytes = await _pdf();
-        await Printing.layoutPdf(name: _document!.title, onLayout: (_) async => bytes);
-      });
+  Future<void> _share() async {
+    final options = await _options(context.l.share);
+    if (options == null || !mounted) return;
+    await _run(context.l.processing, () async {
+      final bytes = await _pdf(options.watermark);
+      final file = File('${(await getTemporaryDirectory()).path}/${_safeName(_document!.title)}.pdf');
+      await file.writeAsBytes(bytes, flush: true);
+      await SharePlus.instance.share(ShareParams(files: [XFile(file.path, mimeType: 'application/pdf')],
+          subject: _document!.title));
+    });
+  }
+
+  Future<void> _print() async {
+    final options = await _options(context.l.print);
+    if (options == null || !mounted) return;
+    await _run(context.l.processing, () async {
+      final bytes = await _pdf(options.watermark);
+      await Printing.layoutPdf(name: _document!.title, onLayout: (_) async => bytes);
+    });
+  }
 
   Future<void> _saveToPhone() async {
     final pro = context.read<SessionState>().isPro;
     final exports = context.read<ExportService>();
     final l = context.l;
+    final options = await _options(pro ? l.saveCopy : l.saveToPhone);
+    if (options == null || !mounted) return;
     await _run(l.saveToPhone, () async {
-      await exports.saveToPhone(_document!, removeFromServer: !pro);
+      await exports.saveToPhone(_document!, removeFromServer: !pro, watermark: options.watermark);
       if (!mounted) return;
       showMessage(context, pro ? l.savedToPhone : l.savedToPhoneFree);
       context.pop();

@@ -684,6 +684,168 @@ abstract class AppLocalizations {
   /// **'Something went wrong. Please try again.'**
   String get errGeneric;
 
+  /// No description provided for @exportOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Export options'**
+  String get exportOptions;
+
+  /// No description provided for @addWatermark.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a watermark'**
+  String get addWatermark;
+
+  /// No description provided for @watermarkSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Stamp every page, e.g. “For government use only”.'**
+  String get watermarkSubtitle;
+
+  /// No description provided for @wmText.
+  ///
+  /// In en, this message translates to:
+  /// **'Text'**
+  String get wmText;
+
+  /// No description provided for @wmQuickText.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick text'**
+  String get wmQuickText;
+
+  /// No description provided for @wmOnce.
+  ///
+  /// In en, this message translates to:
+  /// **'Once'**
+  String get wmOnce;
+
+  /// No description provided for @wmRepeated.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeated'**
+  String get wmRepeated;
+
+  /// No description provided for @wmPosition.
+  ///
+  /// In en, this message translates to:
+  /// **'Position'**
+  String get wmPosition;
+
+  /// No description provided for @wmTop.
+  ///
+  /// In en, this message translates to:
+  /// **'Top'**
+  String get wmTop;
+
+  /// No description provided for @wmCenter.
+  ///
+  /// In en, this message translates to:
+  /// **'Center'**
+  String get wmCenter;
+
+  /// No description provided for @wmBottom.
+  ///
+  /// In en, this message translates to:
+  /// **'Bottom'**
+  String get wmBottom;
+
+  /// No description provided for @wmFont.
+  ///
+  /// In en, this message translates to:
+  /// **'Font'**
+  String get wmFont;
+
+  /// No description provided for @wmBold.
+  ///
+  /// In en, this message translates to:
+  /// **'Bold'**
+  String get wmBold;
+
+  /// No description provided for @wmColour.
+  ///
+  /// In en, this message translates to:
+  /// **'Colour'**
+  String get wmColour;
+
+  /// No description provided for @wmTransparency.
+  ///
+  /// In en, this message translates to:
+  /// **'Transparency'**
+  String get wmTransparency;
+
+  /// No description provided for @wmSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Size'**
+  String get wmSize;
+
+  /// No description provided for @wmAngle.
+  ///
+  /// In en, this message translates to:
+  /// **'Angle'**
+  String get wmAngle;
+
+  /// No description provided for @wmSpacing.
+  ///
+  /// In en, this message translates to:
+  /// **'Spacing'**
+  String get wmSpacing;
+
+  /// No description provided for @wmReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset to default'**
+  String get wmReset;
+
+  /// No description provided for @wmPreviewNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview of page 1. The PDF uses the chosen font.'**
+  String get wmPreviewNote;
+
+  /// No description provided for @wmPresetGovernment.
+  ///
+  /// In en, this message translates to:
+  /// **'FOR GOVERNMENT USE ONLY'**
+  String get wmPresetGovernment;
+
+  /// No description provided for @wmPresetIc.
+  ///
+  /// In en, this message translates to:
+  /// **'FOR IC VERIFICATION ONLY'**
+  String get wmPresetIc;
+
+  /// No description provided for @wmPresetConfidential.
+  ///
+  /// In en, this message translates to:
+  /// **'CONFIDENTIAL'**
+  String get wmPresetConfidential;
+
+  /// No description provided for @wmPresetCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'COPY'**
+  String get wmPresetCopy;
+
+  /// No description provided for @wmPresetDraft.
+  ///
+  /// In en, this message translates to:
+  /// **'DRAFT'**
+  String get wmPresetDraft;
+
+  /// No description provided for @wmPresetSample.
+  ///
+  /// In en, this message translates to:
+  /// **'SAMPLE'**
+  String get wmPresetSample;
+
+  /// No description provided for @errWatermark.
+  ///
+  /// In en, this message translates to:
+  /// **'This watermark can\'t be used. Use 1–120 characters of plain text.'**
+  String get errWatermark;
+
   /// No description provided for @errNoConnection.
   ///
   /// In en, this message translates to:

@@ -210,6 +210,132 @@ class DocumentExport {
       );
 }
 
+/// A watermark font the export worker has; [hasBold] says whether a bold face exists.
+typedef WatermarkFont = ({String id, String label, bool hasBold});
+
+/// The user's own watermark on every exported page (server: ExportWatermark), e.g. "FOR GOVERNMENT USE ONLY".
+/// Defaults and limits match the server and the web export panel.
+class WatermarkSettings {
+  const WatermarkSettings({
+    this.text = 'FOR GOVERNMENT USE ONLY',
+    this.layout = 'Single',
+    this.fontId = 'noto-sans',
+    this.bold = true,
+    this.color = '#C62828',
+    this.opacity = .25,
+    this.sizePercent = 8,
+    this.angleDegrees = 35,
+    this.spacing = 1.5,
+    this.position = 'Center',
+  });
+
+  static const maxTextLength = 120;
+
+  static const List<WatermarkFont> fonts = [
+    (id: 'noto-sans', label: 'Noto Sans', hasBold: true),
+    (id: 'liberation-sans', label: 'Arial style', hasBold: true),
+    (id: 'carlito', label: 'Calibri style', hasBold: true),
+    (id: 'poppins', label: 'Poppins', hasBold: true),
+    (id: 'lato', label: 'Lato', hasBold: true),
+    (id: 'oswald', label: 'Oswald (stamp)', hasBold: false),
+    (id: 'montserrat', label: 'Montserrat', hasBold: false),
+    (id: 'noto-serif', label: 'Noto Serif', hasBold: true),
+    (id: 'liberation-serif', label: 'Times style', hasBold: true),
+    (id: 'liberation-mono', label: 'Typewriter', hasBold: true),
+    (id: 'caveat', label: 'Caveat (handwriting)', hasBold: false),
+    (id: 'dancing-script', label: 'Dancing Script', hasBold: false),
+  ];
+
+  static const colors = ['#C62828', '#1A237E', '#212121', '#757575', '#2E7D32', '#EF6C00'];
+
+  /// Single: once per page. Tiled: repeated across the page.
+  final String text;
+  final String layout;
+  final String fontId;
+  final bool bold;
+
+  /// #RRGGBB
+  final String color;
+
+  /// 0.05 (very faint) to 1 (solid).
+  final double opacity;
+
+  /// Text height as % of the page's shorter side, 2–25.
+  final double sizePercent;
+
+  /// Counter-clockwise, -90 to 90.
+  final double angleDegrees;
+
+  /// Gap between repeated copies in text heights, 0.5–4 (Tiled only).
+  final double spacing;
+
+  /// Center, Top or Bottom (Single only).
+  final String position;
+
+  bool get isTiled => layout == 'Tiled';
+  bool get fontHasBold => fonts.where((font) => font.id == fontId).firstOrNull?.hasBold ?? false;
+  bool get isValid => text.trim().isNotEmpty && text.trim().length <= maxTextLength;
+
+  WatermarkSettings copyWith({String? text, String? layout, String? fontId, bool? bold, String? color, double? opacity,
+          double? sizePercent, double? angleDegrees, double? spacing, String? position}) =>
+      WatermarkSettings(
+        text: text ?? this.text,
+        layout: layout ?? this.layout,
+        fontId: fontId ?? this.fontId,
+        bold: bold ?? this.bold,
+        color: color ?? this.color,
+        opacity: opacity ?? this.opacity,
+        sizePercent: sizePercent ?? this.sizePercent,
+        angleDegrees: angleDegrees ?? this.angleDegrees,
+        spacing: spacing ?? this.spacing,
+        position: position ?? this.position,
+      );
+
+  /// As the server expects it: trimmed text, bold only where the font has it, upper-case colour.
+  Map<String, dynamic> toJson() => {
+        'text': text.trim(),
+        'layout': layout,
+        'fontId': fontId,
+        'bold': bold && fontHasBold,
+        'color': color.toUpperCase(),
+        'opacity': opacity,
+        'sizePercent': sizePercent,
+        'angleDegrees': angleDegrees,
+        'spacing': spacing,
+        'position': position,
+      };
+
+  /// Reads saved settings, falling back to defaults for anything missing or out of range.
+  factory WatermarkSettings.fromJson(Map<String, dynamic> json) {
+    const d = WatermarkSettings();
+    double number(String key, double fallback, double min, double max) {
+      final value = (json[key] as num?)?.toDouble();
+      return value == null || !value.isFinite || value < min || value > max ? fallback : value;
+    }
+
+    String pick(String key, String fallback, Iterable<String> allowed) {
+      final value = json[key];
+      return value is String && allowed.contains(value) ? value : fallback;
+    }
+
+    final text = json['text'];
+    return WatermarkSettings(
+      text: text is String && text.trim().isNotEmpty && text.length <= maxTextLength ? text : d.text,
+      layout: pick('layout', d.layout, const ['Single', 'Tiled']),
+      fontId: pick('fontId', d.fontId, fonts.map((font) => font.id)),
+      bold: json['bold'] is bool ? json['bold'] as bool : d.bold,
+      color: json['color'] is String && RegExp(r'^#[0-9A-Fa-f]{6}$').hasMatch(json['color'] as String)
+          ? json['color'] as String
+          : d.color,
+      opacity: number('opacity', d.opacity, .05, 1),
+      sizePercent: number('sizePercent', d.sizePercent, 2, 25),
+      angleDegrees: number('angleDegrees', d.angleDegrees, -90, 90),
+      spacing: number('spacing', d.spacing, .5, 4),
+      position: pick('position', d.position, const ['Center', 'Top', 'Bottom']),
+    );
+  }
+}
+
 class PlanInfo {
   const PlanInfo({required this.plan, this.consentVersion, this.currentPrivacyVersion});
 

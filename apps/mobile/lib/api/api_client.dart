@@ -160,9 +160,12 @@ class DocumentsApi {
       await _api.postJson('/documents/$documentId/pages/$pageId/crop/detect', {'revision': revision})
           as Map<String, dynamic>);
 
-  Future<DocumentExport> createExport(String documentId, {bool searchable = false}) async => DocumentExport.fromJson(
-      await _api.postJson('/documents/$documentId/exports', {'pageLayout': 'Original', 'includeSearchableText': searchable})
-          as Map<String, dynamic>);
+  Future<DocumentExport> createExport(String documentId, {bool searchable = false, WatermarkSettings? watermark}) async =>
+      DocumentExport.fromJson(await _api.postJson('/documents/$documentId/exports', {
+        'pageLayout': 'Original',
+        'includeSearchableText': searchable,
+        'watermark': ?watermark?.toJson(),
+      }) as Map<String, dynamic>);
 
   Future<DocumentExport> getExport(String documentId, String exportId) async => DocumentExport.fromJson(
       await _api.getJson('/documents/$documentId/exports/$exportId') as Map<String, dynamic>);

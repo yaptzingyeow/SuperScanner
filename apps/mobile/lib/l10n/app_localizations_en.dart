@@ -323,6 +323,90 @@ class AppLocalizationsEn extends AppLocalizations {
   String get errGeneric => 'Something went wrong. Please try again.';
 
   @override
+  String get exportOptions => 'Export options';
+
+  @override
+  String get addWatermark => 'Add a watermark';
+
+  @override
+  String get watermarkSubtitle =>
+      'Stamp every page, e.g. “For government use only”.';
+
+  @override
+  String get wmText => 'Text';
+
+  @override
+  String get wmQuickText => 'Quick text';
+
+  @override
+  String get wmOnce => 'Once';
+
+  @override
+  String get wmRepeated => 'Repeated';
+
+  @override
+  String get wmPosition => 'Position';
+
+  @override
+  String get wmTop => 'Top';
+
+  @override
+  String get wmCenter => 'Center';
+
+  @override
+  String get wmBottom => 'Bottom';
+
+  @override
+  String get wmFont => 'Font';
+
+  @override
+  String get wmBold => 'Bold';
+
+  @override
+  String get wmColour => 'Colour';
+
+  @override
+  String get wmTransparency => 'Transparency';
+
+  @override
+  String get wmSize => 'Size';
+
+  @override
+  String get wmAngle => 'Angle';
+
+  @override
+  String get wmSpacing => 'Spacing';
+
+  @override
+  String get wmReset => 'Reset to default';
+
+  @override
+  String get wmPreviewNote =>
+      'Preview of page 1. The PDF uses the chosen font.';
+
+  @override
+  String get wmPresetGovernment => 'FOR GOVERNMENT USE ONLY';
+
+  @override
+  String get wmPresetIc => 'FOR IC VERIFICATION ONLY';
+
+  @override
+  String get wmPresetConfidential => 'CONFIDENTIAL';
+
+  @override
+  String get wmPresetCopy => 'COPY';
+
+  @override
+  String get wmPresetDraft => 'DRAFT';
+
+  @override
+  String get wmPresetSample => 'SAMPLE';
+
+  @override
+  String get errWatermark =>
+      'This watermark can\'t be used. Use 1–120 characters of plain text.';
+
+  @override
   String get errNoConnection =>
       'Can\'t reach the server. Check your internet connection and try again.';
 

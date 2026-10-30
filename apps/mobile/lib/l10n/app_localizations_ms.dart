@@ -323,6 +323,90 @@ class AppLocalizationsMs extends AppLocalizations {
   String get errGeneric => 'Ada masalah. Sila cuba lagi.';
 
   @override
+  String get exportOptions => 'Pilihan eksport';
+
+  @override
+  String get addWatermark => 'Tambah tera air';
+
+  @override
+  String get watermarkSubtitle =>
+      'Cop setiap halaman, cth. “Untuk kegunaan kerajaan sahaja”.';
+
+  @override
+  String get wmText => 'Teks';
+
+  @override
+  String get wmQuickText => 'Teks pantas';
+
+  @override
+  String get wmOnce => 'Sekali';
+
+  @override
+  String get wmRepeated => 'Berulang';
+
+  @override
+  String get wmPosition => 'Kedudukan';
+
+  @override
+  String get wmTop => 'Atas';
+
+  @override
+  String get wmCenter => 'Tengah';
+
+  @override
+  String get wmBottom => 'Bawah';
+
+  @override
+  String get wmFont => 'Fon';
+
+  @override
+  String get wmBold => 'Tebal';
+
+  @override
+  String get wmColour => 'Warna';
+
+  @override
+  String get wmTransparency => 'Ketelusan';
+
+  @override
+  String get wmSize => 'Saiz';
+
+  @override
+  String get wmAngle => 'Sudut';
+
+  @override
+  String get wmSpacing => 'Jarak';
+
+  @override
+  String get wmReset => 'Tetap semula ke lalai';
+
+  @override
+  String get wmPreviewNote =>
+      'Pratonton halaman 1. PDF menggunakan fon yang dipilih.';
+
+  @override
+  String get wmPresetGovernment => 'UNTUK KEGUNAAN KERAJAAN SAHAJA';
+
+  @override
+  String get wmPresetIc => 'UNTUK PENGESAHAN KAD PENGENALAN SAHAJA';
+
+  @override
+  String get wmPresetConfidential => 'SULIT';
+
+  @override
+  String get wmPresetCopy => 'SALINAN';
+
+  @override
+  String get wmPresetDraft => 'DRAF';
+
+  @override
+  String get wmPresetSample => 'SAMPEL';
+
+  @override
+  String get errWatermark =>
+      'Tera air ini tidak boleh digunakan. Gunakan 1–120 aksara teks biasa.';
+
+  @override
   String get errNoConnection =>
       'Tidak dapat menghubungi pelayan. Semak sambungan internet anda dan cuba lagi.';
 

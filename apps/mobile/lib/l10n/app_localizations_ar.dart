@@ -321,6 +321,89 @@ class AppLocalizationsAr extends AppLocalizations {
   String get errGeneric => 'حدث خطأ ما. حاول مرة أخرى.';
 
   @override
+  String get exportOptions => 'خيارات التصدير';
+
+  @override
+  String get addWatermark => 'إضافة علامة مائية';
+
+  @override
+  String get watermarkSubtitle =>
+      'ضع ختمًا على كل صفحة، مثل «للاستخدام الحكومي فقط».';
+
+  @override
+  String get wmText => 'النص';
+
+  @override
+  String get wmQuickText => 'نص سريع';
+
+  @override
+  String get wmOnce => 'مرة واحدة';
+
+  @override
+  String get wmRepeated => 'متكرر';
+
+  @override
+  String get wmPosition => 'الموضع';
+
+  @override
+  String get wmTop => 'أعلى';
+
+  @override
+  String get wmCenter => 'وسط';
+
+  @override
+  String get wmBottom => 'أسفل';
+
+  @override
+  String get wmFont => 'الخط';
+
+  @override
+  String get wmBold => 'عريض';
+
+  @override
+  String get wmColour => 'اللون';
+
+  @override
+  String get wmTransparency => 'الشفافية';
+
+  @override
+  String get wmSize => 'الحجم';
+
+  @override
+  String get wmAngle => 'الزاوية';
+
+  @override
+  String get wmSpacing => 'التباعد';
+
+  @override
+  String get wmReset => 'إعادة التعيين إلى الافتراضي';
+
+  @override
+  String get wmPreviewNote => 'معاينة الصفحة 1. يستخدم ملف PDF الخط المختار.';
+
+  @override
+  String get wmPresetGovernment => 'للاستخدام الحكومي فقط';
+
+  @override
+  String get wmPresetIc => 'للتحقق من الهوية فقط';
+
+  @override
+  String get wmPresetConfidential => 'سري';
+
+  @override
+  String get wmPresetCopy => 'نسخة';
+
+  @override
+  String get wmPresetDraft => 'مسودة';
+
+  @override
+  String get wmPresetSample => 'عينة';
+
+  @override
+  String get errWatermark =>
+      'لا يمكن استخدام هذه العلامة المائية. استخدم من 1 إلى 120 حرفًا من النص العادي.';
+
+  @override
   String get errNoConnection =>
       'تعذر الوصول إلى الخادم. تحقق من اتصال الإنترنت وحاول مرة أخرى.';
 
