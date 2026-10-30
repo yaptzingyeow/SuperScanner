@@ -1,0 +1,42 @@
+# Codemagic builds the iPhone app on a cloud Mac (iOS apps cannot be built on Windows).
+# Set these in Codemagic → App settings → Environment variables, group "ios_test":
+#   FIREBASE_IOS_APP_ID    Firebase Console → Project settings → Your apps → iOS app → App ID
+#   API_BASE_URL           https://…/api (the phone must reach it; iOS release builds require https)
+#   WEB_BASE_URL           https://… website origin for the text editor's live font preview (optional)
+#   APP_CHECK_DEBUG_TOKEN  a UUID registered under App Check → Apps → iOS app → Manage debug tokens
+workflows:
+  ios-unsigned-test:
+    name: iOS test build (unsigned .ipa for Sideloadly)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      groups:
+        - ios_test
+    triggering:
+      events: []
+    scripts:
+      - name: Get packages
+        working_directory: apps/mobile
+        script: flutter pub get
+      - name: Test
+        working_directory: apps/mobile
+        script: flutter test
+      - name: Build unsigned app
+        working_directory: apps/mobile
+        script: |
+          flutter build ios --release --no-codesign \
+            --dart-define=FIREBASE_IOS_APP_ID="$FIREBASE_IOS_APP_ID" \
+            --dart-define=API_BASE_URL="$API_BASE_URL" \
+            --dart-define=WEB_BASE_URL="${WEB_BASE_URL:-}" \
+            --dart-define=APP_CHECK_DEBUG_TOKEN="$APP_CHECK_DEBUG_TOKEN"
+      - name: Package .ipa
+        working_directory: apps/mobile
+        script: |
+          rm -rf build/ipa-unsigned && mkdir -p build/ipa-unsigned/Payload
+          cp -R build/ios/iphoneos/Runner.app build/ipa-unsigned/Payload/
+          cd build/ipa-unsigned && zip -qr ArksScanner-unsigned.ipa Payload
+    artifacts:
+      - apps/mobile/build/ipa-unsigned/ArksScanner-unsigned.ipa
