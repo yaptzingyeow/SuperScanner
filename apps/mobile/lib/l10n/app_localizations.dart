@@ -1020,6 +1020,48 @@ abstract class AppLocalizations {
   /// **'More options'**
   String get moreOptions;
 
+  /// No description provided for @selectOneLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Only neighbouring words on one line can be replaced together, so a new selection was started.'**
+  String get selectOneLine;
+
+  /// No description provided for @errSelectionInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose neighbouring words on one line.'**
+  String get errSelectionInvalid;
+
+  /// No description provided for @errSelectionUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'Handwritten text can\'t be replaced. Choose printed words.'**
+  String get errSelectionUnsupported;
+
+  /// No description provided for @hideEditor.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide editor'**
+  String get hideEditor;
+
+  /// No description provided for @showEditor.
+  ///
+  /// In en, this message translates to:
+  /// **'Show editor'**
+  String get showEditor;
+
+  /// No description provided for @panelTransparency.
+  ///
+  /// In en, this message translates to:
+  /// **'Panel transparency'**
+  String get panelTransparency;
+
+  /// No description provided for @moveTextHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag the box to move the text, or drag its corner to resize. Tapping the page also moves it.'**
+  String get moveTextHint;
+
   /// No description provided for @font.
   ///
   /// In en, this message translates to:

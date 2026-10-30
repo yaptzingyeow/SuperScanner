@@ -513,6 +513,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String get moreOptions => 'More options';
 
   @override
+  String get selectOneLine =>
+      'Only neighbouring words on one line can be replaced together, so a new selection was started.';
+
+  @override
+  String get errSelectionInvalid => 'Choose neighbouring words on one line.';
+
+  @override
+  String get errSelectionUnsupported =>
+      'Handwritten text can\'t be replaced. Choose printed words.';
+
+  @override
+  String get hideEditor => 'Hide editor';
+
+  @override
+  String get showEditor => 'Show editor';
+
+  @override
+  String get panelTransparency => 'Panel transparency';
+
+  @override
+  String get moveTextHint =>
+      'Drag the box to move the text, or drag its corner to resize. Tapping the page also moves it.';
+
+  @override
   String get font => 'Font';
 
   @override

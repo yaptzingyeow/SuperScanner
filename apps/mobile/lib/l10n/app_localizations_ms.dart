@@ -512,6 +512,31 @@ class AppLocalizationsMs extends AppLocalizations {
   String get moreOptions => 'Lagi pilihan';
 
   @override
+  String get selectOneLine =>
+      'Hanya perkataan bersebelahan pada satu baris boleh diganti bersama, jadi pilihan baharu dimulakan.';
+
+  @override
+  String get errSelectionInvalid =>
+      'Pilih perkataan bersebelahan pada satu baris.';
+
+  @override
+  String get errSelectionUnsupported =>
+      'Tulisan tangan tidak boleh diganti. Pilih perkataan bercetak.';
+
+  @override
+  String get hideEditor => 'Sembunyikan penyunting';
+
+  @override
+  String get showEditor => 'Tunjukkan penyunting';
+
+  @override
+  String get panelTransparency => 'Ketelusan panel';
+
+  @override
+  String get moveTextHint =>
+      'Seret kotak untuk mengalihkan teks, atau seret bucunya untuk ubah saiz. Ketik halaman juga mengalihkannya.';
+
+  @override
   String get font => 'Fon';
 
   @override

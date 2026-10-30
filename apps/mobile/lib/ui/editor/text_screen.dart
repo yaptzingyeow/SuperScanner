@@ -25,7 +25,29 @@ class TextScreen extends StatefulWidget {
 
 enum _Mode { replace, add }
 
+/// The selection after tapping [tapped]. The server replaces only a run of neighbouring words on
+/// one line, so a tap on the same line extends the run to that word, a tap on a selected end word
+/// drops it, and anything else starts a new selection ([restarted] is true when a run was dropped).
+({Set<String> selection, bool restarted}) textSelectionAfterTap(List<OcrWord> words, Set<String> selected, OcrWord tapped) {
+  final line = words.where((word) => word.lineId == tapped.lineId).toList()
+    ..sort((a, b) => a.readingOrder.compareTo(b.readingOrder));
+  final picked = [for (var i = 0; i < line.length; i++) if (selected.contains(line[i].id)) i];
+  final index = line.indexWhere((word) => word.id == tapped.id);
+  if (selected.isEmpty) return (selection: {tapped.id}, restarted: false);
+  if (picked.length != selected.length) return (selection: {tapped.id}, restarted: true);
+  if (selected.contains(tapped.id)) {
+    if (index == picked.first || index == picked.last) return (selection: {...selected}..remove(tapped.id), restarted: false);
+    return (selection: {tapped.id}, restarted: false);
+  }
+  final from = index < picked.first ? index : picked.first;
+  final to = index > picked.last ? index : picked.last;
+  return (selection: {for (var i = from; i <= to; i++) line[i].id}, restarted: false);
+}
+
 class _TextScreenState extends State<TextScreen> {
+  /// Kept for the session so the panel stays as see-through as the user left it.
+  static double _panelOpacity = .95;
+
   PageImage? _page;
   PageOcr? _ocr;
   PageHistory? _history;
@@ -35,6 +57,10 @@ class _TextScreenState extends State<TextScreen> {
   bool _changed = false;
   Object? _error;
   Timer? _poll;
+
+  /// The edit being made in the panel; its box is drawn (and, for new text, dragged) on the page.
+  _Draft? _draft;
+  bool _panelHidden = false;
 
   EditApi get _edits => context.read<EditApi>();
 
@@ -119,7 +145,16 @@ class _TextScreenState extends State<TextScreen> {
   void _tap(Offset point) {
     final ocr = _ocr;
     final page = _page;
+    final draft = _draft;
     if (page == null || _busy) return;
+    if (draft != null) {
+      // New text follows the tap; a replacement stays on the words it replaces.
+      if (draft.isAdd) {
+        setState(() => draft.box = PageBox(point.dx - draft.box.width / 2, point.dy - draft.box.height / 2,
+            draft.box.width, draft.box.height).clamp());
+      }
+      return;
+    }
     if (_mode == _Mode.add) {
       _openEditor(_Draft.add(point, page.size));
       return;
@@ -127,7 +162,11 @@ class _TextScreenState extends State<TextScreen> {
     if (ocr == null || !ocr.isReady) return;
     final word = ocr.words.where((word) => _hit(word.box, point)).firstOrNull;
     if (word == null) return;
-    setState(() => _selected.contains(word.id) ? _selected.remove(word.id) : _selected.add(word.id));
+    final next = textSelectionAfterTap(ocr.words, _selected, word);
+    setState(() => _selected
+      ..clear()
+      ..addAll(next.selection));
+    if (next.restarted) showMessage(context, context.l.selectOneLine);
   }
 
   static bool _hit(PageBox box, Offset point) =>
@@ -162,19 +201,44 @@ class _TextScreenState extends State<TextScreen> {
 
   Future<void> _openEditor(_Draft draft) async {
     if (draft.ocrResultId == null) draft.expectedRevisionId = _history?.activeRevisionId;
-    final saved = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (_) => MultiProvider(
-        providers: [Provider.value(value: _edits), Provider.value(value: context.read<FontService>())],
-        child: _TextEditorSheet(documentId: widget.documentId, pageId: widget.pageId, draft: draft),
-      ),
-    );
-    if (saved == true) {
+    setState(() {
+      _draft = draft;
+      _panelHidden = false;
+    });
+  }
+
+  Future<void> _closeEditor(bool saved) async {
+    setState(() => _draft = null);
+    if (saved) {
       _changed = true;
       await _load();
     }
+  }
+
+  /// The draft's text drawn where it will go, sized like the server render (font size is a share of page height).
+  Widget _draftText(_Draft draft, Rect pageRect) {
+    final style = draft.style;
+    final color = parseHex(style.colorHex);
+    return IgnorePointer(
+      child: Align(
+        alignment: [Alignment.centerLeft, Alignment.center, Alignment.centerRight][style.alignment],
+        child: Text(
+          draft.text.isEmpty ? ' ' : draft.text,
+          maxLines: 1,
+          softWrap: false,
+          overflow: TextOverflow.visible,
+          style: TextStyle(
+            fontFamily: draft.family,
+            fontSize: style.fontSize * pageRect.height,
+            fontWeight: FontWeight.values[((style.weight ~/ 100) - 1).clamp(0, 8)],
+            letterSpacing: style.letterSpacing * style.fontSize * pageRect.height,
+            color: color,
+            decoration: style.strikethrough ? TextDecoration.lineThrough : null,
+            decorationColor: color,
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -211,41 +275,87 @@ class _TextScreenState extends State<TextScreen> {
                         onSelectionChanged: (value) => setState(() {
                           _mode = value.first;
                           _selected.clear();
+                          _draft = null;
                         }),
                       ),
                     ),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Text(_hint(context, ocr), textAlign: TextAlign.center),
+                      child: Text(_draft?.isAdd ?? false ? l.moveTextHint : _hint(context, ocr), textAlign: TextAlign.center),
                     ),
                     Expanded(
-                      child: InteractiveViewer(
-                        maxScale: 6,
-                        child: PageStage(
-                          image: MemoryImage(page.bytes),
-                          imageSize: page.size,
-                          onTapPage: _tap,
-                          builder: (context, rect) => [
-                            if (_mode == _Mode.replace && ocr.isReady)
-                              for (final word in ocr.words)
-                                Positioned.fromRect(
-                                  rect: PageStage.toRect(rect, word.box).inflate(1),
-                                  child: IgnorePointer(
-                                    child: DecoratedBox(
-                                      decoration: BoxDecoration(
-                                        color: _selected.contains(word.id) ? const Color(0x553F8CFF) : const Color(0x1A3F8CFF),
-                                        border: Border.all(
-                                            color: _selected.contains(word.id) ? const Color(0xFF1E6FE0) : const Color(0x553F8CFF)),
+                      child: Stack(children: [
+                        Positioned.fill(
+                          child: InteractiveViewer(
+                            maxScale: 6,
+                            child: PageStage(
+                              image: MemoryImage(page.bytes),
+                              imageSize: page.size,
+                              onTapPage: _tap,
+                              builder: (context, rect) => [
+                                if (_mode == _Mode.replace && ocr.isReady && _draft == null)
+                                  for (final word in ocr.words)
+                                    Positioned.fromRect(
+                                      rect: PageStage.toRect(rect, word.box).inflate(1),
+                                      child: IgnorePointer(
+                                        child: DecoratedBox(
+                                          decoration: BoxDecoration(
+                                            color: _selected.contains(word.id) ? const Color(0x553F8CFF) : const Color(0x1A3F8CFF),
+                                            border: Border.all(
+                                                color: _selected.contains(word.id) ? const Color(0xFF1E6FE0) : const Color(0x553F8CFF)),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                if (_draft case final draft? when draft.isAdd)
+                                  DraggableBox(
+                                    pageRect: rect,
+                                    box: draft.box,
+                                    onChanged: (box) => setState(() => draft.box = box),
+                                    child: _draftText(draft, rect),
+                                  )
+                                else if (_draft case final draft?)
+                                  Positioned.fromRect(
+                                    rect: PageStage.toRect(rect, draft.box).inflate(2),
+                                    child: IgnorePointer(
+                                      child: DecoratedBox(
+                                        decoration: BoxDecoration(
+                                            border: Border.all(color: Theme.of(context).colorScheme.primary, width: 2)),
                                       ),
                                     ),
                                   ),
-                                ),
-                          ],
+                              ],
+                            ),
+                          ),
                         ),
-                      ),
+                        if (_draft case final draft?)
+                          Positioned(
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            child: MultiProvider(
+                              providers: [Provider.value(value: _edits), Provider.value(value: context.read<FontService>())],
+                              child: _TextEditorPanel(
+                                key: ObjectKey(draft),
+                                documentId: widget.documentId,
+                                pageId: widget.pageId,
+                                draft: draft,
+                                hidden: _panelHidden,
+                                opacity: _panelOpacity,
+                                onHidden: (hidden) {
+                                  FocusScope.of(context).unfocus();
+                                  setState(() => _panelHidden = hidden);
+                                },
+                                onOpacity: (value) => setState(() => _panelOpacity = value),
+                                onDraftChanged: () => setState(() {}),
+                                onClose: _closeEditor,
+                              ),
+                            ),
+                          ),
+                      ]),
                     ),
                   ]),
-        bottomNavigationBar: ocr == null
+        bottomNavigationBar: ocr == null || _draft != null
             ? null
             : SafeArea(
                 child: Padding(
@@ -301,24 +411,44 @@ class _Draft {
   String text;
   PageBox box;
   TextStyleSpec style;
+
+  /// Loaded font family for drawing the draft on the page (null until the font is available).
+  String? family;
+
+  bool get isAdd => wordIds.isEmpty;
 }
 
-class _TextEditorSheet extends StatefulWidget {
-  const _TextEditorSheet({required this.documentId, required this.pageId, required this.draft});
+/// The editing controls, floating over the bottom of the page. It can be hidden to see the whole
+/// page, and made see-through so the page behind stays visible while editing.
+class _TextEditorPanel extends StatefulWidget {
+  const _TextEditorPanel({super.key, required this.documentId, required this.pageId, required this.draft,
+      required this.hidden, required this.opacity, required this.onHidden, required this.onOpacity,
+      required this.onDraftChanged, required this.onClose});
 
   final String documentId;
   final String pageId;
   final _Draft draft;
+  final bool hidden;
+  final double opacity;
+  final ValueChanged<bool> onHidden;
+  final ValueChanged<double> onOpacity;
+
+  /// Text, style or font changed: the page redraws the draft.
+  final VoidCallback onDraftChanged;
+
+  /// Closed; true when the edit was applied.
+  final ValueChanged<bool> onClose;
 
   @override
-  State<_TextEditorSheet> createState() => _TextEditorSheetState();
+  State<_TextEditorPanel> createState() => _TextEditorPanelState();
 }
 
-class _TextEditorSheetState extends State<_TextEditorSheet> {
+class _TextEditorPanelState extends State<_TextEditorPanel> {
   static const _colors = ['#202020', '#000000', '#1565C0', '#C62828', '#FFFFFF'];
   late final _text = TextEditingController(text: widget.draft.text);
   List<FontFace> _fonts = const [];
   bool _more = false;
+  bool _showOpacity = false;
   bool _busy = false;
   String _idempotencyKey = newIdempotencyKey();
 
@@ -349,7 +479,10 @@ class _TextEditorSheetState extends State<_TextEditorSheet> {
 
   Future<void> _loadFont() async {
     final face = _face;
-    if (face != null && await context.read<FontService>().load(face) && mounted) setState(() {});
+    if (face != null && await context.read<FontService>().load(face) && mounted) {
+      setState(() => _draft.family = face.webFamilyName);
+      widget.onDraftChanged();
+    }
   }
 
   void _update(TextStyleSpec style) {
@@ -357,6 +490,7 @@ class _TextEditorSheetState extends State<_TextEditorSheet> {
       _draft.style = style;
       _idempotencyKey = newIdempotencyKey();
     });
+    widget.onDraftChanged();
   }
 
   void _chooseFamily(String catalogueId) {
@@ -412,7 +546,7 @@ class _TextEditorSheetState extends State<_TextEditorSheet> {
           throw ApiException(422, state.failureCode ?? 'text_edit_failed');
         }
       }
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) widget.onClose(true);
     } catch (error) {
       if (mounted) showMessage(context, friendlyError(context, error));
     } finally {
@@ -430,11 +564,61 @@ class _TextEditorSheetState extends State<_TextEditorSheet> {
     }
     final categories = ['SansSerif', 'Serif', 'Monospace', 'Handwriting'];
     final isReplace = _draft.wordIds.isNotEmpty;
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+    final canApply = !_busy && (isReplace || _text.text.trim().isNotEmpty);
+    final surface = Theme.of(context).colorScheme.surface;
+    final header = Row(children: [
+      IconButton(tooltip: l.cancel, onPressed: _busy ? null : () => widget.onClose(false), icon: const Icon(Icons.close)),
+      const Spacer(),
+      IconButton(
+        tooltip: l.panelTransparency,
+        isSelected: _showOpacity,
+        onPressed: () => setState(() => _showOpacity = !_showOpacity),
+        icon: const Icon(Icons.opacity),
+      ),
+      IconButton(
+        tooltip: widget.hidden ? l.showEditor : l.hideEditor,
+        onPressed: () => widget.onHidden(!widget.hidden),
+        icon: Icon(widget.hidden ? Icons.expand_less : Icons.expand_more),
+      ),
+    ]);
+    return Material(
+      color: surface.withValues(alpha: widget.opacity),
+      elevation: 8,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+      child: SafeArea(
+        top: false,
+        child: widget.hidden
+            ? Padding(
+                padding: const EdgeInsets.fromLTRB(4, 0, 12, 4),
+                child: Row(children: [
+                  header.children.first,
+                  Expanded(
+                    child: TextButton.icon(
+                      onPressed: () => widget.onHidden(false),
+                      icon: const Icon(Icons.expand_less),
+                      label: Text(l.showEditor),
+                    ),
+                  ),
+                  FilledButton(onPressed: canApply ? _apply : null, child: Text(l.apply)),
+                ]),
+              )
+            : ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * .55),
+                child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+          header,
+          if (_showOpacity)
+            Row(children: [
+              Text(l.panelTransparency),
+              Expanded(
+                child: Slider(
+                  value: 1 - widget.opacity,
+                  max: .85,
+                  onChanged: (value) => widget.onOpacity(1 - value),
+                ),
+              ),
+            ]),
           if (_busy) const LinearProgressIndicator(),
           if (isReplace) Text(l.originalText(_draft.originalText), style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 8),
@@ -446,7 +630,13 @@ class _TextEditorSheetState extends State<_TextEditorSheet> {
             autofocus: true,
             maxLength: 4000,
             decoration: InputDecoration(labelText: isReplace ? l.replacementText : l.newText, border: const OutlineInputBorder()),
-            onChanged: (_) => setState(() => _idempotencyKey = newIdempotencyKey()),
+            onChanged: (value) {
+              setState(() {
+                _draft.text = value;
+                _idempotencyKey = newIdempotencyKey();
+              });
+              widget.onDraftChanged();
+            },
           ),
           Row(children: [
             Text(l.size),
@@ -535,14 +725,11 @@ class _TextEditorSheetState extends State<_TextEditorSheet> {
           Row(children: [
             Expanded(child: OutlinedButton(onPressed: _busy ? null : _preview, child: Text(l.preview))),
             const SizedBox(width: 8),
-            Expanded(
-              child: FilledButton(
-                onPressed: _busy || (!isReplace && _text.text.trim().isEmpty) ? null : _apply,
-                child: Text(l.apply),
-              ),
-            ),
+            Expanded(child: FilledButton(onPressed: canApply ? _apply : null, child: Text(l.apply))),
           ]),
         ]),
+                ),
+              ),
       ),
     );
   }

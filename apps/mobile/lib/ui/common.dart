@@ -44,6 +44,8 @@ String friendlyError(BuildContext context, Object error) {
     'text_edit_placement_overlap' => l.errOverlap,
     'text_selection_stale' || 'text_revision_conflict' || 'mark_revision_conflict' || 'signature_revision_conflict' =>
       l.errStale,
+    'text_selection_invalid' => l.errSelectionInvalid,
+    'text_selection_unsupported' => l.errSelectionUnsupported,
     'text_edit_font_unsupported' || 'text_edit_font_unavailable' => l.errFontUnsupported,
     'text_edit_disabled' => l.errTextDisabled,
     'ocr_disabled' => l.errOcrDisabled,

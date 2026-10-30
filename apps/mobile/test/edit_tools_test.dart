@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:arks_scanner/api/api_client.dart';
 import 'package:arks_scanner/api/edit_api.dart';
 import 'package:arks_scanner/services/document_search.dart';
+import 'package:arks_scanner/ui/editor/text_screen.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -60,6 +61,29 @@ void main() {
     expect(hits.single.wordIds, ['b', 'c']);
     expect(DocumentSearch.find('cafe', pages).single.wordIds, ['d']);
     expect(DocumentSearch.find('a', pages), isEmpty);
+  });
+
+  test('word taps keep the selection to neighbouring words on one line, like the server requires', () {
+    OcrWord word(String id, String line, int order) =>
+        OcrWord(id: id, text: id, lineId: line, readingOrder: order, box: const PageBox(0, 0, .1, .1));
+    final words = [
+      word('thank', 'l1', 0), word('test', 'l1', 1), word('set', 'l1', 2),
+      word('goods', 'l2', 0), word('refundable', 'l2', 1),
+    ];
+    final first = textSelectionAfterTap(words, {}, words[1]);
+    expect(first.selection, {'test'});
+
+    final extended = textSelectionAfterTap(words, {'thank'}, words[2]);
+    expect(extended.selection, {'thank', 'test', 'set'}, reason: 'fills the gap between the taps');
+
+    final otherLine = textSelectionAfterTap(words, {'test', 'set'}, words[4]);
+    expect(otherLine.selection, {'refundable'});
+    expect(otherLine.restarted, isTrue);
+
+    expect(textSelectionAfterTap(words, {'thank', 'test', 'set'}, words[2]).selection, {'thank', 'test'},
+        reason: 'tapping an end word drops it');
+    expect(textSelectionAfterTap(words, {'thank', 'test', 'set'}, words[1]).selection, {'test'},
+        reason: 'tapping a middle word starts again from it');
   });
 
   test('eraser source revision comes from previewRevision', () {

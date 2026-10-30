@@ -489,6 +489,27 @@ class AppLocalizationsZh extends AppLocalizations {
   String get moreOptions => '更多选项';
 
   @override
+  String get selectOneLine => '只能一起替换同一行中相邻的词，因此已开始新的选择。';
+
+  @override
+  String get errSelectionInvalid => '请选择同一行中相邻的词。';
+
+  @override
+  String get errSelectionUnsupported => '手写文字无法替换。请选择印刷文字。';
+
+  @override
+  String get hideEditor => '隐藏编辑器';
+
+  @override
+  String get showEditor => '显示编辑器';
+
+  @override
+  String get panelTransparency => '面板透明度';
+
+  @override
+  String get moveTextHint => '拖动方框可移动文字，拖动角可调整大小。点按页面也可移动。';
+
+  @override
   String get font => '字体';
 
   @override

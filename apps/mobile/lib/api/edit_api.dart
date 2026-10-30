@@ -73,12 +73,15 @@ class PageSignature {
 }
 
 class OcrWord {
-  const OcrWord({required this.id, required this.text, required this.box, required this.lineId});
+  const OcrWord({required this.id, required this.text, required this.box, required this.lineId, this.readingOrder = 0});
 
   final String id;
   final String text;
   final PageBox box;
   final String lineId;
+
+  /// Position within its line; the server only replaces a run of neighbouring words on one line.
+  final int readingOrder;
 }
 
 /// Recognised text of one page, flattened to words (Block → Line → Word on the server).
@@ -107,6 +110,7 @@ class PageOcr {
           final ys = points.map((p) => (p['y'] as num).toDouble());
           final left = xs.reduce(min), top = ys.reduce(min);
           words.add(OcrWord(id: id, text: element['text'] as String? ?? '', lineId: lineId ?? id,
+              readingOrder: (element['readingOrder'] as num?)?.toInt() ?? words.length,
               box: PageBox(left, top, xs.reduce(max) - left, ys.reduce(max) - top)));
         }
       }

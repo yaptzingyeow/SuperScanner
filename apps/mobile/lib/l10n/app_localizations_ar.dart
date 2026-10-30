@@ -509,6 +509,30 @@ class AppLocalizationsAr extends AppLocalizations {
   String get moreOptions => 'خيارات أخرى';
 
   @override
+  String get selectOneLine =>
+      'يمكن استبدال الكلمات المتجاورة في سطر واحد فقط معًا، لذلك بدأ تحديد جديد.';
+
+  @override
+  String get errSelectionInvalid => 'اختر كلمات متجاورة في سطر واحد.';
+
+  @override
+  String get errSelectionUnsupported =>
+      'لا يمكن استبدال النص المكتوب بخط اليد. اختر كلمات مطبوعة.';
+
+  @override
+  String get hideEditor => 'إخفاء المحرر';
+
+  @override
+  String get showEditor => 'إظهار المحرر';
+
+  @override
+  String get panelTransparency => 'شفافية اللوحة';
+
+  @override
+  String get moveTextHint =>
+      'اسحب المربع لتحريك النص، أو اسحب زاويته لتغيير الحجم. النقر على الصفحة يحرّكه أيضًا.';
+
+  @override
   String get font => 'الخط';
 
   @override
