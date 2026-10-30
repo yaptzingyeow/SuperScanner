@@ -73,6 +73,9 @@ public sealed class BundledFontCatalogueTests
             "noto-naskh-arabic", "noto-sans-bengali", "noto-sans-devanagari", "noto-sans-hebrew", "noto-sans-jp",
             "noto-sans-kr", "noto-sans-sc", "noto-sans-tamil", "noto-sans-tc", "noto-sans-thai",
             "open-sans", "oswald", "poppins", "roboto", "source-sans-3", "source-serif-4",
+            "allura", "architects-daughter", "covered-by-your-grace", "gloria-hallelujah", "gochi-hand",
+            "great-vibes", "indie-flower", "kalam", "kaushan-script", "patrick-hand", "sacramento",
+            "shadows-into-light",
         };
         Assert.Equal(expected.Order(StringComparer.Ordinal), actual);
     }

@@ -9,15 +9,16 @@ public sealed class DocumentNotFoundException() : Exception("Document not found.
 /// <summary>Deletes a document the owner no longer wants (soft removal, like retention, so support can restore it).</summary>
 public sealed class DeleteDocument(IDocumentRepository documents, IClock clock, IAuditWriter audit)
 {
-    public async Task HandleAsync(string ownerUid, Guid documentId, CancellationToken ct)
+    /// <param name="savedToDevice">The owner kept the document on their phone: skip the bin and purge it soon.</param>
+    public async Task HandleAsync(string ownerUid, Guid documentId, CancellationToken ct, bool savedToDevice = false)
     {
         await using var transaction = await documents.BeginTransactionAsync(ct);
         var document = await documents.FindOwnedForUpdateAsync(ownerUid, documentId, ct)
             ?? throw new DocumentNotFoundException();
         var now = clock.UtcNow;
-        document.Remove(Document.UserDeletedReason, now);
+        document.Remove(savedToDevice ? Document.SavedToDeviceReason : Document.UserDeletedReason, now);
         await audit.AppendAsync(new AuditWriteRequest(ownerUid, "document.deleted", "document", document.Id,
-            "{}", now), ct);
+            savedToDevice ? """{"savedToDevice":true}""" : "{}", now), ct);
         await documents.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
     }

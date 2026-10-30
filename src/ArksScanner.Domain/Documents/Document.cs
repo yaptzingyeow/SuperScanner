@@ -40,6 +40,9 @@ public sealed class Document
     /// <summary>Reason recorded when the owner deletes a document; only these can be restored from the bin.</summary>
     public const string UserDeletedReason = "user_deleted";
 
+    /// <summary>Reason recorded when the owner kept the document on their phone; purged on the next run, no bin.</summary>
+    public const string SavedToDeviceReason = "saved_to_device";
+
     /// <summary>Brings an owner-deleted document back with the pages that were removed together with it.</summary>
     public void Restore(DateTimeOffset now)
     {

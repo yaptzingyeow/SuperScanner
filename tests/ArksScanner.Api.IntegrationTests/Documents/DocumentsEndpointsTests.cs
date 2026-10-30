@@ -149,6 +149,22 @@ public sealed class DocumentsEndpointsTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Document_saved_to_a_device_skips_the_bin_and_cannot_be_restored()
+    {
+        using var owner = CreateAuthenticatedClient("user-a");
+        var created = await (await owner.PostAsJsonAsync("/api/documents", new { title = "Receipt" }))
+            .Content.ReadFromJsonAsync<DocumentSummary>();
+
+        Assert.Equal(HttpStatusCode.NoContent,
+            (await owner.DeleteAsync($"/api/documents/{created!.Id}?savedToDevice=true")).StatusCode);
+
+        Assert.Empty((await owner.GetFromJsonAsync<List<DocumentSummary>>("/api/documents"))!);
+        Assert.Empty((await owner.GetFromJsonAsync<JsonElement>("/api/documents/bin")).EnumerateArray());
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await owner.PostAsync($"/api/documents/{created.Id}/restore", null)).StatusCode);
+    }
+
+    [Fact]
     public async Task Bin_hides_documents_past_30_days_and_documents_removed_by_retention()
     {
         var expired = Document.Create(Guid.NewGuid(), "user-a", "Expired", DateTimeOffset.UtcNow.AddDays(-40));

@@ -39,6 +39,23 @@ public sealed class DocumentPurgeTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Erases_documents_saved_to_a_device_on_the_next_run_without_waiting_for_the_window()
+    {
+        var saved = await SeedEditedDocumentAsync("saved", deletedAt: Now.AddMinutes(-5),
+            reason: Document.SavedToDeviceReason);
+        var inBin = await SeedEditedDocumentAsync("in-bin", deletedAt: Now.AddMinutes(-5));
+
+        await using (var db = Db())
+            Assert.Equal(1, await Purge(db).RunAsync(default));
+
+        await using var reader = Db();
+        Assert.Equal(inBin, Assert.Single(await reader.Documents.IgnoreQueryFilters().Select(d => d.Id).ToListAsync()));
+        Assert.Empty(await reader.Pages.IgnoreQueryFilters().Where(p => p.DocumentId == saved).ToListAsync());
+        Assert.Contains("saved/source.jpg", store.Deleted);
+        Assert.DoesNotContain(store.Deleted, key => !key.StartsWith("saved/", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task Nothing_to_purge_is_a_no_op()
     {
         await SeedEditedDocumentAsync("live", deletedAt: null);
@@ -50,7 +67,8 @@ public sealed class DocumentPurgeTests : IAsyncLifetime
     private DocumentPurge Purge(AppDbContext db) =>
         new(db, store, new FixedClock(), NullLogger<DocumentPurge>.Instance, purgeAfterDays: 30);
 
-    private async Task<Guid> SeedEditedDocumentAsync(string prefix, DateTimeOffset? deletedAt)
+    private async Task<Guid> SeedEditedDocumentAsync(string prefix, DateTimeOffset? deletedAt,
+        string reason = Document.UserDeletedReason)
     {
         await using var db = Db();
         var created = Now.AddDays(-60);
@@ -82,7 +100,7 @@ public sealed class DocumentPurgeTests : IAsyncLifetime
         if (deletedAt is { } at)
         {
             var tracked = await db.Documents.Include(d => d.Pages).SingleAsync(d => d.Id == document.Id);
-            tracked.Remove(Document.UserDeletedReason, at);
+            tracked.Remove(reason, at);
             await db.SaveChangesAsync();
         }
         return document.Id;

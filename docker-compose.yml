@@ -34,8 +34,8 @@ services:
     networks: [private]
 
   minio:
-    image: minio/minio:latest
-    command: server /data --console-address ":9001"
+    # MinIO stopped publishing public images; use Bitnami's archived build.
+    image: bitnamilegacy/minio:2025.4.22
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-arksscanner_local}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-arksscanner_local_only_password}
@@ -43,7 +43,7 @@ services:
       - "127.0.0.1:${MINIO_API_PORT:-9000}:9000"
       - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
     volumes:
-      - minio-data:/data
+      - minio-data:/bitnami/minio/data
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 5s
@@ -52,7 +52,7 @@ services:
     networks: [private]
 
   minio-init:
-    image: minio/mc:latest
+    image: bitnamilegacy/minio-client:2025.4.16
     depends_on:
       minio:
         condition: service_healthy
@@ -64,7 +64,7 @@ services:
       - /bin/sh
       - -ec
       - >-
-        mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}";
+        until mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}"; do sleep 2; done;
         mc mb --ignore-existing "local/$${MINIO_BUCKET}";
         exec tail -f /dev/null
     networks: [private]

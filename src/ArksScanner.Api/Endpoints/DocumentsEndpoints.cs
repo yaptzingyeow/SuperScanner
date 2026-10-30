@@ -26,9 +26,9 @@ public static class DocumentsEndpoints
             catch (PlanLimitExceededException limit) { return PlanProblem.From(limit); }
         });
         group.MapDelete("/{documentId:guid}", async (Guid documentId, ICurrentUser user, DeleteDocument delete,
-            CancellationToken ct) =>
+            CancellationToken ct, bool savedToDevice = false) =>
         {
-            try { await delete.HandleAsync(user.FirebaseUid, documentId, ct); return Results.NoContent(); }
+            try { await delete.HandleAsync(user.FirebaseUid, documentId, ct, savedToDevice); return Results.NoContent(); }
             catch (DocumentNotFoundException) { return Results.NotFound(); }
         });
         group.MapPatch("/{documentId:guid}", async (Guid documentId, CreateDocumentRequest request, ICurrentUser user,

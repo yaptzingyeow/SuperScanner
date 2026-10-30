@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using ArksScanner.Application.Abstractions;
+using ArksScanner.Domain.Documents;
 using ArksScanner.Infrastructure.Persistence;
 
 namespace ArksScanner.Infrastructure.Processing;
@@ -19,8 +20,10 @@ public sealed class DocumentPurge(AppDbContext db, IObjectStore store, IClock cl
     public async Task<int> RunAsync(CancellationToken ct)
     {
         var cutoff = clock.UtcNow.AddDays(-purgeAfterDays);
+        // Documents the owner saved to their phone have no bin, so they go on the next run.
         var due = await db.Documents.IgnoreQueryFilters().AsNoTracking()
-            .Where(d => d.RemovedAt != null && d.RemovedAt <= cutoff)
+            .Where(d => d.RemovedAt != null &&
+                (d.RemovedAt <= cutoff || d.RemovedReason == Document.SavedToDeviceReason))
             .OrderBy(d => d.RemovedAt).Select(d => d.Id).Take(BatchSize).ToListAsync(ct);
         var purged = 0;
         foreach (var id in due)
