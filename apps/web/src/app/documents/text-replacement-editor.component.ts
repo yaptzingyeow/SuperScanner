@@ -86,6 +86,10 @@ export class TextReplacementEditorComponent implements OnInit, OnDestroy {
   readonly selectedWebFamily = computed(() => this.fontFaces().find((face) =>
     face.catalogueId === this.style()?.fontId && face.version === this.style()?.fontVersion)
     ?.webFamilyName ?? null);
+  /** Weight of the real face being drawn; heavier chosen weights are thickened from it. */
+  readonly selectedFaceWeight = computed(() => this.fontFaces().find((face) =>
+    face.catalogueId === this.style()?.fontId && face.version === this.style()?.fontVersion)
+    ?.weight ?? null);
   protected fontsInCategory(category: FontFaceEntry['category']): FontFaceEntry[] {
     return this.visibleFontFamilies().filter((face) => face.category === category);
   }

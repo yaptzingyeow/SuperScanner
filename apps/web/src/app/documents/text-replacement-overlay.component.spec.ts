@@ -89,6 +89,17 @@ describe('TextReplacementOverlayComponent', () => {
     expect(letters.style.transform).toBe('translateY(-75%)');
   });
 
+  it('thickens a weight heavier than the real face like the server synthetic bold', () => {
+    const { fixture, root } = setup();
+    const letters = root.querySelector('.replacement-text') as HTMLElement;
+    fixture.componentRef.setInput('faceWeight', 400);
+    fixture.detectChanges();
+    expect(letters.style.getPropertyValue('-webkit-text-stroke')).toBe('');
+    fixture.componentRef.setInput('style', { ...fixture.componentInstance.style(), weight: 700 });
+    fixture.detectChanges();
+    expect(letters.style.getPropertyValue('-webkit-text-stroke')).toContain('0.054em');
+  });
+
   it('uses the current surface size for the next drag after a responsive resize', () => {
     const { root, boxes } = setup();
     Object.defineProperty(root, 'getBoundingClientRect', { configurable: true,

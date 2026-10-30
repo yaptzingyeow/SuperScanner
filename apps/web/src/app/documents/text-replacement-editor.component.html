@@ -49,7 +49,7 @@
             <app-text-replacement-overlay
               [style.pointer-events]="spaceHeld() ? 'none' : null"
               [box]="box()" [text]="replacement()" [style]="chosenStyle"
-              [selectedWebFamily]="selectedWebFamily()"
+              [selectedWebFamily]="selectedWebFamily()" [faceWeight]="selectedFaceWeight()"
               [originalPolygon]="selection().polygon"
               [hideOriginal]="hideOriginal()"
               [otherPolygons]="otherPolygons()"

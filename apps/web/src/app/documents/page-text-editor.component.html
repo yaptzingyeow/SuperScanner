@@ -119,7 +119,7 @@
             @if (inlineEditor(); as ed) {
               @if (!ed.previewUrl() && ed.style(); as chosenStyle) {
                 <app-text-replacement-overlay [box]="ed.box()" [text]="ed.replacement()" [style]="chosenStyle"
-                  [selectedWebFamily]="ed.selectedWebFamily()" [originalPolygon]="[]" [editableText]="true"
+                  [selectedWebFamily]="ed.selectedWebFamily()" [faceWeight]="ed.selectedFaceWeight()" [originalPolygon]="[]" [editableText]="true"
                   [style.pointer-events]="spaceHeld() ? 'none' : null"
                   (boxChange)="ed.updateBox($event)" (textChange)="ed.updateText($event)" />
               }

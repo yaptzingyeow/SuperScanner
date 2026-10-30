@@ -17,6 +17,7 @@
         (pointerdown)="$event.stopPropagation()" (keydown)="$event.stopPropagation()"
         [style.font-family]="fontFamily()"
         [style.color]="style().colorHex" [style.font-weight]="style().weight"
+        [style.-webkit-text-stroke]="syntheticStroke()"
         [style.text-decoration]="style().strikethrough ? 'line-through' : null"
         [style.font-size]="'calc(' + (style().fontSize * 100) + 'cqh)'"
         [style.letter-spacing.em]="style().letterSpacing"
@@ -24,6 +25,7 @@
     } @else {
     <span class="replacement-text" [style.font-family]="fontFamily()"
       [style.color]="style().colorHex" [style.font-weight]="style().weight"
+      [style.-webkit-text-stroke]="syntheticStroke()"
       [style.text-decoration]="style().strikethrough ? 'line-through' : null"
       [style.font-size]="'calc(' + (style().fontSize * 100) + 'cqh)'"
       [style.letter-spacing.em]="style().letterSpacing"

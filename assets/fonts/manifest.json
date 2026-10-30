@@ -1238,6 +1238,266 @@
         "Beng"
       ],
       "webDelivery": "api"
+    },
+    {
+      "catalogueId": "kalam",
+      "version": "gfonts-23e54b51-regular",
+      "displayName": "Kalam Regular",
+      "familyName": "Kalam",
+      "category": "Handwriting",
+      "weight": 400,
+      "style": "Normal",
+      "webFamilyName": "ArksScanner Kalam v1",
+      "selectableForNewEdits": true,
+      "assetSha256Hex": "57cecb63d4608019371954274ae1d8c397764debd5b19d4a33c1efa4dc923c0b",
+      "licenseIdentifier": "OFL-1.1",
+      "licenseNoticePath": "assets/fonts/licenses/kalam-OFL.txt",
+      "webAssetPath": "assets/fonts/Kalam-Regular.ttf",
+      "rendererAssetPath": "assets/fonts/Kalam-Regular.ttf",
+      "enabled": true,
+      "scripts": [
+        "Latn"
+      ]
+    },
+    {
+      "catalogueId": "kalam",
+      "version": "gfonts-23e54b51-bold",
+      "displayName": "Kalam Bold",
+      "familyName": "Kalam",
+      "category": "Handwriting",
+      "weight": 700,
+      "style": "Normal",
+      "webFamilyName": "ArksScanner Kalam v1",
+      "selectableForNewEdits": true,
+      "assetSha256Hex": "2f6576601db015d4f6c08678120277fc8510b98c06e932ce7a6a9cbff4cbdded",
+      "licenseIdentifier": "OFL-1.1",
+      "licenseNoticePath": "assets/fonts/licenses/kalam-OFL.txt",
+      "webAssetPath": "assets/fonts/Kalam-Bold.ttf",
+      "rendererAssetPath": "assets/fonts/Kalam-Bold.ttf",
+      "enabled": true,
+      "scripts": [
+        "Latn"
+      ]
+    },
+    {
+      "catalogueId": "patrick-hand",
+      "version": "gfonts-23e54b51-regular",
+      "displayName": "Patrick Hand Regular",
+      "familyName": "Patrick Hand",
+      "category": "Handwriting",
+      "weight": 400,
+      "style": "Normal",
+      "webFamilyName": "ArksScanner Patrick Hand v1",
+      "selectableForNewEdits": true,
+      "assetSha256Hex": "0f173b3e6cb6d1af25babf7f0057c5ac4ee11f9992b0469bb817e967ef4ad0fc",
+      "licenseIdentifier": "OFL-1.1",
+      "licenseNoticePath": "assets/fonts/licenses/patrick-hand-OFL.txt",
+      "webAssetPath": "assets/fonts/PatrickHand-Regular.ttf",
+      "rendererAssetPath": "assets/fonts/PatrickHand-Regular.ttf",
+      "enabled": true,
+      "scripts": [
+        "Latn"
+      ]
+    },
+    {
+      "catalogueId": "indie-flower",
+      "version": "gfonts-23e54b51-regular",
+      "displayName": "Indie Flower Regular",
+      "familyName": "Indie Flower",
+      "category": "Handwriting",
+      "weight": 400,
+      "style": "Normal",
+      "webFamilyName": "ArksScanner Indie Flower v1",
+      "selectableForNewEdits": true,
+      "assetSha256Hex": "ccc94b22b156e9c5dfe50fd051f01b097600b252c24473e624bb43a143140a94",
+      "licenseIdentifier": "OFL-1.1",
+      "licenseNoticePath": "assets/fonts/licenses/indie-flower-OFL.txt",
+      "webAssetPath": "assets/fonts/IndieFlower-Regular.ttf",
+      "rendererAssetPath": "assets/fonts/IndieFlower-Regular.ttf",
+      "enabled": true,
+      "scripts": [
+        "Latn"
+      ]
+    },
+    {
+      "catalogueId": "shadows-into-light",
+      "version": "gfonts-23e54b51-regular",
+      "displayName": "Shadows Into Light Regular",
+      "familyName": "Shadows Into Light",
+      "category": "Handwriting",
+      "weight": 400,
+      "style": "Normal",
+      "webFamilyName": "ArksScanner Shadows Into Light v1",
+      "selectableForNewEdits": true,
+      "assetSha256Hex": "1347863151acdc00fa281daaba1a3543dbce5870b55f9cf7479a15bb84007681",
+      "licenseIdentifier": "OFL-1.1",
+      "licenseNoticePath": "assets/fonts/licenses/shadows-into-light-OFL.txt",
+      "webAssetPath": "assets/fonts/ShadowsIntoLight-Regular.ttf",
+      "rendererAssetPath": "assets/fonts/ShadowsIntoLight-Regular.ttf",
+      "enabled": true,
+      "scripts": [
+        "Latn"
+      ]
+    },
+    {
+      "catalogueId": "gloria-hallelujah",
+      "version": "gfonts-23e54b51-regular",
+      "displayName": "Gloria Hallelujah Regular",
+      "familyName": "Gloria Hallelujah",
+      "category": "Handwriting",
+      "weight": 400,
+      "style": "Normal",
+      "webFamilyName": "ArksScanner Gloria Hallelujah v1",
+      "selectableForNewEdits": true,
+      "assetSha256Hex": "eb59f2762ce8785a292bebb2af3b3e6aa21454913d791f5f25441d1d57ead9fc",
+      "licenseIdentifier": "OFL-1.1",
+      "licenseNoticePath": "assets/fonts/licenses/gloria-hallelujah-OFL.txt",
+      "webAssetPath": "assets/fonts/GloriaHallelujah-Regular.ttf",
+      "rendererAssetPath": "assets/fonts/GloriaHallelujah-Regular.ttf",
+      "enabled": true,
+      "scripts": [
+        "Latn"
+      ]
+    },
+    {
+      "catalogueId": "architects-daughter",
+      "version": "gfonts-23e54b51-regular",
+      "displayName": "Architects Daughter Regular",
+      "familyName": "Architects Daughter",
+      "category": "Handwriting",
+      "weight": 400,
+      "style": "Normal",
+      "webFamilyName": "ArksScanner Architects Daughter v1",
+      "selectableForNewEdits": true,
+      "assetSha256Hex": "6159718a08898e34bc1cb7354086141a5f9a70b73e54dbec27ead0d59a697359",
+      "licenseIdentifier": "OFL-1.1",
+      "licenseNoticePath": "assets/fonts/licenses/architects-daughter-OFL.txt",
+      "webAssetPath": "assets/fonts/ArchitectsDaughter-Regular.ttf",
+      "rendererAssetPath": "assets/fonts/ArchitectsDaughter-Regular.ttf",
+      "enabled": true,
+      "scripts": [
+        "Latn"
+      ]
+    },
+    {
+      "catalogueId": "gochi-hand",
+      "version": "gfonts-23e54b51-regular",
+      "displayName": "Gochi Hand Regular",
+      "familyName": "Gochi Hand",
+      "category": "Handwriting",
+      "weight": 400,
+      "style": "Normal",
+      "webFamilyName": "ArksScanner Gochi Hand v1",
+      "selectableForNewEdits": true,
+      "assetSha256Hex": "c46b029ab4846b2935e301af0b2cf85a1d74d2858e6a33636a3e64cf3cc4696b",
+      "licenseIdentifier": "OFL-1.1",
+      "licenseNoticePath": "assets/fonts/licenses/gochi-hand-OFL.txt",
+      "webAssetPath": "assets/fonts/GochiHand-Regular.ttf",
+      "rendererAssetPath": "assets/fonts/GochiHand-Regular.ttf",
+      "enabled": true,
+      "scripts": [
+        "Latn"
+      ]
+    },
+    {
+      "catalogueId": "covered-by-your-grace",
+      "version": "gfonts-23e54b51-regular",
+      "displayName": "Covered By Your Grace Regular",
+      "familyName": "Covered By Your Grace",
+      "category": "Handwriting",
+      "weight": 400,
+      "style": "Normal",
+      "webFamilyName": "ArksScanner Covered By Your Grace v1",
+      "selectableForNewEdits": true,
+      "assetSha256Hex": "8a7e5687a4f9aad95243eb28cdc624009a335e0de5175113bc5f1348a4d67fd7",
+      "licenseIdentifier": "OFL-1.1",
+      "licenseNoticePath": "assets/fonts/licenses/covered-by-your-grace-OFL.txt",
+      "webAssetPath": "assets/fonts/CoveredByYourGrace-Regular.ttf",
+      "rendererAssetPath": "assets/fonts/CoveredByYourGrace-Regular.ttf",
+      "enabled": true,
+      "scripts": [
+        "Latn"
+      ]
+    },
+    {
+      "catalogueId": "great-vibes",
+      "version": "gfonts-23e54b51-regular",
+      "displayName": "Great Vibes Regular",
+      "familyName": "Great Vibes",
+      "category": "Handwriting",
+      "weight": 400,
+      "style": "Normal",
+      "webFamilyName": "ArksScanner Great Vibes v1",
+      "selectableForNewEdits": true,
+      "assetSha256Hex": "8d509802186f1b51572531ecf313e8098f9a5bfdfaca93f0c9b34467f9982d15",
+      "licenseIdentifier": "OFL-1.1",
+      "licenseNoticePath": "assets/fonts/licenses/great-vibes-OFL.txt",
+      "webAssetPath": "assets/fonts/GreatVibes-Regular.ttf",
+      "rendererAssetPath": "assets/fonts/GreatVibes-Regular.ttf",
+      "enabled": true,
+      "scripts": [
+        "Latn"
+      ]
+    },
+    {
+      "catalogueId": "sacramento",
+      "version": "gfonts-23e54b51-regular",
+      "displayName": "Sacramento Regular",
+      "familyName": "Sacramento",
+      "category": "Handwriting",
+      "weight": 400,
+      "style": "Normal",
+      "webFamilyName": "ArksScanner Sacramento v1",
+      "selectableForNewEdits": true,
+      "assetSha256Hex": "9341fda10adbfeb7efc94302b34507a3e227d7e7f5c432df3f5ac8753ff73d24",
+      "licenseIdentifier": "OFL-1.1",
+      "licenseNoticePath": "assets/fonts/licenses/sacramento-OFL.txt",
+      "webAssetPath": "assets/fonts/Sacramento-Regular.ttf",
+      "rendererAssetPath": "assets/fonts/Sacramento-Regular.ttf",
+      "enabled": true,
+      "scripts": [
+        "Latn"
+      ]
+    },
+    {
+      "catalogueId": "allura",
+      "version": "gfonts-23e54b51-regular",
+      "displayName": "Allura Regular",
+      "familyName": "Allura",
+      "category": "Handwriting",
+      "weight": 400,
+      "style": "Normal",
+      "webFamilyName": "ArksScanner Allura v1",
+      "selectableForNewEdits": true,
+      "assetSha256Hex": "9c142b2e515832c0dfc4ff8b8ea18f40314943bf937b72e2b23c4661bac14cc6",
+      "licenseIdentifier": "OFL-1.1",
+      "licenseNoticePath": "assets/fonts/licenses/allura-OFL.txt",
+      "webAssetPath": "assets/fonts/Allura-Regular.ttf",
+      "rendererAssetPath": "assets/fonts/Allura-Regular.ttf",
+      "enabled": true,
+      "scripts": [
+        "Latn"
+      ]
+    },
+    {
+      "catalogueId": "kaushan-script",
+      "version": "gfonts-23e54b51-regular",
+      "displayName": "Kaushan Script Regular",
+      "familyName": "Kaushan Script",
+      "category": "Handwriting",
+      "weight": 400,
+      "style": "Normal",
+      "webFamilyName": "ArksScanner Kaushan Script v1",
+      "selectableForNewEdits": true,
+      "assetSha256Hex": "6d8d379d9bba98178bee476d68114c8f83812c18005ecccf679e70f60e03d8f6",
+      "licenseIdentifier": "OFL-1.1",
+      "licenseNoticePath": "assets/fonts/licenses/kaushan-script-OFL.txt",
+      "webAssetPath": "assets/fonts/KaushanScript-Regular.ttf",
+      "rendererAssetPath": "assets/fonts/KaushanScript-Regular.ttf",
+      "enabled": true,
+      "scripts": [
+        "Latn"
+      ]
     }
   ]
 }

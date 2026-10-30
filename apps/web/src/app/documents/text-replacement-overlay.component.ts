@@ -4,6 +4,8 @@ import { OcrPoint } from './document.models';
 import { TextEditBox, TextEditStyle } from './text-edit.models';
 
 type Handle = 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw';
+/** Matches MagickTextLayout.SyntheticStrokePerStep on the server. */
+const SYNTHETIC_STROKE_PER_STEP = .009;
 type Gesture = { pointerId: number; kind: 'move' | Handle; origin: TextEditBox;
   startX: number; startY: number };
 
@@ -19,6 +21,8 @@ export class TextReplacementOverlayComponent implements OnChanges {
   readonly text = input.required<string>();
   readonly style = input.required<TextEditStyle>();
   readonly selectedWebFamily = input<string | null>(null);
+  /** Weight of the real face drawn; a heavier chosen weight is thickened like the server render. */
+  readonly faceWeight = input<number | null>(null);
   readonly originalPolygon = input.required<OcrPoint[]>();
   readonly otherPolygons = input<OcrPoint[][]>([]);
   readonly hideOriginal = input(false);
@@ -44,6 +48,12 @@ export class TextReplacementOverlayComponent implements OnChanges {
   }));
   protected readonly fontFamily = computed(() => this.selectedWebFamily() ??
     (this.style().fontId === 'noto-serif' ? 'ArksScanner Noto Serif v1' : 'ArksScanner Noto Sans v1'));
+  /** Synthetic bold as the server draws it: outline 2 × 0.009 em per 100 of weight above the real face. */
+  protected readonly syntheticStroke = computed(() => {
+    const face = this.faceWeight();
+    const steps = face ? Math.max(0, Math.floor((this.style().weight - face) / 100)) : 0;
+    return steps > 0 ? `${(2 * SYNTHETIC_STROKE_PER_STEP * steps).toFixed(3)}em ${this.style().colorHex}` : null;
+  });
   protected readonly sourceArea = computed(() => {
     const points = this.originalPolygon();
     const left = Math.min(...points.map((point) => point.x));
