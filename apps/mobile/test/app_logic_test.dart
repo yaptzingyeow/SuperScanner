@@ -6,8 +6,11 @@ import 'package:arks_scanner/api/api_client.dart';
 import 'package:arks_scanner/api/models.dart';
 import 'package:arks_scanner/services/export_service.dart';
 import 'package:arks_scanner/services/local_store.dart';
+import 'package:arks_scanner/l10n/app_localizations.dart';
 import 'package:arks_scanner/services/upload_service.dart';
+import 'package:arks_scanner/ui/common.dart';
 import 'package:crypto/crypto.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -142,6 +145,24 @@ void main() {
     });
   });
 
+  testWidgets('error messages say what went wrong and carry a code to report', (tester) async {
+    late BuildContext context;
+    await tester.pumpWidget(MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: Builder(builder: (c) {
+        context = c;
+        return const SizedBox();
+      }),
+    ));
+    expect(friendlyError(context, const ApiException(422, 'text_selection_invalid')),
+        'Choose neighbouring words on one line.\nError code: text_selection_invalid · HTTP 422');
+    expect(friendlyError(context, const ApiException(404)), startsWith('This document or page no longer exists.'));
+    expect(friendlyError(context, const SocketException('down')),
+        "Can't reach the server. Check your internet connection and try again.\nError code: SocketException");
+    expect(friendlyError(context, const ApiException(503)), endsWith('Error code: HTTP 503'));
+  });
+
   group('models', () {
     test('a document is busy while pages or imports are still processing', () {
       final ready = DocumentDetail.fromJson(_detail(pages: [_page('a', 0)]));
@@ -153,6 +174,14 @@ void main() {
       expect(ready.isBusy, isFalse);
       expect(cropping.isBusy, isTrue);
       expect(importing.isBusy, isTrue);
+    });
+
+    test('finished imports ("Completed" on the document endpoint) and pages awaiting a crop do not block export', () {
+      Map<String, dynamic> import(String state) => {'uploadId': 'u', 'state': state, 'discoveredPageCount': 1,
+          'createdPageCount': 1, 'failedPageCount': 0};
+      expect(DocumentDetail.fromJson(_detail(pages: [_page('a', 0)], imports: [import('Completed')])).isBusy, isFalse);
+      expect(DocumentDetail.fromJson(_detail(pages: [_page('a', 0)], imports: [import('Failed')])).isBusy, isFalse);
+      expect(DocumentDetail.fromJson(_detail(pages: [_page('a', 0, state: 'NeedsCrop')])).isBusy, isFalse);
     });
 
     test('pages are ordered by position', () {

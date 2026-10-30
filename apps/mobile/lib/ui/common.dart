@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -22,7 +23,8 @@ extension L10nContext on BuildContext {
   AppLocalizations get l => AppLocalizations.of(this);
 }
 
-/// Plain-language message for an error, never exposing internals.
+/// Plain-language message for an error, followed by a short code (server code and HTTP status, or
+/// the error type) that users can quote when reporting it. Never includes tokens, URLs or file contents.
 String friendlyError(BuildContext context, Object error) {
   final l = context.l;
   final code = switch (error) {
@@ -30,6 +32,16 @@ String friendlyError(BuildContext context, Object error) {
     UploadException(:final code) => code,
     _ => null,
   };
+  final status = error is ApiException ? error.statusCode : null;
+  final offline = error is SocketException || error is HttpException || error is HandshakeException ||
+      error is TimeoutException || error.runtimeType.toString() == 'ClientException';
+  final message = offline ? l.errNoConnection : _messageFor(l, code, status);
+  final detail = [?code, if (status != null) 'HTTP $status', if (code == null && status == null) error.runtimeType.toString()]
+      .join(' · ');
+  return '$message\n${l.errorCode(detail)}';
+}
+
+String _messageFor(AppLocalizations l, String? code, int? status) {
   return switch (code) {
     'plan_limit_reached' => l.errLimit,
     'unsupported_type' => l.errType,
@@ -53,7 +65,17 @@ String friendlyError(BuildContext context, Object error) {
     'repair_failed' => l.errRepairFailed,
     'signature_no_ink' => l.errSignatureNoInk,
     'signature_invalid_image' || 'signature_too_large' || 'signature_png_required' => l.errSignatureImage,
-    _ => error is ApiException && error.statusCode >= 500 ? l.errServer : l.errGeneric,
+    _ => switch (status) {
+        401 => l.errSignedOut,
+        403 => l.errForbidden,
+        404 => l.errNotFound,
+        409 => l.errStale,
+        413 => l.errTooLarge,
+        422 || 400 => l.errRejected,
+        429 => l.errTooMany,
+        final int s when s >= 500 => l.errServer,
+        _ => l.errGeneric,
+      },
   };
 }
 

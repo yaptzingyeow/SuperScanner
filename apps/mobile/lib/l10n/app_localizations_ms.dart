@@ -323,6 +323,31 @@ class AppLocalizationsMs extends AppLocalizations {
   String get errGeneric => 'Ada masalah. Sila cuba lagi.';
 
   @override
+  String get errNoConnection =>
+      'Tidak dapat menghubungi pelayan. Semak sambungan internet anda dan cuba lagi.';
+
+  @override
+  String get errForbidden =>
+      'Pelayan menolak permintaan ini. Log keluar dan masuk semula; jika berterusan, binaan aplikasi ini mungkin tidak disahkan.';
+
+  @override
+  String get errNotFound =>
+      'Dokumen atau halaman ini sudah tiada. Kembali dan muat semula.';
+
+  @override
+  String get errRejected =>
+      'Pelayan tidak dapat menerima perubahan ini. Cuba pilihan atau tetapan lain.';
+
+  @override
+  String get errTooMany =>
+      'Terlalu banyak permintaan serentak. Tunggu sebentar dan cuba lagi.';
+
+  @override
+  String errorCode(String detail) {
+    return 'Kod ralat: $detail';
+  }
+
+  @override
   String get errOverflow => 'Teks tidak muat. Pendekkan atau kecilkan teks.';
 
   @override

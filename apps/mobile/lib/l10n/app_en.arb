@@ -108,6 +108,17 @@
   "errAppCheck": "This app could not be verified. Update the app and try again.",
   "errServer": "Something went wrong on our side. Please try again.",
   "errGeneric": "Something went wrong. Please try again.",
+  "errNoConnection": "Can't reach the server. Check your internet connection and try again.",
+  "errForbidden": "The server refused this request. Sign out and in again; if it continues, this app build may not be verified.",
+  "errNotFound": "This document or page no longer exists. Go back and refresh.",
+  "errRejected": "The server couldn't accept this change. Try a different selection or setting.",
+  "errTooMany": "Too many requests at once. Wait a moment and try again.",
+  "errorCode": "Error code: {detail}",
+  "@errorCode": {
+    "placeholders": {
+      "detail": {"type": "String"}
+    }
+  },
   "errOverflow": "The text does not fit. Shorten it or make the text smaller.",
   "errUnsafeBackground": "This area has a pattern or photo behind the text, so it cannot be replaced cleanly.",
   "errOverlap": "The new text would cover other text. Move it or make it smaller.",

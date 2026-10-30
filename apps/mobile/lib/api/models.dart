@@ -45,6 +45,8 @@ class DocumentPage {
 
   static const _busyCrop = {'Detecting', 'Processing'};
 
+  bool get isProcessing => state == 'Importing' || state == 'Processing' || _busyCrop.contains(cropStatus);
+
   factory DocumentPage.fromJson(Map<String, dynamic> json) => DocumentPage(
         id: json['id'] as String,
         position: (json['position'] as num).toInt(),
@@ -71,8 +73,9 @@ class DocumentImport {
   final int failedPageCount;
   final String? errorCode;
 
+  /// The document endpoint reports a fully expanded import as "Completed" and an expansion error as "Failed".
   bool get isFinished =>
-      state == 'Rejected' || errorCode != null ||
+      state == 'Completed' || state == 'Failed' || state == 'Rejected' || errorCode != null ||
       (state == 'Accepted' && discoveredPageCount > 0 && createdPageCount + failedPageCount == discoveredPageCount);
 
   factory DocumentImport.fromJson(Map<String, dynamic> json) => DocumentImport(
@@ -99,7 +102,8 @@ class DocumentDetail {
   final List<DocumentImport> imports;
 
   /// Still importing or processing: keep polling.
-  bool get isBusy => imports.any((item) => !item.isFinished) || pages.any((page) => !page.isSettled && !page.isFailed);
+  /// The server is still working on it. A page waiting for the user (NeedsCrop) does not count: export leaves it out.
+  bool get isBusy => imports.any((item) => !item.isFinished) || pages.any((page) => page.isProcessing);
 
   factory DocumentDetail.fromJson(Map<String, dynamic> json) => DocumentDetail(
         id: json['id'] as String,

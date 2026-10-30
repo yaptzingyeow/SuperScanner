@@ -321,6 +321,31 @@ class AppLocalizationsAr extends AppLocalizations {
   String get errGeneric => 'حدث خطأ ما. حاول مرة أخرى.';
 
   @override
+  String get errNoConnection =>
+      'تعذر الوصول إلى الخادم. تحقق من اتصال الإنترنت وحاول مرة أخرى.';
+
+  @override
+  String get errForbidden =>
+      'رفض الخادم هذا الطلب. سجّل الخروج ثم الدخول مرة أخرى؛ وإذا استمر ذلك فقد لا يكون إصدار التطبيق هذا موثّقًا.';
+
+  @override
+  String get errNotFound =>
+      'لم يعد هذا المستند أو الصفحة موجودًا. ارجع وحدّث الصفحة.';
+
+  @override
+  String get errRejected =>
+      'تعذر على الخادم قبول هذا التغيير. جرّب تحديدًا أو إعدادًا آخر.';
+
+  @override
+  String get errTooMany =>
+      'طلبات كثيرة في الوقت نفسه. انتظر قليلًا وحاول مرة أخرى.';
+
+  @override
+  String errorCode(String detail) {
+    return 'رمز الخطأ: $detail';
+  }
+
+  @override
   String get errOverflow => 'النص لا يتسع. اختصره أو صغّر حجمه.';
 
   @override

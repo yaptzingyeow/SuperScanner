@@ -323,6 +323,31 @@ class AppLocalizationsEn extends AppLocalizations {
   String get errGeneric => 'Something went wrong. Please try again.';
 
   @override
+  String get errNoConnection =>
+      'Can\'t reach the server. Check your internet connection and try again.';
+
+  @override
+  String get errForbidden =>
+      'The server refused this request. Sign out and in again; if it continues, this app build may not be verified.';
+
+  @override
+  String get errNotFound =>
+      'This document or page no longer exists. Go back and refresh.';
+
+  @override
+  String get errRejected =>
+      'The server couldn\'t accept this change. Try a different selection or setting.';
+
+  @override
+  String get errTooMany =>
+      'Too many requests at once. Wait a moment and try again.';
+
+  @override
+  String errorCode(String detail) {
+    return 'Error code: $detail';
+  }
+
+  @override
   String get errOverflow =>
       'The text does not fit. Shorten it or make the text smaller.';
 

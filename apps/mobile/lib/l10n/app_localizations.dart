@@ -684,6 +684,42 @@ abstract class AppLocalizations {
   /// **'Something went wrong. Please try again.'**
   String get errGeneric;
 
+  /// No description provided for @errNoConnection.
+  ///
+  /// In en, this message translates to:
+  /// **'Can\'t reach the server. Check your internet connection and try again.'**
+  String get errNoConnection;
+
+  /// No description provided for @errForbidden.
+  ///
+  /// In en, this message translates to:
+  /// **'The server refused this request. Sign out and in again; if it continues, this app build may not be verified.'**
+  String get errForbidden;
+
+  /// No description provided for @errNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'This document or page no longer exists. Go back and refresh.'**
+  String get errNotFound;
+
+  /// No description provided for @errRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'The server couldn\'t accept this change. Try a different selection or setting.'**
+  String get errRejected;
+
+  /// No description provided for @errTooMany.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many requests at once. Wait a moment and try again.'**
+  String get errTooMany;
+
+  /// No description provided for @errorCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Error code: {detail}'**
+  String errorCode(String detail);
+
   /// No description provided for @errOverflow.
   ///
   /// In en, this message translates to:

@@ -311,6 +311,26 @@ class AppLocalizationsZh extends AppLocalizations {
   String get errGeneric => '出了点问题，请重试。';
 
   @override
+  String get errNoConnection => '无法连接服务器。请检查网络连接后重试。';
+
+  @override
+  String get errForbidden => '服务器拒绝了此请求。请退出后重新登录；如仍出现，此应用版本可能未通过验证。';
+
+  @override
+  String get errNotFound => '此文档或页面已不存在。请返回并刷新。';
+
+  @override
+  String get errRejected => '服务器无法接受此更改。请尝试其他选择或设置。';
+
+  @override
+  String get errTooMany => '请求过多。请稍等后重试。';
+
+  @override
+  String errorCode(String detail) {
+    return '错误代码：$detail';
+  }
+
+  @override
   String get errOverflow => '文字放不下。请缩短文字或调小字号。';
 
   @override
