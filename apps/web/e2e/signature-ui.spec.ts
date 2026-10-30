@@ -9,11 +9,23 @@ test('real canvas signature is transparent, movable, saved and editable after re
   let signatureBytes = Buffer.alloc(0);
   let savedBox: { x: number; y: number; width: number; height: number } | undefined;
   const scan = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jh1QAAAAASUVORK5CYII=', 'base64');
+  // Background removal runs on the server; stand in for it with a transparent or an opaque 20×8 PNG.
+  const [removedBackground, keptBackground] = (await page.evaluate(() => [false, true].map(opaque => {
+    const canvas = document.createElement('canvas'); canvas.width = 20; canvas.height = 8;
+    const context = canvas.getContext('2d')!;
+    if (opaque) { context.fillStyle = '#ffffff'; context.fillRect(0, 0, 20, 8); }
+    context.fillStyle = '#172033'; context.fillRect(3, 3, 14, 1);
+    return canvas.toDataURL('image/png').split(',')[1];
+  }))).map(base64 => Buffer.from(base64, 'base64'));
   await page.route('**/api/**', async route => {
     const url = new URL(route.request().url());
     const method = route.request().method();
     const fulfill = (body: unknown, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
     if (url.pathname === '/api/e2e/identity') return fulfill({ identityToken: 'local-test', appCheckToken: 'local-test' });
+    if (url.pathname.endsWith('/signatures/prepare') && method === 'POST') {
+      const keepOriginal = /name="keepOriginal"\r\n\r\ntrue/.test(route.request().postDataBuffer()!.toString('latin1'));
+      return route.fulfill({ contentType: 'image/png', body: keepOriginal ? keptBackground : removedBackground });
+    }
     if (url.pathname.endsWith('/signatures') && method === 'POST') {
       const body = route.request().postDataBuffer()!;
       const start = body.indexOf(Buffer.from([137,80,78,71,13,10,26,10]));
@@ -37,10 +49,7 @@ test('real canvas signature is transparent, movable, saved and editable after re
     return fulfill({}, 404);
   });
   const open = async () => {
-    await page.goto('/e2e-login?user=user-a');
-    await page.getByRole('link', { name: 'My documents' }).click();
-    await page.locator(`a[href="${documentPath}"]`).click();
-    await page.getByTestId('open-text-editor').click();
+    await page.goto(`/e2e-login?user=user-a&next=${encodeURIComponent(`${documentPath}/pages/${pageId}/text`)}`);
   };
   await open();
   await page.getByTestId('add-signature').click();

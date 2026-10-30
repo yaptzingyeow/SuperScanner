@@ -26,6 +26,8 @@ export class E2eLoginComponent implements OnInit {
     if (!response.ok) throw new Error('E2E identity fixture is unavailable.');
 
     this.identity.set((await response.json()) as E2eIdentityTokens);
-    await this.router.navigateByUrl('/');
+    // The identity lives in memory, so tests open deep links through here. Only same-app paths are followed.
+    const next = this.route.snapshot.queryParamMap.get('next') ?? '/';
+    await this.router.navigateByUrl(next.startsWith('/') && !next.startsWith('//') ? next : '/');
   }
 }

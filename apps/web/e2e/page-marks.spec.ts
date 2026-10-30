@@ -28,10 +28,7 @@ test('place, style, save, reload and undo a transparent tick without OCR', async
     return fulfill({}, 404);
   });
   const open = async () => {
-    await page.goto('/e2e-login?user=user-a');
-    await page.getByRole('link', { name: 'My documents' }).click();
-    await page.locator(`a[href="${documentPath}"]`).click();
-    await page.getByTestId('open-text-editor').click();
+    await page.goto(`/e2e-login?user=user-a&next=${encodeURIComponent(`${documentPath}/pages/${pageId}/text`)}`);
   };
   await open();
   await page.getByTestId('zoom-in').click();
