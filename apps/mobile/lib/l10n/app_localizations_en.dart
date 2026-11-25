@@ -282,7 +282,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get privacyBody =>
-      'Arks Scanner processes your documents privately to scan, clean up and export them. Read the full privacy notice on the Arks Scanner website.';
+      'Arks Scanner processes your documents privately to scan, clean up and export them. Free accounts can choose to watch Google video ads for extra pages; ads never see your documents. Read the full privacy notice on the Arks Scanner website.';
 
   @override
   String get iUnderstand => 'I understand';
@@ -321,6 +321,46 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get errGeneric => 'Something went wrong. Please try again.';
+
+  @override
+  String get adLimitTitle => 'Today\'s free text recognition is used up';
+
+  @override
+  String adLimitBody(int pages) {
+    return 'Watch a short video ad to get $pages more pages today.';
+  }
+
+  @override
+  String adRewardsLeft(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'You can do this $count more times today.',
+      one: 'You can do this 1 more time today.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get notNow => 'Not now';
+
+  @override
+  String get watchAd => 'Watch ad';
+
+  @override
+  String adRewardGranted(int pages) {
+    return '$pages more pages added for today.';
+  }
+
+  @override
+  String get adRewardPending =>
+      'Thanks! Your extra pages will be added in a moment. Try again shortly.';
+
+  @override
+  String get adNotFinished => 'Watch the whole ad to get the extra pages.';
+
+  @override
+  String get adsUnavailable => 'No ad is available right now. Try again later.';
 
   @override
   String get exportOptions => 'Export options';

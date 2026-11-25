@@ -45,6 +45,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<ArksScanner.Domain.Plans.PlanSettings> PlanSettings => Set<ArksScanner.Domain.Plans.PlanSettings>();
     public DbSet<ArksScanner.Domain.Plans.UsageDay> UsageDays => Set<ArksScanner.Domain.Plans.UsageDay>();
     public DbSet<ArksScanner.Domain.Plans.Payment> Payments => Set<ArksScanner.Domain.Plans.Payment>();
+    public DbSet<ArksScanner.Domain.Plans.AdReward> AdRewards => Set<ArksScanner.Domain.Plans.AdReward>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);

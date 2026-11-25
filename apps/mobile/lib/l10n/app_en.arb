@@ -95,7 +95,7 @@
   "deleteAccount": "Delete account",
 
   "privacyTitle": "Your privacy",
-  "privacyBody": "Arks Scanner processes your documents privately to scan, clean up and export them. Read the full privacy notice on the Arks Scanner website.",
+  "privacyBody": "Arks Scanner processes your documents privately to scan, clean up and export them. Free accounts can choose to watch Google video ads for extra pages; ads never see your documents. Read the full privacy notice on the Arks Scanner website.",
   "iUnderstand": "I understand",
 
   "errLimit": "You've reached today's free limit. Upgrade to Pro or try again tomorrow.",
@@ -108,6 +108,30 @@
   "errAppCheck": "This app could not be verified. Update the app and try again.",
   "errServer": "Something went wrong on our side. Please try again.",
   "errGeneric": "Something went wrong. Please try again.",
+  "adLimitTitle": "Today's free text recognition is used up",
+  "adLimitBody": "Watch a short video ad to get {pages} more pages today.",
+  "@adLimitBody": {
+    "placeholders": {
+      "pages": {"type": "int"}
+    }
+  },
+  "adRewardsLeft": "{count, plural, =1{You can do this 1 more time today.} other{You can do this {count} more times today.}}",
+  "@adRewardsLeft": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "notNow": "Not now",
+  "watchAd": "Watch ad",
+  "adRewardGranted": "{pages} more pages added for today.",
+  "@adRewardGranted": {
+    "placeholders": {
+      "pages": {"type": "int"}
+    }
+  },
+  "adRewardPending": "Thanks! Your extra pages will be added in a moment. Try again shortly.",
+  "adNotFinished": "Watch the whole ad to get the extra pages.",
+  "adsUnavailable": "No ad is available right now. Try again later.",
   "exportOptions": "Export options",
   "addWatermark": "Add a watermark",
   "watermarkSubtitle": "Stamp every page, e.g. “For government use only”.",

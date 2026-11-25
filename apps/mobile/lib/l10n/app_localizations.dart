@@ -615,7 +615,7 @@ abstract class AppLocalizations {
   /// No description provided for @privacyBody.
   ///
   /// In en, this message translates to:
-  /// **'Arks Scanner processes your documents privately to scan, clean up and export them. Read the full privacy notice on the Arks Scanner website.'**
+  /// **'Arks Scanner processes your documents privately to scan, clean up and export them. Free accounts can choose to watch Google video ads for extra pages; ads never see your documents. Read the full privacy notice on the Arks Scanner website.'**
   String get privacyBody;
 
   /// No description provided for @iUnderstand.
@@ -683,6 +683,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Something went wrong. Please try again.'**
   String get errGeneric;
+
+  /// No description provided for @adLimitTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s free text recognition is used up'**
+  String get adLimitTitle;
+
+  /// No description provided for @adLimitBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch a short video ad to get {pages} more pages today.'**
+  String adLimitBody(int pages);
+
+  /// No description provided for @adRewardsLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{You can do this 1 more time today.} other{You can do this {count} more times today.}}'**
+  String adRewardsLeft(int count);
+
+  /// No description provided for @notNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get notNow;
+
+  /// No description provided for @watchAd.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch ad'**
+  String get watchAd;
+
+  /// No description provided for @adRewardGranted.
+  ///
+  /// In en, this message translates to:
+  /// **'{pages} more pages added for today.'**
+  String adRewardGranted(int pages);
+
+  /// No description provided for @adRewardPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Thanks! Your extra pages will be added in a moment. Try again shortly.'**
+  String get adRewardPending;
+
+  /// No description provided for @adNotFinished.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch the whole ad to get the extra pages.'**
+  String get adNotFinished;
+
+  /// No description provided for @adsUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No ad is available right now. Try again later.'**
+  String get adsUnavailable;
 
   /// No description provided for @exportOptions.
   ///

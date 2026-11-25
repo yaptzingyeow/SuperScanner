@@ -38,7 +38,9 @@ public sealed class PrivacyService(AppDbContext db, IIdentityAccountDeleter iden
                 .Select(s => new { s.Id, Source = s.Source.ToString(), Status = s.Status.ToString(), s.StartsAt, s.EndsAt, s.Note })
                 .ToListAsync(ct),
             usage = await db.UsageDays.AsNoTracking().Where(u => u.AccountUid == uid).OrderBy(u => u.Day)
-                .Select(u => new { u.Day, u.OcrPages, u.WatermarkExports }).ToListAsync(ct),
+                .Select(u => new { u.Day, u.OcrPages, u.WatermarkExports, u.BonusOcrPages }).ToListAsync(ct),
+            adRewards = await db.AdRewards.AsNoTracking().Where(r => r.AccountUid == uid && r.GrantedAt != null)
+                .OrderBy(r => r.GrantedAt).Select(r => new { r.Day, r.Pages, r.GrantedAt }).ToListAsync(ct),
             documents = documents.Select(d => new
             {
                 d.Id, d.Title, Status = d.Status.ToString(), d.CreatedAt, d.UpdatedAt,

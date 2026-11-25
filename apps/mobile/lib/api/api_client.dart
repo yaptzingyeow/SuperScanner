@@ -13,10 +13,15 @@ abstract interface class TokenSource {
 
 /// A failed API call. [code] is the server's safe error code when it sent one (e.g. `plan_limit_reached`).
 class ApiException implements Exception {
-  const ApiException(this.statusCode, [this.code]);
+  const ApiException(this.statusCode, [this.code, this.kind]);
 
   final int statusCode;
   final String? code;
+
+  /// For `plan_limit_reached`: which limit (ocr, watermark or documents).
+  final String? kind;
+
+  bool get isOcrLimit => code == 'plan_limit_reached' && kind == 'ocr';
 
   @override
   String toString() => 'ApiException($statusCode${code == null ? '' : ', $code'})';
@@ -84,13 +89,17 @@ class ApiClient {
   void _check(http.Response response) {
     if (response.statusCode >= 200 && response.statusCode < 300) return;
     String? code;
+    String? kind;
     try {
       final body = jsonDecode(response.body);
-      if (body is Map<String, dynamic>) code = (body['code'] ?? body['errorCode']) as String?;
+      if (body is Map<String, dynamic>) {
+        code = (body['code'] ?? body['errorCode']) as String?;
+        kind = body['kind'] as String?;
+      }
     } catch (_) {
       // Not JSON: keep the status code only.
     }
-    throw ApiException(response.statusCode, code);
+    throw ApiException(response.statusCode, code, kind);
   }
 }
 
@@ -176,4 +185,17 @@ class DocumentsApi {
   Future<PlanInfo> getPlan() async => PlanInfo.fromJson(await _api.getJson('/me/plan') as Map<String, dynamic>);
 
   Future<void> recordConsent(String version) => _api.postJson('/me/consent', {'version': version});
+
+  /// Starts a rewarded ad; the returned id goes into the ad's server-side verification data.
+  Future<({String id, int pages})> startAdReward() async {
+    final json = await _api.postJson('/me/ad-rewards') as Map<String, dynamic>;
+    return (id: json['id'] as String, pages: (json['pages'] as num).toInt());
+  }
+
+  /// True once AdMob's verified callback reached the server and the pages were added.
+  Future<bool> adRewardGranted(String id) async =>
+      (await _api.getJson('/me/ad-rewards/$id') as Map<String, dynamic>)['granted'] == true;
+
+  /// Test builds only (server switch Ads:AllowUnverifiedRewards): claim the reward without AdMob's callback.
+  Future<void> claimAdReward(String id) => _api.postJson('/me/ad-rewards/$id/claim');
 }

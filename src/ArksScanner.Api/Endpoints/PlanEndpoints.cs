@@ -10,8 +10,10 @@ public static class PlanEndpoints
     public static void Map(IEndpointRouteBuilder endpoints)
     {
         endpoints.MapGet("/api/me/plan", async (ICurrentUser user, PlanService plans, IAccountDirectory accounts,
-            ArksScanner.Infrastructure.Persistence.AppDbContext db, HttpContext context, CancellationToken ct) =>
+            ArksScanner.Infrastructure.Persistence.AppDbContext db, ArksScanner.Infrastructure.Ads.AdRewardService ads,
+            HttpContext context, CancellationToken ct) =>
         {
+            var adOffer = await ads.GetOfferAsync(user.FirebaseUid, ct);
             context.Response.Headers.CacheControl = "private, no-store";
             var entitlements = await plans.GetEntitlementsAsync(user.FirebaseUid, ct);
             var usage = await plans.GetUsageAsync(user.FirebaseUid, ct);
@@ -45,6 +47,15 @@ public static class PlanEndpoints
                 privacyConsentVersion = consent,
                 currentPrivacyVersion = PrivacyNotice.CurrentVersion,
                 locale = region.Locale,
+                ads = new
+                {
+                    webAnchor = adOffer.WebAnchor,
+                    adSenseClientId = adOffer.AdSenseClientId,
+                    rewarded = adOffer.Rewarded,
+                    rewardedOcrPages = adOffer.RewardedOcrPages,
+                    rewardsLeftToday = adOffer.RewardsLeftToday,
+                    unverifiedClaim = adOffer.UnverifiedClaimAllowed,
+                },
             });
         }).RequireAuthorization();
 
@@ -85,7 +96,7 @@ public static class PlanEndpoints
 /// <summary>The privacy notice people accept; bump the version when the notice changes so everyone is asked again.</summary>
 public static class PrivacyNotice
 {
-    public const string CurrentVersion = "2026-10";
+    public const string CurrentVersion = "2026-11";
 }
 
 /// <summary>The 429 "plan_limit_reached" problem shared by every limited endpoint.</summary>

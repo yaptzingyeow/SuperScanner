@@ -20,6 +20,9 @@ android {
         // Firebase Auth/App Check and the ML Kit document scanner need Android 7.0 (API 24) or newer.
         minSdk = maxOf(flutter.minSdkVersion, 24)
         targetSdk = flutter.targetSdkVersion
+        // AdMob app id: Google's public test app unless the build passes -PadmobAppId=ca-app-pub-…~… (AdMob console).
+        manifestPlaceholders["admobAppId"] =
+            (project.findProperty("admobAppId") as String?) ?: "ca-app-pub-3940256099942544~3347511713"
         // Uses the version code from pubspec.yaml. When using split APKs, 1000 * ABI_VERSION
         // is added automatically by Flutter. (https://developer.android.com/studio/build/configure-apk-splits#configure-APK-versions)
         // You can force using the value of versionCode by specifying the `-P force-version-code-ignoring-abi=true`

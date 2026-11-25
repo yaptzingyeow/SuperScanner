@@ -9,6 +9,7 @@ import '../api/edit_api.dart';
 import '../api/models.dart';
 import '../services/document_search.dart';
 import 'common.dart';
+import 'rewarded_offer.dart';
 
 /// Search recognised text across the document; pages not yet recognised can be recognised here.
 class SearchScreen extends StatefulWidget {
@@ -65,7 +66,16 @@ class _SearchScreenState extends State<SearchScreen> {
     setState(() => _busy = true);
     try {
       for (final entry in _ocr.entries.where((entry) => entry.value.canRequest)) {
-        await _edits.requestOcr(widget.documentId, entry.key, retryFailed: entry.value.state == 'Failed');
+        Future<void> request() =>
+            _edits.requestOcr(widget.documentId, entry.key, retryFailed: entry.value.state == 'Failed');
+        try {
+          await request();
+        } on ApiException catch (error) {
+          // Free daily OCR used up: a rewarded ad can unlock more pages; otherwise stop here.
+          if (!error.isOcrLimit || !mounted) rethrow;
+          if (!await offerRewardedAd(context)) break;
+          await request();
+        }
       }
       await _load();
     } catch (error) {

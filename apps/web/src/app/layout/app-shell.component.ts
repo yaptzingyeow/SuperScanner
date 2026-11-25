@@ -3,6 +3,7 @@ import { Component, inject, signal } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../core/auth/auth.service';
 import { PlanService } from '../plans/plan.service';
+import { WebAdsService } from '../ads/web-ads.service';
 import { I18nService, LanguageCode } from '../core/i18n/i18n.service';
 
 @Component({
@@ -16,6 +17,8 @@ export class AppShellComponent {
   private readonly router = inject(Router);
   protected readonly plans = inject(PlanService);
   protected readonly i18n = inject(I18nService);
+  // Starts watching for the Free-plan AdSense anchor; it loads only on ad-safe pages.
+  protected readonly ads = inject(WebAdsService);
 
   protected chooseLanguage(code: string): void {
     this.i18n.use(code as LanguageCode);

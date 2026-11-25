@@ -275,7 +275,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get privacyBody =>
-      'Arks Scanner 会以保密方式处理您的文档，用于扫描、清理和导出。请在 Arks Scanner 网站上阅读完整的隐私声明。';
+      'Arks Scanner 会以保密方式处理您的文档，用于扫描、清理和导出。免费账户可选择观看 Google 视频广告以获得额外页数；广告永远看不到您的文档。请在 Arks Scanner 网站上阅读完整的隐私声明。';
 
   @override
   String get iUnderstand => '我明白了';
@@ -309,6 +309,45 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get errGeneric => '出了点问题，请重试。';
+
+  @override
+  String get adLimitTitle => '今天的免费文字识别已用完';
+
+  @override
+  String adLimitBody(int pages) {
+    return '观看一段简短视频广告，今天可再获得 $pages 页。';
+  }
+
+  @override
+  String adRewardsLeft(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '今天还可以这样做 $count 次。',
+      one: '今天还可以这样做 1 次。',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get notNow => '以后再说';
+
+  @override
+  String get watchAd => '观看广告';
+
+  @override
+  String adRewardGranted(int pages) {
+    return '已为今天增加 $pages 页。';
+  }
+
+  @override
+  String get adRewardPending => '谢谢！额外页数稍后会添加。请稍后再试。';
+
+  @override
+  String get adNotFinished => '请完整观看广告以获得额外页数。';
+
+  @override
+  String get adsUnavailable => '目前没有可用的广告。请稍后再试。';
 
   @override
   String get exportOptions => '导出选项';

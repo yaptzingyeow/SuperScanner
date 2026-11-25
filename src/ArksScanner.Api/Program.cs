@@ -76,6 +76,17 @@ builder.Services.AddScoped<ArksScanner.Application.Plans.IPlanRepository, EfPlan
 builder.Services.AddScoped<ArksScanner.Application.Plans.PlanService>();
 builder.Services.AddScoped<ArksScanner.Infrastructure.Admin.AdminService>();
 builder.Services.AddScoped<ArksScanner.Infrastructure.Privacy.PrivacyService>();
+builder.Services.AddOptions<ArksScanner.Infrastructure.Ads.AdsOptions>()
+    .BindConfiguration(ArksScanner.Infrastructure.Ads.AdsOptions.SectionName)
+    .Validate(o => o.RewardedOcrPages is >= 1 and <= 100 && o.MaxRewardsPerDay is >= 0 and <= 50,
+        "Ads: RewardedOcrPages must be 1-100 and MaxRewardsPerDay 0-50.")
+    .Validate(o => !o.WebAnchorEnabled || System.Text.RegularExpressions.Regex.IsMatch(o.AdSenseClientId ?? string.Empty, "^ca-pub-[0-9]{10,20}$"),
+        "Ads: AdSenseClientId must look like ca-pub-1234567890123456 when WebAnchorEnabled is true.")
+    .ValidateOnStart();
+builder.Services.AddHttpClient<ArksScanner.Infrastructure.Ads.IAdMobKeySource, ArksScanner.Infrastructure.Ads.HttpAdMobKeySource>(client =>
+    client.Timeout = TimeSpan.FromSeconds(10));
+builder.Services.AddScoped<ArksScanner.Infrastructure.Ads.AdMobRewardVerifier>();
+builder.Services.AddScoped<ArksScanner.Infrastructure.Ads.AdRewardService>();
 builder.Services.AddScoped<IDocumentExportRepository, EfDocumentExportRepository>();
 builder.Services.AddScoped<IPageSignatureRepository, EfPageSignatureRepository>();
 builder.Services.AddScoped<IPageMarkRepository, EfPageMarkRepository>();
@@ -182,6 +193,10 @@ builder.Services.AddScoped<IAuditVerifier, HmacAuditVerifier>();
 
 var app = builder.Build();
 _ = app.Services.GetRequiredService<IFontCatalogue>();
+if (app.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<ArksScanner.Infrastructure.Ads.AdsOptions>>()
+        .Value.AllowUnverifiedRewards)
+    app.Logger.LogWarning("Ads:AllowUnverifiedRewards is on: the app can claim ad rewards without AdMob's signed callback. " +
+        "Use only with test ad units; turn it off before real ads go live.");
 
 if (builder.Environment.IsEnvironment("E2E"))
 {
@@ -220,6 +235,7 @@ OcrEndpoints.Map(app);
 TextEditingEndpoints.Map(app);
 AdminEndpoints.Map(app);
 PlanEndpoints.Map(app);
+AdEndpoints.Map(app);
 UploadsEndpoints.Map(app);
 // /health: the process is up. /health/ready: database reachable and fully migrated.
 app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions

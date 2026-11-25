@@ -282,7 +282,7 @@ class AppLocalizationsMs extends AppLocalizations {
 
   @override
   String get privacyBody =>
-      'Arks Scanner memproses dokumen anda secara peribadi untuk mengimbas, mengemas dan mengeksportnya. Baca notis privasi penuh di laman web Arks Scanner.';
+      'Arks Scanner memproses dokumen anda secara peribadi untuk mengimbas, mengemas dan mengeksportnya. Akaun Percuma boleh memilih untuk menonton iklan video Google untuk halaman tambahan; iklan tidak pernah melihat dokumen anda. Baca notis privasi penuh di laman web Arks Scanner.';
 
   @override
   String get iUnderstand => 'Saya faham';
@@ -321,6 +321,48 @@ class AppLocalizationsMs extends AppLocalizations {
 
   @override
   String get errGeneric => 'Ada masalah. Sila cuba lagi.';
+
+  @override
+  String get adLimitTitle => 'Pengecaman teks percuma hari ini sudah habis';
+
+  @override
+  String adLimitBody(int pages) {
+    return 'Tonton iklan video pendek untuk mendapat $pages halaman lagi hari ini.';
+  }
+
+  @override
+  String adRewardsLeft(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Anda boleh melakukannya $count kali lagi hari ini.',
+      one: 'Anda boleh melakukannya 1 kali lagi hari ini.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get notNow => 'Bukan sekarang';
+
+  @override
+  String get watchAd => 'Tonton iklan';
+
+  @override
+  String adRewardGranted(int pages) {
+    return '$pages halaman lagi ditambah untuk hari ini.';
+  }
+
+  @override
+  String get adRewardPending =>
+      'Terima kasih! Halaman tambahan anda akan ditambah sebentar lagi. Cuba lagi sebentar nanti.';
+
+  @override
+  String get adNotFinished =>
+      'Tonton iklan hingga habis untuk mendapat halaman tambahan.';
+
+  @override
+  String get adsUnavailable =>
+      'Tiada iklan tersedia sekarang. Cuba lagi nanti.';
 
   @override
   String get exportOptions => 'Pilihan eksport';

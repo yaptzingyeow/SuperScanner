@@ -13,6 +13,7 @@ import 'api/api_client.dart';
 import 'api/edit_api.dart';
 import 'config.dart';
 import 'l10n/app_localizations.dart';
+import 'services/ad_service.dart';
 import 'services/auth_service.dart';
 import 'services/export_service.dart';
 import 'services/font_service.dart';
@@ -66,6 +67,7 @@ Future<void> main() async {
       Provider(create: (_) => FontService(edits, AppConfig.webBaseUrl)),
       Provider(create: (_) => UploadService(documents)),
       Provider(create: (_) => ExportService(documents, store, watermarkFile: File('$support/settings/watermark.json'))),
+      Provider(create: (_) => AdService()),
       ChangeNotifierProvider(create: (_) => SessionState(documents)),
     ],
     child: const ArksScannerApp(),

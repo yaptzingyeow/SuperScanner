@@ -652,6 +652,48 @@ namespace ArksScanner.Infrastructure.Persistence.Migrations
                     b.ToTable("accounts", (string)null);
                 });
 
+            modelBuilder.Entity("ArksScanner.Domain.Plans.AdReward", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AccountUid")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("Day")
+                        .HasColumnType("date");
+
+                    b.Property<DateTimeOffset?>("GrantedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("GrantedBy")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<int>("Pages")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("TransactionId")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("TransactionId")
+                        .IsUnique();
+
+                    b.HasIndex("AccountUid", "Day");
+
+                    b.ToTable("ad_rewards", (string)null);
+                });
+
             modelBuilder.Entity("ArksScanner.Domain.Plans.AdminMember", b =>
                 {
                     b.Property<string>("AccountUid")
@@ -1416,6 +1458,15 @@ namespace ArksScanner.Infrastructure.Persistence.Migrations
                     b.HasOne("ArksScanner.Domain.Documents.Page", null)
                         .WithMany()
                         .HasForeignKey("PageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ArksScanner.Domain.Plans.AdReward", b =>
+                {
+                    b.HasOne("ArksScanner.Domain.Plans.Account", null)
+                        .WithMany()
+                        .HasForeignKey("AccountUid")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

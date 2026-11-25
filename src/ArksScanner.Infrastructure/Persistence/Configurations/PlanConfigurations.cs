@@ -23,6 +23,23 @@ public sealed class AccountConfiguration : IEntityTypeConfiguration<Account>
     }
 }
 
+public sealed class AdRewardConfiguration : IEntityTypeConfiguration<AdReward>
+{
+    public void Configure(EntityTypeBuilder<AdReward> builder)
+    {
+        builder.ToTable("ad_rewards");
+        builder.HasKey(x => x.Id);
+        builder.Property(x => x.Id).ValueGeneratedNever();
+        builder.Property(x => x.AccountUid).HasMaxLength(128).IsRequired();
+        builder.Property(x => x.TransactionId).HasMaxLength(AdReward.MaximumTransactionIdLength);
+        builder.Property(x => x.GrantedBy).HasMaxLength(16);
+        builder.HasIndex(x => x.TransactionId).IsUnique();
+        builder.HasIndex(x => new { x.AccountUid, x.Day });
+        builder.HasIndex(x => x.CreatedAt);
+        builder.HasOne<Account>().WithMany().HasForeignKey(x => x.AccountUid).OnDelete(DeleteBehavior.Cascade);
+    }
+}
+
 public sealed class SubscriptionConfiguration : IEntityTypeConfiguration<Subscription>
 {
     public void Configure(EntityTypeBuilder<Subscription> builder)

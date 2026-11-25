@@ -8,6 +8,7 @@ import '../../api/edit_api.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/font_service.dart';
 import '../common.dart';
+import '../rewarded_offer.dart';
 import 'marks_screen.dart' show parseHex;
 import 'page_stage.dart';
 
@@ -125,7 +126,17 @@ class _TextScreenState extends State<TextScreen> {
   }
 
   Future<void> _recognise() => _run(() async {
-        final ocr = await _edits.requestOcr(widget.documentId, widget.pageId, retryFailed: _ocr?.state == 'Failed');
+        Future<PageOcr> request() =>
+            _edits.requestOcr(widget.documentId, widget.pageId, retryFailed: _ocr?.state == 'Failed');
+        PageOcr ocr;
+        try {
+          ocr = await request();
+        } on ApiException catch (error) {
+          // Free daily OCR used up: a rewarded ad can unlock more pages, then try once more.
+          if (!error.isOcrLimit || !mounted) rethrow;
+          if (!await offerRewardedAd(context)) return;
+          ocr = await request();
+        }
         if (!mounted) return;
         setState(() => _ocr = ocr);
         _schedulePoll(ocr);

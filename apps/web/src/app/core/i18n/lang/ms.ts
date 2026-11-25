@@ -21,7 +21,7 @@ const dictionary: Record<string, string> = {
   "menu.signOut": "Log keluar",
   "menu.proSoon": "Pro akan datang tidak lama lagi",
   "consent.title": "Dokumen anda adalah peribadi untuk anda.",
-  "consent.body": "Kami menyimpan imbasan anda dan teks yang dikenal pasti untuk menjalankan Arks Scanner, menggunakan perkhidmatan Google untuk log masuk dan pengecaman teks, dan tidak pernah menjual data anda. Anda boleh memuat turun atau memadam data anda pada bila-bila masa.",
+  "consent.body": "Kami menyimpan imbasan anda dan teks yang dikenal pasti untuk menjalankan Arks Scanner, menggunakan perkhidmatan Google untuk log masuk dan pengecaman teks, dan tidak pernah menjual data anda. Anda boleh memuat turun atau memadam data anda pada bila-bila masa. Akaun Percuma mungkin melihat iklan Google di halaman muat naik; iklan tidak pernah melihat dokumen anda.",
   "consent.accept": "Saya faham",
   "privacy.title": "Privasi & data anda",
   "privacy.lead": "Dokumen anda adalah peribadi untuk anda. Anda boleh mengambil salinan data anda atau memadam akaun anda pada bila-bila masa.",

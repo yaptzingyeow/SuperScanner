@@ -20,6 +20,8 @@ export interface MePlan {
   };
   usage: { ocrPages: number; bonusOcrPages: number; watermarkExports: number; resetsAt: string };
   documentCount: number;
+  /** Ads this account may see (Free only). Older servers omit it: no ads. */
+  ads?: { webAnchor: boolean; adSenseClientId: string | null };
 }
 
 /** The 429 body every limited endpoint returns. */

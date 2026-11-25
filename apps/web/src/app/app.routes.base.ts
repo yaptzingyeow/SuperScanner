@@ -9,6 +9,7 @@ import { NewDocumentComponent } from './documents/new-document.component';
 import { UploadStatusComponent } from './documents/upload-status.component';
 import { AppShellComponent } from './layout/app-shell.component';
 import { authGuard, signedInGuard } from './core/auth/auth.guard';
+import { adFreeNavigationGuard } from './ads/web-ads.service';
 import { LoginComponent } from './core/auth/login.component';
 
 export const foundationRoutes: Routes = [
@@ -17,6 +18,7 @@ export const foundationRoutes: Routes = [
     path: '',
     component: AppShellComponent,
     canActivate: [authGuard],
+    canActivateChild: [adFreeNavigationGuard],
     children: [
       { path: '', component: NewDocumentComponent },
       { path: 'documents', component: DocumentListComponent },

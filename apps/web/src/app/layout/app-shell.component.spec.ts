@@ -1,6 +1,7 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { PlanService } from '../plans/plan.service';
+import { WebAdsService } from '../ads/web-ads.service';
 import { provideRouter, Router } from '@angular/router';
 import { of } from 'rxjs';
 import { AuthService } from '../core/auth/auth.service';
@@ -71,6 +72,7 @@ describe('AppShellComponent', () => {
       providers: [
         provideRouter([]),
         { provide: PlanService, useValue: plans },
+        { provide: WebAdsService, useValue: {} },
         { provide: AuthService, useValue: { user$: of({ email: 'user@example.com', isAnonymous: false }), signOut: vi.fn(), ensureGuest: vi.fn() } },
       ],
     });
@@ -103,6 +105,7 @@ describe('AppShellComponent', () => {
       providers: [
         provideRouter([]),
         { provide: PlanService, useValue: plans },
+        { provide: WebAdsService, useValue: {} },
         { provide: AuthService, useValue: { user$: of({ email: 'user@example.com', isAnonymous: false }), signOut: vi.fn(), ensureGuest: vi.fn() } },
       ],
     });

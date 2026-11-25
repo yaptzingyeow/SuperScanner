@@ -22,7 +22,7 @@ const dictionary: Record<string, string> = {
   "menu.signOut": "Sign out",
   "menu.proSoon": "Pro is coming soon",
   "consent.title": "Your documents are private to you.",
-  "consent.body": "We store your scans and their recognized text to run Arks Scanner, use Google services for sign-in and text recognition, and never sell your data. You can download or delete your data at any time.",
+  "consent.body": "We store your scans and their recognized text to run Arks Scanner, use Google services for sign-in and text recognition, and never sell your data. You can download or delete your data at any time. Free accounts may see Google ads on the upload page; ads never see your documents.",
   "consent.accept": "I understand",
   "privacy.title": "Privacy & your data",
   "privacy.lead": "Your documents are private to you. You can take a copy of your data or delete your account at any time.",

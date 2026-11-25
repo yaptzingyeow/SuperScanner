@@ -28,6 +28,15 @@ abstract final class AppConfig {
   /// in debug mode) to the debug provider; store builds must leave it empty.
   static const appCheckDebugToken = String.fromEnvironment('APP_CHECK_DEBUG_TOKEN');
 
+  /// AdMob rewarded ad units. The defaults are Google's public test units, which always show a "Test Ad";
+  /// release builds pass the real units from the AdMob console.
+  static const admobRewardedAndroid =
+      String.fromEnvironment('ADMOB_REWARDED_ANDROID', defaultValue: 'ca-app-pub-3940256099942544/5224354917');
+  static const admobRewardedIos =
+      String.fromEnvironment('ADMOB_REWARDED_IOS', defaultValue: 'ca-app-pub-3940256099942544/1712485313');
+
+  static String get admobRewardedUnit => Platform.isIOS ? admobRewardedIos : admobRewardedAndroid;
+
   static String get firebaseAppId => Platform.isIOS ? firebaseIosAppId : firebaseAndroidAppId;
 
   static bool get firebaseConfigured => firebaseAppId.isNotEmpty;

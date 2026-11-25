@@ -172,6 +172,48 @@ void main() {
     expect(friendlyError(context, const ApiException(503)), endsWith('Error code: HTTP 503'));
   });
 
+  group('rewarded ads', () {
+    test('the plan says when a rewarded ad is on offer, and old servers mean no ads', () {
+      final plan = PlanInfo.fromJson({
+        'plan': 'Free',
+        'ads': {'rewarded': true, 'rewardedOcrPages': 5, 'rewardsLeftToday': 2, 'unverifiedClaim': false},
+      });
+      expect([plan.rewardedAds, plan.rewardedOcrPages, plan.rewardsLeftToday, plan.unverifiedAdClaim], [true, 5, 2, false]);
+      expect(PlanInfo.fromJson({'plan': 'Free'}).rewardedAds, isFalse);
+    });
+
+    test('only the daily OCR limit offers an ad; other limits do not', () async {
+      Future<ApiException> fail(Map<String, dynamic> body) async {
+        final client = MockClient((_) async => http.Response(jsonEncode(body), 429));
+        final api = ApiClient(baseUrl: 'https://api.test/api', tokens: _Tokens(), client: client);
+        try {
+          await api.postJson('/x');
+        } on ApiException catch (error) {
+          return error;
+        }
+        throw StateError('expected a failure');
+      }
+
+      expect((await fail({'code': 'plan_limit_reached', 'kind': 'ocr'})).isOcrLimit, isTrue);
+      expect((await fail({'code': 'plan_limit_reached', 'kind': 'documents'})).isOcrLimit, isFalse);
+    });
+
+    test('starting a reward and checking it use the server endpoints', () async {
+      final calls = <String>[];
+      final client = MockClient((request) async {
+        calls.add('${request.method} ${request.url.path}');
+        return request.method == 'POST'
+            ? http.Response(jsonEncode({'id': 'r1', 'pages': 5}), 200)
+            : http.Response(jsonEncode({'granted': true}), 200);
+      });
+      final api = DocumentsApi(ApiClient(baseUrl: 'https://api.test/api', tokens: _Tokens(), client: client));
+      final reward = await api.startAdReward();
+      expect([reward.id, reward.pages], ['r1', 5]);
+      expect(await api.adRewardGranted('r1'), isTrue);
+      expect(calls, ['POST /api/me/ad-rewards', 'GET /api/me/ad-rewards/r1']);
+    });
+  });
+
   group('watermark', () {
     test('export sends the watermark the way the server validates it', () async {
       late Map<String, dynamic> sent;

@@ -337,22 +337,38 @@ class WatermarkSettings {
 }
 
 class PlanInfo {
-  const PlanInfo({required this.plan, this.consentVersion, this.currentPrivacyVersion});
+  const PlanInfo({required this.plan, this.consentVersion, this.currentPrivacyVersion, this.rewardedAds = false,
+      this.rewardedOcrPages = 0, this.rewardsLeftToday = 0, this.unverifiedAdClaim = false});
 
   final String plan;
   final String? consentVersion;
   final String? currentPrivacyVersion;
+
+  /// A Free account may watch a rewarded ad for [rewardedOcrPages] more OCR pages today.
+  final bool rewardedAds;
+  final int rewardedOcrPages;
+  final int rewardsLeftToday;
+
+  /// Test servers only: the app claims the reward itself (Google's test ad units send no verified callback).
+  final bool unverifiedAdClaim;
 
   bool get isPro => plan == 'Pro';
 
   /// Same rule as the web: consent again whenever the privacy notice version changes.
   bool get needsConsent => currentPrivacyVersion != null && consentVersion != currentPrivacyVersion;
 
-  factory PlanInfo.fromJson(Map<String, dynamic> json) => PlanInfo(
-        plan: json['plan'] as String? ?? 'Free',
-        consentVersion: json['privacyConsentVersion'] as String?,
-        currentPrivacyVersion: json['currentPrivacyVersion'] as String?,
-      );
+  factory PlanInfo.fromJson(Map<String, dynamic> json) {
+    final ads = json['ads'] as Map<String, dynamic>? ?? const {};
+    return PlanInfo(
+      plan: json['plan'] as String? ?? 'Free',
+      consentVersion: json['privacyConsentVersion'] as String?,
+      currentPrivacyVersion: json['currentPrivacyVersion'] as String?,
+      rewardedAds: ads['rewarded'] == true,
+      rewardedOcrPages: (ads['rewardedOcrPages'] as num?)?.toInt() ?? 0,
+      rewardsLeftToday: (ads['rewardsLeftToday'] as num?)?.toInt() ?? 0,
+      unverifiedAdClaim: ads['unverifiedClaim'] == true,
+    );
+  }
 }
 
 /// The scan looks the server can apply, in filter-strip order (labels are translated in the UI).

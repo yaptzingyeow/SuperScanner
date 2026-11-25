@@ -21,7 +21,7 @@ const dictionary: Record<string, string> = {
   "menu.signOut": "退出登录",
   "menu.proSoon": "专业版即将推出",
   "consent.title": "您的文档仅属于您自己。",
-  "consent.body": "我们会保存您的扫描件及其识别出的文字以运行 Arks Scanner，使用 Google 服务进行登录和文字识别，并且绝不出售您的数据。您可以随时下载或删除您的数据。",
+  "consent.body": "我们会保存您的扫描件及其识别出的文字以运行 Arks Scanner，使用 Google 服务进行登录和文字识别，并且绝不出售您的数据。您可以随时下载或删除您的数据。免费账户可能会在上传页面看到 Google 广告；广告永远看不到您的文档。",
   "consent.accept": "我已了解",
   "privacy.title": "隐私与您的数据",
   "privacy.lead": "您的文档仅属于您自己。您可以随时获取数据副本或删除您的账户。",

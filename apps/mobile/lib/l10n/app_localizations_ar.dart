@@ -281,7 +281,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get privacyBody =>
-      'يعالج Arks Scanner مستنداتك بشكل خاص لمسحها وتنظيفها وتصديرها. اقرأ إشعار الخصوصية الكامل على موقع Arks Scanner.';
+      'يعالج Arks Scanner مستنداتك بشكل خاص لمسحها وتنظيفها وتصديرها. يمكن لحسابات الخطة المجانية اختيار مشاهدة إعلانات فيديو من Google للحصول على صفحات إضافية؛ ولا تطّلع الإعلانات على مستنداتك أبدًا. اقرأ إشعار الخصوصية الكامل على موقع Arks Scanner.';
 
   @override
   String get iUnderstand => 'فهمت';
@@ -319,6 +319,47 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get errGeneric => 'حدث خطأ ما. حاول مرة أخرى.';
+
+  @override
+  String get adLimitTitle => 'استُنفدت ميزة التعرّف على النص المجانية لليوم';
+
+  @override
+  String adLimitBody(int pages) {
+    return 'شاهد إعلان فيديو قصيرًا للحصول على $pages صفحات إضافية اليوم.';
+  }
+
+  @override
+  String adRewardsLeft(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'يمكنك فعل ذلك $count مرات أخرى اليوم.',
+      one: 'يمكنك فعل ذلك مرة واحدة أخرى اليوم.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get notNow => 'ليس الآن';
+
+  @override
+  String get watchAd => 'شاهد الإعلان';
+
+  @override
+  String adRewardGranted(int pages) {
+    return 'أُضيفت $pages صفحات إضافية لليوم.';
+  }
+
+  @override
+  String get adRewardPending =>
+      'شكرًا! ستُضاف صفحاتك الإضافية بعد لحظات. حاول مرة أخرى بعد قليل.';
+
+  @override
+  String get adNotFinished =>
+      'شاهد الإعلان كاملًا للحصول على الصفحات الإضافية.';
+
+  @override
+  String get adsUnavailable => 'لا يتوفر إعلان الآن. حاول مرة أخرى لاحقًا.';
 
   @override
   String get exportOptions => 'خيارات التصدير';
